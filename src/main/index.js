@@ -341,6 +341,7 @@ ipcMain.handle('settings:save', (_e, partial) => {
   // 设置窗口此时聚焦、全局快捷键已禁用，这里只做注册校验（之后关窗会真正注册）。
   const hotkeyErrors = validateHotkeys(s.hotkeys)
   rebuildTray()
+  applyLoginItem()
   return { settings: s, hotkeyErrors }
 })
 
@@ -453,6 +454,17 @@ function validateHotkeys(hk) {
   return failed
 }
 
+// 开机自启（macOS / Windows）。注意：dev 模式下登录项指向 Electron 本体，
+// 打包成 .app 后才真正可用；openAsHidden 让它登录后静默到菜单栏。
+function applyLoginItem() {
+  if (process.platform === 'linux') return
+  try {
+    app.setLoginItemSettings({ openAtLogin: !!settings.get().launchAtLogin, openAsHidden: true })
+  } catch (e) {
+    console.warn('设置开机自启失败：', e.message)
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /* 应用生命周期                                                        */
 /* ------------------------------------------------------------------ */
@@ -466,6 +478,7 @@ if (!app.requestSingleInstanceLock()) {
     createTray()
     registerHotkeys()
     prepareOCR() // 后台预编译 Vision OCR 二进制（仅 Mac）
+    applyLoginItem() // 按设置同步开机自启
   })
 
   app.on('window-all-closed', () => {})

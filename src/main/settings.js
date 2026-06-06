@@ -8,6 +8,7 @@ const { app } = require('electron')
 
 const DEFAULTS = {
   engine: 'google', // 选中的服务商 id（见 engines/providers.js）
+  launchAtLogin: false, // 开机自启
   hotkeys: {
     input: 'Alt+Q', // 输入翻译
     screenshot: 'Alt+W', // 截图翻译

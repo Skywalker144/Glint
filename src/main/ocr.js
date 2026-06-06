@@ -117,10 +117,17 @@ function recognizeMac(binary, pngBuffer) {
 /* 统一入口                                                            */
 /* ------------------------------------------------------------------ */
 
+// 打包后用随 App 内置的预编译二进制（用户机无需 Xcode）；开发时为 null（走现编译）。
+function bundledMacBinary() {
+  if (!app.isPackaged) return null
+  const p = path.join(process.resourcesPath, 'macocr')
+  return fs.existsSync(p) ? p : null
+}
+
 // image 是 PNG Buffer。Mac 优先 Vision，失败或非 Mac 退回 Tesseract。
 async function recognize(image) {
   if (process.platform === 'darwin') {
-    const bin = await buildMacOCR()
+    const bin = bundledMacBinary() || (await buildMacOCR())
     if (bin) {
       try {
         return cleanText(await recognizeMac(bin, image))
@@ -132,9 +139,9 @@ async function recognize(image) {
   return cleanText(await recognizeTesseract(image))
 }
 
-// 启动时预热：提前把 Vision 二进制编译好，让首次截图翻译更快。
+// 启动时预热：开发模式下提前把 Vision 二进制编译好（打包版已内置，无需编译）。
 function prepare() {
-  if (process.platform === 'darwin') buildMacOCR()
+  if (process.platform === 'darwin' && !app.isPackaged) buildMacOCR()
 }
 
 module.exports = { recognize, cleanText, prepare }

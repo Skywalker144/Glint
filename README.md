@@ -22,6 +22,23 @@ npm install   # 首次
 npm start
 ```
 
+## 下载（普通用户）
+
+到 [Releases](https://github.com/Skywalker144/Glint/releases) 下载：Mac 用 `.dmg`，Windows 用 `.exe`。
+
+> 未做代码签名：**Mac** 首次打开请右键 →「打开」；**Windows** 若弹 SmartScreen，点「更多信息 → 仍要运行」。
+
+## 发布新版本（开发者）
+
+打 `v*` 标签即触发 GitHub Actions 在 Mac / Windows 各自打包并发布到 Release：
+
+```bash
+npm version patch        # 升版本号并打 tag
+git push --follow-tags   # 推送触发 CI
+```
+
+本地单平台打包：`npm run dist:mac` / `npm run dist:win`（Mac 包需要 `swiftc` 预编译 Vision OCR）。
+
 ## macOS 首次使用要授权（重要）
 
 开发模式下，系统会把权限记在 **Electron** 这个程序名下：

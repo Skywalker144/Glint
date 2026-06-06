@@ -5,7 +5,10 @@
   "description": "闪译 · Glint — 划词 / 截图 / 输入翻译，黑白极简的跨平台桌面翻译工具（Electron）",
   "main": "src/main/index.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "build:macocr": "bash scripts/build-macocr.sh",
+    "dist:mac": "npm run build:macocr && electron-builder --mac",
+    "dist:win": "electron-builder --win"
   },
   "author": "Steve Tu",
   "license": "MIT",
@@ -14,8 +17,41 @@
     "type": "git",
     "url": "https://github.com/Skywalker144/Glint.git"
   },
+  "build": {
+    "appId": "com.skywalker144.glint",
+    "productName": "Glint",
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "Skywalker144",
+      "repo": "Glint"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.productivity",
+      "identity": null,
+      "extraResources": [
+        {
+          "from": "resources/macocr",
+          "to": "macocr"
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    }
+  },
   "devDependencies": {
-    "electron": "^42.3.3"
+    "electron": "^42.3.3",
+    "electron-builder": "^25.1.8"
   },
   "dependencies": {
     "tesseract.js": "^7.0.0"

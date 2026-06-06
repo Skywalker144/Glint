@@ -16,14 +16,23 @@
 
       <div class="s-main">
         <nav class="s-nav">
-          <button class="s-tab active" data-tab="hotkeys">快捷键</button>
+          <button class="s-tab active" data-tab="general">通用</button>
+          <button class="s-tab" data-tab="hotkeys">快捷键</button>
           <button class="s-tab" data-tab="engine">翻译引擎</button>
           <button class="s-tab" data-tab="about">关于</button>
         </nav>
 
         <div class="s-content">
+          <!-- 通用 -->
+          <section class="s-panel" data-panel="general">
+            <label class="s-toggle">
+              <input type="checkbox" id="launch-at-login" />
+              <span>开机时自动启动<small>登录后在后台静默启动，菜单栏待命</small></span>
+            </label>
+          </section>
+
           <!-- 快捷键 -->
-          <section class="s-panel" data-panel="hotkeys">
+          <section class="s-panel" data-panel="hotkeys" hidden>
             <div class="s-row">
               <label>输入翻译</label>
               <input class="recorder" data-key="input" readonly placeholder="点击后按下组合键" />

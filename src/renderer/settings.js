@@ -6,6 +6,7 @@ let metaList = [] // 服务商元数据（来自主进程）
 let metaById = {}
 let state = {
   engine: 'google',
+  launchAtLogin: false,
   hotkeys: { input: '', screenshot: '', selection: '' },
   providers: {},
 }
@@ -20,6 +21,12 @@ document.querySelectorAll('.s-tab').forEach((tab) => {
       p.hidden = p.dataset.panel !== name
     })
   })
+})
+
+/* ---------------- 通用 ---------------- */
+
+$('#launch-at-login').addEventListener('change', (e) => {
+  state.launchAtLogin = e.target.checked
 })
 
 /* ---------------- 快捷键录制 ---------------- */
@@ -276,10 +283,12 @@ function populate(s) {
   if (!s) return
   state = {
     engine: s.engine || 'google',
+    launchAtLogin: !!s.launchAtLogin,
     hotkeys: { ...s.hotkeys },
     providers: JSON.parse(JSON.stringify(s.providers || {})),
   }
   document.querySelectorAll('.recorder').forEach(renderHotkey)
+  $('#launch-at-login').checked = state.launchAtLogin
   if (metaList.length) renderEngine()
   setStatus('#save-status', '')
   setStatus('#ai-status', '')

@@ -1,0 +1,32 @@
+name: Release
+
+# 推送 v* 标签时，在 Mac 和 Windows 上分别打包，并发布到 GitHub Release（草稿）。
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            build: npm run build:macocr && npx electron-builder --mac --publish always
+          - os: windows-latest
+            build: npx electron-builder --win --publish always
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm install
+      - run: ${{ matrix.build }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
