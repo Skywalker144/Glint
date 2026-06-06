@@ -1,0 +1,22 @@
+# 依赖
+node_modules/
+
+# 打包产物
+dist/
+out/
+build/
+
+# 日志与缓存
+*.log
+npm-debug.log*
+.cache/
+
+# 系统 / 编辑器
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# 环境变量（API Key 实际存在系统 userData，不在仓库；这里以防万一）
+.env
+.env.*

@@ -1,0 +1,55 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  cursor: crosshair;
+  user-select: none;
+}
+
+/* 冻结的屏幕截图，铺满整屏 */
+#shot {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  -webkit-user-drag: none;
+}
+
+/* 初始整屏压暗；开始框选后隐藏，改由选框的投影压暗四周 */
+#dark {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+/* 选框：内部透明露出原图，box-shadow 把四周压暗 */
+#sel {
+  position: fixed;
+  display: none;
+  border: 2px solid #ffffff;
+  border-radius: 6px;
+  corner-shape: squircle;
+  background: transparent;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.45);
+}
+
+.tip {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fff;
+  font: 13px/1 -apple-system, "PingFang SC", system-ui, sans-serif;
+  background: rgba(0, 0, 0, 0.62);
+  padding: 8px 14px;
+  border-radius: 8px;
+  pointer-events: none;
+}

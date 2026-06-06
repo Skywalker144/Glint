@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
+    <link rel="stylesheet" href="theme.css" />
+    <link rel="stylesheet" href="settings.css" />
+  </head>
+  <body>
+    <div class="app">
+      <div class="titlebar">
+        <span class="logo">设置</span>
+        <span class="spacer"></span>
+        <button id="close" class="iconbtn" title="关闭 (Esc)">✕</button>
+      </div>
+
+      <div class="s-main">
+        <nav class="s-nav">
+          <button class="s-tab active" data-tab="hotkeys">快捷键</button>
+          <button class="s-tab" data-tab="engine">翻译引擎</button>
+          <button class="s-tab" data-tab="about">关于</button>
+        </nav>
+
+        <div class="s-content">
+          <!-- 快捷键 -->
+          <section class="s-panel" data-panel="hotkeys">
+            <div class="s-row">
+              <label>输入翻译</label>
+              <input class="recorder" data-key="input" readonly placeholder="点击后按下组合键" />
+            </div>
+            <div class="s-row">
+              <label>截图翻译</label>
+              <input class="recorder" data-key="screenshot" readonly placeholder="点击后按下组合键" />
+            </div>
+            <div class="s-row">
+              <label>划词翻译</label>
+              <input class="recorder" data-key="selection" readonly placeholder="点击后按下组合键" />
+            </div>
+            <p class="s-tip">点输入框 → 按下想要的组合键（如 ⌥Q）。Esc / Delete 清空。</p>
+          </section>
+
+          <!-- 翻译引擎 -->
+          <section class="s-panel" data-panel="engine" hidden>
+            <div class="s-field">
+              <label>翻译服务商</label>
+              <select id="provider"></select>
+            </div>
+            <p id="provider-desc" class="s-tip"></p>
+
+            <div id="ai-config" hidden>
+              <div class="s-field" id="baseurl-field" hidden>
+                <label>Base URL</label>
+                <input id="ai-baseurl" placeholder="https://..." spellcheck="false" autocomplete="off" />
+              </div>
+              <div class="s-field">
+                <label>API Key <a id="key-link" class="s-link" hidden>获取 Key ↗</a></label>
+                <input id="ai-key" type="password" placeholder="sk-..." spellcheck="false" autocomplete="off" />
+              </div>
+              <div class="s-field">
+                <label>模型</label>
+                <div class="s-inline">
+                  <input id="ai-model" list="ai-models" placeholder="模型名" spellcheck="false" autocomplete="off" />
+                  <button id="ai-load" class="ghost">加载模型</button>
+                </div>
+                <datalist id="ai-models"></datalist>
+              </div>
+              <div class="s-inline">
+                <button id="ai-test" class="ghost">测试翻译</button>
+                <span id="ai-status" class="s-status"></span>
+              </div>
+            </div>
+          </section>
+
+          <!-- 关于 -->
+          <section class="s-panel" data-panel="about" hidden>
+            <p class="s-about-title">闪译 · Glint</p>
+            <p class="s-tip" id="about-version">v—</p>
+            <p class="s-tip">黑白极简、跟随系统深浅的跨平台翻译工具，对标 Bob / TTime。</p>
+            <p class="s-tip">⌥Q 输入 · ⌥W 截图 · ⌥E 划词（可在「快捷键」里改）。</p>
+            <p class="s-tip">Mac 截图用系统 Vision OCR；翻译支持 Google 与 OpenAI / DeepSeek / Anthropic / Gemini / OpenRouter 等。</p>
+            <p class="s-tip"><a id="about-repo" class="s-link">GitHub 项目主页 ↗</a> · MIT License</p>
+          </section>
+        </div>
+      </div>
+
+      <div class="s-footer">
+        <span id="save-status" class="s-status"></span>
+        <span class="spacer"></span>
+        <button id="cancel" class="ghost">取消</button>
+        <button id="save" class="primary">保存</button>
+      </div>
+    </div>
+
+    <script src="settings.js"></script>
+  </body>
+</html>

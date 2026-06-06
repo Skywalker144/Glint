@@ -1,0 +1,155 @@
+/* 共享主题：黑白单色，跟随系统浅/深；G2 圆角；通用组件。多窗口复用。 */
+
+:root {
+  /* G2 平滑圆角（squircle），统一用变量方便整体微调 */
+  --corner-shape: squircle;
+  --radius-window: 16px;
+  --radius-field: 12px;
+  --radius-btn: 10px;
+
+  /* 浅色（系统浅色时） */
+  --bg: #ffffff;
+  --surface: #f4f4f5;
+  --surface-hover: #eaeaec;
+  --text: #1a1a1a;
+  --muted: #8a8a8e;
+  --border: #e4e4e7;
+  --window-border: rgba(0, 0, 0, 0.1);
+  --primary-bg: #1a1a1a;
+  --primary-text: #ffffff;
+  --scroll: #cfcfd4;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1c1e;
+    --surface: #2a2a2d;
+    --surface-hover: #34343a;
+    --text: #f2f2f5;
+    --muted: #98989f;
+    --border: #38383c;
+    --window-border: rgba(255, 255, 255, 0.08);
+    --primary-bg: #f2f2f5;
+    --primary-text: #1c1c1e;
+    --scroll: #48484e;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: transparent; /* 透明窗口，只露出下面的圆角卡片 */
+}
+
+body {
+  font: 14px/1.5 -apple-system, "PingFang SC", "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  overflow: hidden;
+}
+
+/* 圆角卡片：整个窗口内容 */
+.app {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  border: 0.5px solid var(--window-border);
+  border-radius: var(--radius-window);
+  corner-shape: var(--corner-shape);
+  overflow: hidden;
+}
+
+/* 顶部可拖动标题栏 */
+.titlebar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px 8px;
+  -webkit-app-region: drag;
+}
+.logo {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text);
+}
+.hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+.spacer {
+  flex: 1;
+}
+
+.iconbtn {
+  -webkit-app-region: no-drag;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  corner-shape: var(--corner-shape);
+}
+.iconbtn:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+/* 通用按钮 */
+.primary {
+  -webkit-app-region: no-drag;
+  background: var(--primary-bg);
+  color: var(--primary-text);
+  border: none;
+  border-radius: var(--radius-btn);
+  corner-shape: var(--corner-shape);
+  padding: 7px 18px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.primary:hover {
+  opacity: 0.85;
+}
+.primary:active {
+  opacity: 0.7;
+}
+.primary:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ghost {
+  -webkit-app-region: no-drag;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-btn);
+  corner-shape: var(--corner-shape);
+  padding: 6px 14px;
+  font: inherit;
+  cursor: pointer;
+}
+.ghost:hover {
+  background: var(--surface-hover);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scroll);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}

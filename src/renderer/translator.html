@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
+    <link rel="stylesheet" href="theme.css" />
+    <link rel="stylesheet" href="translator.css" />
+  </head>
+  <body>
+    <div class="app">
+      <div class="titlebar">
+        <span class="logo">译</span>
+        <span class="hint">⌥Q 输入 · ⌥W 截图 · ⌥E 划词</span>
+        <span class="spacer"></span>
+        <button id="close" class="iconbtn" title="关闭 (Esc)">✕</button>
+      </div>
+
+      <div class="body">
+        <textarea
+          id="input"
+          class="input"
+          placeholder="输入或粘贴文字，回车翻译（Shift+回车换行）…"
+          spellcheck="false"
+        ></textarea>
+
+        <div class="toolbar">
+          <span id="langtag" class="langtag">自动检测语言</span>
+          <span class="spacer"></span>
+          <button id="translate" class="primary">翻译</button>
+        </div>
+
+        <div id="status" class="status"></div>
+        <div id="result" class="result"></div>
+
+        <div id="resultbar" class="resultbar" hidden>
+          <span class="spacer"></span>
+          <button id="copy" class="ghost">复制译文</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="translator.js"></script>
+  </body>
+</html>
