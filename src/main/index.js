@@ -16,20 +16,22 @@ const {
   shell,
 } = require('electron')
 
-const { translate } = require('./translate')
+const { translate, translateStream } = require('./translate')
 const { recognize, prepare: prepareOCR } = require('./ocr')
 const { getSelectedText } = require('./platform')
 const settings = require('./settings')
+const history = require('./history')
 const { translateWith, listModels } = require('./engines')
-const { listProviders } = require('./engines/providers')
+const { listProviders, getProvider } = require('./engines/providers')
+const { LANGUAGES, pickDirection, isWordLookup } = require('./languages')
 
 const PRELOAD = path.join(__dirname, '..', 'preload', 'index.js')
 const RENDERER = path.join(__dirname, '..', 'renderer')
 
 const WIN_WIDTH = 420 // 主窗口固定宽度
 const WIN_MAX_HEIGHT = 600 // 主窗口高度自适应上限
-const SETTINGS_W = 540
-const SETTINGS_H = 560
+const SETTINGS_W = 640
+const SETTINGS_H = 460 // 初始高度；之后由渲染层按当前栏内容自适应
 const REPO_URL = 'https://github.com/Skywalker144/Glint'
 
 let translatorWin = null
@@ -38,6 +40,7 @@ let settingsWin = null
 let tray = null
 let isQuitting = false
 let captureState = null // { image, scaleFactor }
+let suppressBlurHide = false // 刚显示窗口的瞬间不触发失焦自动隐藏
 
 /* ------------------------------------------------------------------ */
 /* 主翻译窗口                                                          */
@@ -71,6 +74,15 @@ function createTranslatorWindow() {
       translatorWin.hide()
     }
   })
+
+  // 未钉住时，窗口失焦（切到别的应用）就自动收起。
+  translatorWin.on('blur', () => {
+    if (suppressBlurHide || isQuitting) return
+    if (settings.get().pinned) return
+    if (translatorWin && !translatorWin.isDestroyed() && translatorWin.isVisible()) {
+      translatorWin.hide()
+    }
+  })
 }
 
 function positionNearCursor(win) {
@@ -85,9 +97,14 @@ function positionNearCursor(win) {
 function showTranslator() {
   if (!translatorWin || translatorWin.isDestroyed()) createTranslatorWindow()
   positionNearCursor(translatorWin)
+  suppressBlurHide = true // 显示瞬间的焦点抖动不触发自动隐藏
   translatorWin.show()
   translatorWin.focus()
   if (process.platform === 'darwin') app.focus({ steal: true })
+  sendToTranslator('pin:state', !!settings.get().pinned)
+  setTimeout(() => {
+    suppressBlurHide = false
+  }, 300)
 }
 
 function sendToTranslator(channel, payload) {
@@ -277,8 +294,39 @@ function openSettings() {
 
 ipcMain.handle('translate', async (_e, text) => translate(text))
 
+// 流式翻译：渲染层发起，主进程把 meta/delta/done/error 逐步推回。token 用于忽略过期请求。
+ipcMain.on('translate:stream', async (event, payload) => {
+  const token = payload && payload.token
+  const text = ((payload && payload.text) || '').trim()
+  const send = (m) => {
+    if (!event.sender.isDestroyed()) event.sender.send('translate:event', { token, ...m })
+  }
+  if (!text) {
+    send({ type: 'done', item: { original: '', translated: '', source: '', target: '', engine: '' } })
+    return
+  }
+  const s = settings.get()
+  const dir = pickDirection(text, s.primaryLanguage, s.secondaryLanguage)
+  const engineId = s.engine || 'google'
+  const p = getProvider(engineId)
+  const isDict = s.dictionaryMode !== false && p && p.kind !== 'free' && isWordLookup(text)
+  send({ type: 'meta', source: dir.source, target: dir.target, mode: isDict ? 'dict' : 'translate', word: isDict ? text : '' })
+  try {
+    const item = await translateStream(text, (delta) => send({ type: 'delta', delta }))
+    send({ type: 'done', item })
+  } catch (e) {
+    send({ type: 'error', error: e.message })
+  }
+})
+
 ipcMain.on('hide-window', () => {
   if (translatorWin && !translatorWin.isDestroyed()) translatorWin.hide()
+})
+
+// 切换钉住状态（持久化），并回推给渲染层同步按钮高亮。
+ipcMain.on('pin:set', (_e, val) => {
+  settings.save({ pinned: !!val })
+  sendToTranslator('pin:state', !!val)
 })
 
 ipcMain.on('copy-text', (_e, text) => {
@@ -329,8 +377,31 @@ ipcMain.on('capture:selected', async (_e, rect) => {
 
 // 设置相关
 ipcMain.handle('settings:get', () => settings.get())
+ipcMain.handle('settings:defaults', () => settings.DEFAULTS)
 ipcMain.handle('settings:providers', () => listProviders())
+ipcMain.handle('settings:languages', () => LANGUAGES)
 ipcMain.handle('app:info', () => ({ version: app.getVersion(), repo: REPO_URL }))
+ipcMain.handle('settings:permissions', () => ({
+  platform: process.platform,
+  accessibility:
+    process.platform === 'darwin'
+      ? systemPreferences.isTrustedAccessibilityClient(false)
+      : true,
+  screen:
+    process.platform === 'darwin'
+      ? systemPreferences.getMediaAccessStatus('screen')
+      : 'granted',
+}))
+
+ipcMain.on('settings:open-permission', (_e, kind) => {
+  if (process.platform !== 'darwin') return
+  if (kind === 'accessibility') {
+    systemPreferences.isTrustedAccessibilityClient(true)
+    shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility')
+  } else if (kind === 'screen') {
+    shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture')
+  }
+})
 
 ipcMain.on('open-external', (_e, url) => {
   if (typeof url === 'string' && /^https?:\/\//.test(url)) shell.openExternal(url)
@@ -342,6 +413,7 @@ ipcMain.handle('settings:save', (_e, partial) => {
   const hotkeyErrors = validateHotkeys(s.hotkeys)
   rebuildTray()
   applyLoginItem()
+  sendToTranslator('pin:state', !!s.pinned) // 同步主窗口图钉
   return { settings: s, hotkeyErrors }
 })
 
@@ -351,7 +423,8 @@ ipcMain.handle('settings:test', async (_e, cfg) => {
       cfg.engine,
       { apiKey: cfg.apiKey, model: cfg.model, baseURL: cfg.baseURL },
       'Hello, world. This is a test.',
-      'zh-CN'
+      'zh-CN',
+      { systemPrompt: cfg.systemPrompt }
     )
     return { ok: true, text: translated }
   } catch (e) {
@@ -366,6 +439,19 @@ ipcMain.handle('settings:fetch-models', async (_e, cfg) => {
   } catch (e) {
     return { ok: false, error: e.message }
   }
+})
+
+ipcMain.handle('history:list', () => history.list())
+ipcMain.handle('history:clear', () => history.clear())
+
+// 设置窗口高度随当前栏内容自适应。
+ipcMain.on('settings:resize-height', (_e, h) => {
+  if (!settingsWin || settingsWin.isDestroyed()) return
+  const area = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea
+  const maxH = Math.min(area.height - 60, 720)
+  const height = Math.max(360, Math.min(maxH, Math.round(h)))
+  const [w] = settingsWin.getContentSize()
+  settingsWin.setContentSize(w, height)
 })
 
 ipcMain.on('settings:close', () => {

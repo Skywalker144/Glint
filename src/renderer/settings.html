@@ -10,6 +10,7 @@
     <div class="app">
       <div class="titlebar">
         <span class="logo">设置</span>
+        <span class="hint" id="settings-dirty" hidden>有未保存更改</span>
         <span class="spacer"></span>
         <button id="close" class="iconbtn" title="关闭 (Esc)">✕</button>
       </div>
@@ -17,77 +18,240 @@
       <div class="s-main">
         <nav class="s-nav">
           <button class="s-tab active" data-tab="general">通用</button>
+          <button class="s-tab" data-tab="translate">翻译</button>
+          <button class="s-tab" data-tab="ai">AI</button>
           <button class="s-tab" data-tab="hotkeys">快捷键</button>
-          <button class="s-tab" data-tab="engine">翻译引擎</button>
+          <button class="s-tab" data-tab="permissions">权限</button>
+          <button class="s-tab" data-tab="history">历史</button>
           <button class="s-tab" data-tab="about">关于</button>
         </nav>
 
         <div class="s-content">
-          <!-- 通用 -->
           <section class="s-panel" data-panel="general">
-            <label class="s-toggle">
-              <input type="checkbox" id="launch-at-login" />
-              <span>开机时自动启动<small>登录后在后台静默启动，菜单栏待命</small></span>
-            </label>
+            <div class="s-pagehead">
+              <h1>通用</h1>
+              <p>控制应用启动和基础行为。</p>
+            </div>
+
+            <div class="s-section">
+              <label class="s-toggle">
+                <input type="checkbox" id="launch-at-login" />
+                <span>开机时自动启动<small>登录后在后台静默启动，菜单栏待命</small></span>
+              </label>
+              <label class="s-toggle">
+                <input type="checkbox" id="pin-window" />
+                <span>钉住主窗口<small>翻译窗口常驻，切到别的应用也不消失（也可在窗口右上角点图钉）</small></span>
+              </label>
+            </div>
           </section>
 
-          <!-- 快捷键 -->
-          <section class="s-panel" data-panel="hotkeys" hidden>
-            <div class="s-row">
-              <label>输入翻译</label>
-              <input class="recorder" data-key="input" readonly placeholder="点击后按下组合键" />
+          <section class="s-panel" data-panel="translate" hidden>
+            <div class="s-pagehead">
+              <h1>翻译</h1>
+              <p>选择翻译服务，并查看当前语言方向。</p>
             </div>
-            <div class="s-row">
-              <label>截图翻译</label>
-              <input class="recorder" data-key="screenshot" readonly placeholder="点击后按下组合键" />
+
+            <div class="s-section">
+              <div class="s-field">
+                <label>翻译服务商</label>
+                <div class="s-inline">
+                  <select id="provider"></select>
+                  <span id="translation-provider-badge" class="s-badge"></span>
+                </div>
+              </div>
+              <p id="provider-desc" class="s-tip"></p>
             </div>
-            <div class="s-row">
-              <label>划词翻译</label>
-              <input class="recorder" data-key="selection" readonly placeholder="点击后按下组合键" />
+
+            <div class="s-section">
+              <div class="s-section-head">
+                <div>
+                  <h2>语言方向</h2>
+                  <p>输入是主语言时翻到副语言；其它语言统一翻到主语言。</p>
+                </div>
+              </div>
+              <div class="s-grid2">
+                <div class="s-field">
+                  <label>主语言</label>
+                  <select id="primary-language"></select>
+                </div>
+                <div class="s-field">
+                  <label>副语言</label>
+                  <select id="secondary-language"></select>
+                </div>
+              </div>
+              <div class="s-readonly">
+                <span id="primary-rule-label">主语言输入</span>
+                <strong id="primary-rule-target">翻译成副语言</strong>
+              </div>
+              <div class="s-readonly">
+                <span id="fallback-rule-label">其它语言输入</span>
+                <strong id="fallback-rule-target">翻译成主语言</strong>
+              </div>
+              <p class="s-tip">中文、日语、韩语、俄语主要按文字系统判断；拉丁语系之间的精确区分会交给 AI 提示词处理。</p>
             </div>
-            <p class="s-tip">点输入框 → 按下想要的组合键（如 ⌥Q）。Esc / Delete 清空。</p>
           </section>
 
-          <!-- 翻译引擎 -->
-          <section class="s-panel" data-panel="engine" hidden>
-            <div class="s-field">
-              <label>翻译服务商</label>
-              <select id="provider"></select>
+          <section class="s-panel" data-panel="ai" hidden>
+            <div class="s-pagehead">
+              <h1>AI</h1>
+              <p>配置模型、连接状态和发给 AI 的系统提示词。</p>
             </div>
-            <p id="provider-desc" class="s-tip"></p>
+
+            <div id="ai-free-note" class="s-callout" hidden>
+              当前选择的是免费 Google 翻译，不会使用 AI 配置和系统提示词。
+            </div>
 
             <div id="ai-config" hidden>
-              <div class="s-field" id="baseurl-field" hidden>
-                <label>Base URL</label>
-                <input id="ai-baseurl" placeholder="https://..." spellcheck="false" autocomplete="off" />
-              </div>
-              <div class="s-field">
-                <label>API Key <a id="key-link" class="s-link" hidden>获取 Key ↗</a></label>
-                <input id="ai-key" type="password" placeholder="sk-..." spellcheck="false" autocomplete="off" />
-              </div>
-              <div class="s-field">
-                <label>模型</label>
-                <div class="s-inline">
-                  <input id="ai-model" list="ai-models" placeholder="模型名" spellcheck="false" autocomplete="off" />
-                  <button id="ai-load" class="ghost">加载模型</button>
+              <div id="ai-connection" class="s-section">
+                <div class="s-section-head">
+                  <div>
+                    <h2 id="ai-provider-title">服务商配置</h2>
+                    <p id="ai-provider-subtitle">配置 API Key、模型和连接测试。</p>
+                  </div>
+                  <span id="ai-provider-badge" class="s-badge"></span>
                 </div>
-                <datalist id="ai-models"></datalist>
+
+                <div class="s-field" id="baseurl-field" hidden>
+                  <label>Base URL</label>
+                  <input id="ai-baseurl" placeholder="https://..." spellcheck="false" autocomplete="off" />
+                </div>
+                <div class="s-field">
+                  <label>API Key <a id="key-link" class="s-link" hidden>获取 Key ↗</a></label>
+                  <input id="ai-key" type="password" placeholder="sk-..." spellcheck="false" autocomplete="off" />
+                </div>
+                <div class="s-field">
+                  <label>模型</label>
+                  <div class="s-inline">
+                    <input id="ai-model" list="ai-models" placeholder="模型名" spellcheck="false" autocomplete="off" />
+                    <button id="ai-load" class="ghost">加载模型</button>
+                  </div>
+                  <datalist id="ai-models"></datalist>
+                </div>
+                <div class="s-inline s-actions">
+                  <button id="ai-test" class="ghost">测试翻译</button>
+                  <span id="ai-status" class="s-status"></span>
+                </div>
               </div>
-              <div class="s-inline">
-                <button id="ai-test" class="ghost">测试翻译</button>
-                <span id="ai-status" class="s-status"></span>
+
+              <div class="s-section">
+                <div class="s-section-head">
+                  <div>
+                    <h2>系统提示词</h2>
+                    <p>用于约束 AI 翻译输出。可选使用 {{target}} 作为目标语言占位符。</p>
+                  </div>
+                  <button id="ai-prompt-reset" class="s-link s-reset" type="button">恢复默认</button>
+                </div>
+                <textarea
+                  id="ai-system-prompt"
+                  rows="7"
+                  spellcheck="false"
+                  placeholder="输入给 AI 翻译服务商的系统提示词"
+                ></textarea>
+                <p id="ai-prompt-meta" class="s-tip"></p>
+              </div>
+
+              <div class="s-section">
+                <div class="s-section-head">
+                  <div>
+                    <h2>单词词典</h2>
+                    <p>输入单个词时用 AI 给出音标 / 释义 / 例句，而非直接翻译（仅 AI 引擎）。</p>
+                  </div>
+                  <button id="ai-dict-reset" class="s-link s-reset" type="button">恢复默认</button>
+                </div>
+                <label class="s-toggle">
+                  <input type="checkbox" id="dictionary-mode" />
+                  <span>启用单词词典<small>输入单词、或划词选中单词时自动切换</small></span>
+                </label>
+                <textarea id="ai-dictionary-prompt" rows="6" spellcheck="false" placeholder="词典模式的系统提示词"></textarea>
               </div>
             </div>
           </section>
 
-          <!-- 关于 -->
+          <section class="s-panel" data-panel="hotkeys" hidden>
+            <div class="s-pagehead">
+              <h1>快捷键</h1>
+              <p>点击输入框后按下新的组合键。Esc / Delete 清空。</p>
+            </div>
+
+            <div class="s-section">
+              <div class="s-row">
+                <label>输入翻译</label>
+                <input class="recorder" data-key="input" readonly placeholder="点击后按下组合键" />
+              </div>
+              <div class="s-row">
+                <label>截图翻译</label>
+                <input class="recorder" data-key="screenshot" readonly placeholder="点击后按下组合键" />
+              </div>
+              <div class="s-row">
+                <label>划词翻译</label>
+                <input class="recorder" data-key="selection" readonly placeholder="点击后按下组合键" />
+              </div>
+            </div>
+          </section>
+
+          <section class="s-panel" data-panel="permissions" hidden>
+            <div class="s-pagehead">
+              <h1>权限</h1>
+              <p>检查截图翻译和划词翻译依赖的系统权限。</p>
+            </div>
+
+            <div class="s-permission-list">
+              <div class="s-permission">
+                <div>
+                  <strong>辅助功能</strong>
+                  <small>用于读取当前选中的文字。</small>
+                </div>
+                <span id="perm-accessibility" class="s-badge"></span>
+                <button id="open-accessibility" class="ghost">打开设置</button>
+              </div>
+              <div class="s-permission">
+                <div>
+                  <strong>屏幕录制</strong>
+                  <small>用于截图翻译时获取屏幕画面。</small>
+                </div>
+                <span id="perm-screen" class="s-badge"></span>
+                <button id="open-screen" class="ghost">打开设置</button>
+              </div>
+              <div class="s-permission">
+                <div>
+                  <strong>OCR 引擎</strong>
+                  <small id="perm-ocr-desc">检测当前平台的文字识别方式。</small>
+                </div>
+                <span id="perm-ocr" class="s-badge"></span>
+                <button id="refresh-permissions" class="ghost">刷新</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="s-panel" data-panel="history" hidden>
+            <div class="s-pagehead">
+              <h1>历史</h1>
+              <p>浏览、搜索和复制最近的翻译记录。</p>
+            </div>
+
+            <div class="s-section">
+              <div class="s-toolbar">
+                <input id="history-search" class="s-search" placeholder="搜索原文或译文" spellcheck="false" />
+                <button id="history-refresh" class="ghost">刷新</button>
+                <button id="history-clear" class="ghost">清空</button>
+              </div>
+              <p id="history-summary" class="s-tip"></p>
+              <div id="history-list" class="history-list"></div>
+            </div>
+          </section>
+
           <section class="s-panel" data-panel="about" hidden>
-            <p class="s-about-title">闪译 · Glint</p>
-            <p class="s-tip" id="about-version">v—</p>
-            <p class="s-tip">黑白极简、跟随系统深浅的跨平台翻译工具，对标 Bob / TTime。</p>
-            <p class="s-tip">⌥Q 输入 · ⌥W 截图 · ⌥E 划词（可在「快捷键」里改）。</p>
-            <p class="s-tip">Mac 截图用系统 Vision OCR；翻译支持 Google 与 OpenAI / DeepSeek / Anthropic / Gemini / OpenRouter 等。</p>
-            <p class="s-tip"><a id="about-repo" class="s-link">GitHub 项目主页 ↗</a> · MIT License</p>
+            <div class="s-pagehead">
+              <h1>闪译 · Glint</h1>
+              <p id="about-version">v—</p>
+            </div>
+
+            <div class="s-section">
+              <p class="s-tip">黑白极简、跟随系统深浅的跨平台翻译工具，对标 Bob / TTime。</p>
+              <p class="s-tip">⌥Q 输入 · ⌥W 截图 · ⌥E 划词（可在「快捷键」里改）。</p>
+              <p class="s-tip">Mac 截图用系统 Vision OCR；翻译支持 Google 与 OpenAI / DeepSeek / Anthropic / Gemini / OpenRouter 等。</p>
+              <p class="s-tip"><a id="about-repo" class="s-link">GitHub 项目主页 ↗</a> · MIT License</p>
+            </div>
           </section>
         </div>
       </div>

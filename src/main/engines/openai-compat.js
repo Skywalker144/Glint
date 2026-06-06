@@ -1,6 +1,7 @@
 'use strict'
 
 const { net } = require('electron')
+const { readSSE } = require('./sse')
 
 // OpenAI 兼容引擎：OpenAI / DeepSeek / Gemini(OpenAI 端点) / OpenRouter / 自定义 都走这里。
 
@@ -57,4 +58,56 @@ async function listModels({ apiKey, baseURL }) {
     .sort()
 }
 
-module.exports = { translate, listModels }
+// 流式翻译：stream:true，逐块取 choices[0].delta.content 通过 onDelta 回吐。
+async function translateStream(text, { sys, apiKey, model, baseURL, extraHeaders, onDelta }) {
+  if (!baseURL) throw new Error('缺少 Base URL')
+  if (!apiKey) throw new Error('未配置 API Key')
+  if (!model) throw new Error('未选择模型')
+
+  const res = await net.fetch(trimBase(baseURL) + '/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + apiKey,
+      'Content-Type': 'application/json',
+      ...(extraHeaders || {}),
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0,
+      stream: true,
+      messages: [
+        { role: 'system', content: sys },
+        { role: 'user', content: text },
+      ],
+    }),
+  })
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => null)
+    const e = data && data.error
+    const msg = (e && (e.message || e)) || 'HTTP ' + res.status
+    throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg))
+  }
+
+  let full = ''
+  await readSSE(res, (payload) => {
+    if (payload === '[DONE]') return
+    let j
+    try {
+      j = JSON.parse(payload)
+    } catch {
+      return
+    }
+    const d = j.choices && j.choices[0] && j.choices[0].delta && j.choices[0].delta.content
+    if (d) {
+      full += d
+      if (onDelta) onDelta(d)
+    }
+  })
+
+  full = full.trim()
+  if (!full) throw new Error('模型没有返回译文')
+  return full
+}
+
+module.exports = { translate, translateStream, listModels }

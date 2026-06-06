@@ -103,6 +103,13 @@ body {
   background: var(--surface-hover);
   color: var(--text);
 }
+.iconbtn.pinned {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.iconbtn.pinned svg circle {
+  fill: currentColor;
+}
 
 /* 通用按钮 */
 .primary {

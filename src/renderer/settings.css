@@ -1,20 +1,16 @@
-/* 设置窗口：左侧导航 + 右侧面板（通用部分见 theme.css） */
+/* 设置窗口：偏好设置式布局。 */
 
-.app {
-  height: 100vh;
-}
+/* .app 高度随当前栏内容自适应，由 settings.js 量好后同步给窗口 */
 
-/* 主体：左导航 + 右内容 */
 .s-main {
-  flex: 1;
   display: flex;
   min-height: 0;
 }
 
 .s-nav {
-  width: 116px;
+  width: 128px;
   flex-shrink: 0;
-  padding: 6px 8px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -43,33 +39,167 @@
 
 .s-content {
   flex: 1;
-  overflow-y: auto;
-  padding: 14px 18px;
   min-width: 0;
+  overflow-y: auto;
+  max-height: 520px; /* 内容超出才滚动；其余栏窗口随内容收缩 */
+  padding: 16px 20px 18px;
 }
 
 .s-panel {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 .s-panel[hidden] {
   display: none;
 }
 
-/* 快捷键行 */
+.s-pagehead {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.s-pagehead h1 {
+  margin: 0;
+  color: var(--text);
+  font-size: 19px;
+  line-height: 1.25;
+}
+.s-pagehead p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.s-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 0.5px solid var(--window-border);
+}
+.s-section-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.s-section-head > div {
+  flex: 1;
+  min-width: 0;
+}
+.s-section-head h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.35;
+}
+.s-section-head p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.s-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.s-field[hidden] {
+  display: none;
+}
+.s-field > label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.s-field input,
+.s-field select,
+#ai-system-prompt,
+#ai-dictionary-prompt {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-btn);
+  corner-shape: var(--corner-shape);
+  padding: 7px 12px;
+  color: var(--text);
+  font: inherit;
+  outline: none;
+}
+.s-field input:focus,
+.s-field select:focus,
+#ai-system-prompt:focus,
+#ai-dictionary-prompt:focus {
+  border-color: var(--muted);
+}
+.s-field select {
+  cursor: pointer;
+}
+#ai-system-prompt,
+#ai-dictionary-prompt {
+  min-height: 146px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.s-inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.s-inline > input,
+.s-inline > select {
+  flex: 1;
+  min-width: 0;
+}
+.s-actions {
+  align-items: flex-start;
+}
+
+.s-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.s-search {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-btn);
+  corner-shape: var(--corner-shape);
+  padding: 7px 12px;
+  color: var(--text);
+  font: inherit;
+  outline: none;
+}
+.s-search:focus {
+  border-color: var(--muted);
+}
+
+.s-grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
 .s-row {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 .s-row > label {
-  width: 64px;
-  font-size: 13px;
+  width: 70px;
+  flex-shrink: 0;
   color: var(--text);
+  font-size: 13px;
 }
 .recorder {
   flex: 1;
+  min-width: 0;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-btn);
@@ -86,45 +216,178 @@
   color: var(--muted);
 }
 
-/* 字段 */
-.s-field {
+.s-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 2px 0;
+  cursor: pointer;
+}
+.s-toggle input {
+  margin-top: 3px;
+  accent-color: var(--text);
+}
+.s-toggle span {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  color: var(--text);
+  font-size: 14px;
 }
-.s-field > label {
-  font-size: 12px;
+.s-toggle small {
   color: var(--muted);
+  font-size: 12px;
+}
+
+.s-readonly {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  background: var(--surface);
+  border-radius: var(--radius-btn);
+  corner-shape: var(--corner-shape);
 }
-.s-field input,
-.s-field select {
-  background: var(--bg);
+.s-readonly span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.s-readonly strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.s-callout {
+  padding: 10px 12px;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-btn);
   corner-shape: var(--corner-shape);
-  padding: 7px 12px;
-  color: var(--text);
-  font: inherit;
-  outline: none;
-}
-.s-field input:focus,
-.s-field select:focus {
-  border-color: var(--muted);
-}
-.s-field select {
-  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
 }
 
-.s-inline {
+.history-list {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 8px;
+}
+.history-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-btn);
+  corner-shape: var(--corner-shape);
+}
+.history-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.history-original,
+.history-translated {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.history-original {
+  color: var(--muted);
+  font-size: 12px;
+}
+.history-translated {
+  color: var(--text);
+  font-size: 13px;
+}
+.history-meta {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.history-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  max-height: 0;
+  margin-top: -6px; /* 抵消 grid 行间距，折叠时卡片不留空底 */
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 140ms ease, opacity 140ms ease, margin-top 140ms ease;
+}
+.history-entry:hover .history-actions {
+  max-height: 40px;
+  margin-top: 0;
+  opacity: 1;
+}
+.history-empty {
+  padding: 12px;
+  color: var(--muted);
+  background: var(--surface);
+  border-radius: var(--radius-btn);
+  corner-shape: var(--corner-shape);
+  font-size: 12px;
+}
+
+.s-permission-list {
+  display: flex;
+  flex-direction: column;
   gap: 10px;
 }
-.s-inline #ai-model {
-  flex: 1;
+.s-permission {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-btn);
+  corner-shape: var(--corner-shape);
+}
+.s-permission strong {
+  display: block;
+  color: var(--text);
+  font-size: 13px;
+}
+.s-permission small {
+  display: block;
+  margin-top: 1px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.s-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--bg);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.s-badge.ok {
+  color: var(--text);
+  border-color: var(--text);
+}
+.s-badge.warn {
+  color: var(--text);
+}
+.s-badge.err {
+  color: var(--bg);
+  background: var(--text);
+  border-color: var(--text);
 }
 
 .s-link {
@@ -139,56 +402,45 @@
 .s-link[hidden] {
   display: none;
 }
+.s-reset {
+  -webkit-app-region: no-drag;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+}
 
-#ai-config[hidden] {
+#ai-config[hidden],
+#ai-connection[hidden],
+#ai-free-note[hidden] {
   display: none;
 }
 #ai-config {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-}
-
-.s-toggle {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 4px 0;
-  cursor: pointer;
-}
-.s-toggle input {
-  margin-top: 3px;
-  accent-color: var(--text);
-}
-.s-toggle span {
-  display: flex;
-  flex-direction: column;
-  font-size: 14px;
-  color: var(--text);
-}
-.s-toggle small {
-  color: var(--muted);
-  font-size: 12px;
+  gap: 16px;
 }
 
 .s-tip {
   margin: 0;
-  font-size: 12px;
   color: var(--muted);
-}
-
-.s-about-title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text);
+  font-size: 12px;
 }
 
 .s-status {
-  font-size: 12px;
   color: var(--muted);
+  font-size: 12px;
   white-space: pre-wrap;
   word-break: break-word;
+}
+.s-status.ok {
+  color: var(--text);
+}
+.s-status.warn {
+  color: var(--muted);
+}
+.s-status.err {
+  color: var(--text);
 }
 .s-status:empty {
   display: none;

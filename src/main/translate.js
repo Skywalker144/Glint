@@ -1,16 +1,21 @@
 'use strict'
 
 const settings = require('./settings')
-const { translateWith } = require('./engines')
+const { translateWith, translateStreamWith } = require('./engines')
+const { getProvider } = require('./engines/providers')
+const { DEFAULT_DICTIONARY_PROMPT } = require('./engines/prompt')
+const history = require('./history')
+const { pickDirection, isWordLookup } = require('./languages')
 
-// 自动决定翻译方向：只有「是中文」才翻成英文，其余语言一律翻成中文。
-//   - 含汉字、且不含日文假名 / 韩文谚文  -> 判定为中文 -> 翻成英文
-//   - 其它（英文、日文、韩文、法文…）    -> 翻成中文
-function pickTarget(text) {
-  const hasHan = /[㐀-鿿豈-﫿]/.test(text) // 汉字
-  const hasKana = /[぀-ヿ]/.test(text) // 日文假名
-  const hasHangul = /[ᄀ-ᇿ㄰-㆏가-힯]/.test(text) // 韩文谚文
-  return hasHan && !hasKana && !hasHangul ? 'en' : 'zh-CN'
+function pickTarget(text, primaryLanguage = 'zh-CN', secondaryLanguage = 'en') {
+  return pickDirection(text, primaryLanguage, secondaryLanguage).target
+}
+
+// 单词时（且为 AI 引擎、开启词典）用词典提示词，否则用翻译提示词。
+function promptFor(s, engineId, text) {
+  const p = getProvider(engineId)
+  const isDict = s.dictionaryMode !== false && p && p.kind !== 'free' && isWordLookup(text)
+  return isDict ? s.dictionaryPrompt || DEFAULT_DICTIONARY_PROMPT : s.systemPrompt
 }
 
 // 统一入口：根据设置里选中的服务商分发。返回 {original, translated, source, target, engine}
@@ -18,13 +23,49 @@ async function translate(text) {
   text = (text || '').trim()
   if (!text) return { original: '', translated: '', source: '', target: '', engine: '' }
 
-  const target = pickTarget(text)
   const s = settings.get()
+  const direction = pickDirection(text, s.primaryLanguage, s.secondaryLanguage)
   const engineId = s.engine || 'google'
   const cfg = (s.providers && s.providers[engineId]) || {}
 
-  const { translated, source } = await translateWith(engineId, cfg, text, target)
-  return { original: text, translated, source, target, engine: engineId }
+  const { translated, source } = await translateWith(engineId, cfg, text, direction.target, {
+    systemPrompt: promptFor(s, engineId, text),
+    primaryLanguage: s.primaryLanguage,
+    secondaryLanguage: s.secondaryLanguage,
+    source: direction.source,
+  })
+  const item = { original: text, translated, source, target: direction.target, engine: engineId }
+  history.add(item)
+  return item
 }
 
-module.exports = { translate, pickTarget }
+// 流式版：边生成边通过 onDelta 回吐；完成后写历史，返回最终 item。
+async function translateStream(text, onDelta) {
+  text = (text || '').trim()
+  if (!text) return { original: '', translated: '', source: '', target: '', engine: '' }
+
+  const s = settings.get()
+  const direction = pickDirection(text, s.primaryLanguage, s.secondaryLanguage)
+  const engineId = s.engine || 'google'
+  const cfg = (s.providers && s.providers[engineId]) || {}
+
+  const { translated, source } = await translateStreamWith(
+    engineId,
+    cfg,
+    text,
+    direction.target,
+    {
+      systemPrompt: promptFor(s, engineId, text),
+      primaryLanguage: s.primaryLanguage,
+      secondaryLanguage: s.secondaryLanguage,
+      source: direction.source,
+    },
+    onDelta
+  )
+
+  const item = { original: text, translated, source, target: direction.target, engine: engineId }
+  history.add(item)
+  return item
+}
+
+module.exports = { translate, pickTarget, translateStream }

@@ -1,11 +1,12 @@
 {
   "name": "glint",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "闪译 · Glint — 划词 / 截图 / 输入翻译，黑白极简的跨平台桌面翻译工具（Electron）",
   "main": "src/main/index.js",
   "scripts": {
     "start": "electron .",
+    "build:icon": "electron scripts/make-icon.js",
     "build:macocr": "bash scripts/build-macocr.sh",
     "dist:mac": "npm run build:macocr && electron-builder --mac",
     "dist:win": "electron-builder --win"
@@ -36,6 +37,7 @@
       ],
       "category": "public.app-category.productivity",
       "identity": null,
+      "icon": "build/icon.icns",
       "extraResources": [
         {
           "from": "resources/macocr",
@@ -46,7 +48,8 @@
     "win": {
       "target": [
         "nsis"
-      ]
+      ],
+      "icon": "build/icon.ico"
     }
   },
   "devDependencies": {

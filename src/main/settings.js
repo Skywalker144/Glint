@@ -3,12 +3,19 @@
 const fs = require('fs')
 const path = require('path')
 const { app } = require('electron')
+const { DEFAULT_SYSTEM_PROMPT, DEFAULT_DICTIONARY_PROMPT, LEGACY_SYSTEM_PROMPTS } = require('./engines/prompt')
 
 // 设置持久化在 userData/settings.json。
 
 const DEFAULTS = {
   engine: 'google', // 选中的服务商 id（见 engines/providers.js）
   launchAtLogin: false, // 开机自启
+  pinned: false, // 钉住主窗口：false 时失焦自动隐藏，true 时常驻
+  primaryLanguage: 'zh-CN', // 主语言：非主语言输入会翻到这里
+  secondaryLanguage: 'en', // 副语言：主语言输入会翻到这里
+  systemPrompt: DEFAULT_SYSTEM_PROMPT, // AI 翻译服务商使用的系统提示词模板
+  dictionaryMode: true, // 输入单个词时用 AI 词典（仅 AI 引擎）
+  dictionaryPrompt: DEFAULT_DICTIONARY_PROMPT, // 词典模式的系统提示词模板
   hotkeys: {
     input: 'Alt+Q', // 输入翻译
     screenshot: 'Alt+W', // 截图翻译
@@ -31,6 +38,9 @@ function migrate(raw) {
     raw.providers = raw.providers || {}
     raw.providers.openrouter = raw.openrouter
     delete raw.openrouter
+  }
+  if (raw && LEGACY_SYSTEM_PROMPTS.includes(raw.systemPrompt)) {
+    raw.systemPrompt = DEFAULT_SYSTEM_PROMPT
   }
   return raw
 }
