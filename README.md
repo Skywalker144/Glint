@@ -26,7 +26,11 @@ npm start
 
 到 [Releases](https://github.com/Skywalker144/Glint/releases) 下载：Mac 用 `.dmg`，Windows 用 `.exe`。
 
-> 未做代码签名：**Mac** 首次打开请右键 →「打开」；**Windows** 若弹 SmartScreen，点「更多信息 → 仍要运行」。
+> 未做代码签名 / 公证：
+> - **Mac**：若提示「已损坏，无法打开」，在终端运行 `xattr -cr /Applications/Glint.app` 去掉下载隔离即可（一次性；"右键打开"对"已损坏"无效）。
+> - **Windows**：若弹 SmartScreen，点「更多信息 → 仍要运行」。
+>
+> 想下载即开、无任何警告，需要 Apple 开发者账号（$99/年）做**公证**。
 
 ## 发布新版本（开发者）
 

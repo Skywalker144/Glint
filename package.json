@@ -1,6 +1,6 @@
 {
   "name": "glint",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "闪译 · Glint — 划词 / 截图 / 输入翻译，黑白极简的跨平台桌面翻译工具（Electron）",
   "main": "src/main/index.js",
@@ -38,6 +38,9 @@
       "category": "public.app-category.productivity",
       "identity": null,
       "icon": "build/icon.icns",
+      "extendInfo": {
+        "LSUIElement": true
+      },
       "extraResources": [
         {
           "from": "resources/macocr",
