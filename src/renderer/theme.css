@@ -52,6 +52,16 @@ body {
   overflow: hidden;
 }
 
+/* 焦点环：盖掉 Chromium 默认的"系统强调色"焦点环（macOS 上会用用户强调色，比如橙色）。
+   只在键盘导航（:focus-visible）时给一个黑白焦点环；鼠标点击 / 开窗获得焦点时不显示。 */
+:focus {
+  outline: none;
+}
+:focus-visible {
+  outline: 2px solid var(--muted);
+  outline-offset: 2px;
+}
+
 /* 圆角卡片：整个窗口内容 */
 .app {
   display: flex;
