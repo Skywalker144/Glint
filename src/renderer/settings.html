@@ -43,6 +43,27 @@
                 <span>钉住主窗口<small>翻译窗口常驻，切到别的应用也不消失（也可在窗口右上角点图钉）</small></span>
               </label>
             </div>
+
+            <div class="s-section">
+              <div class="s-section-head">
+                <div>
+                  <h2>网络代理</h2>
+                  <p>让翻译请求走本地代理（如 Clash），网络受限时用来访问各家 API。</p>
+                </div>
+              </div>
+              <label class="s-toggle">
+                <input type="checkbox" id="proxy-enabled" />
+                <span>使用代理<small>关闭时直连</small></span>
+              </label>
+              <div class="s-field">
+                <label>代理地址</label>
+                <div class="s-inline">
+                  <input id="proxy-url" placeholder="127.0.0.1:7890（Clash 混合端口）" spellcheck="false" autocomplete="off" />
+                  <button id="proxy-test" class="ghost">测试</button>
+                </div>
+                <span id="proxy-status" class="s-status"></span>
+              </div>
+            </div>
           </section>
 
           <section class="s-panel" data-panel="translate" hidden>

@@ -19,6 +19,7 @@ let state = {
   dictionaryMode: true,
   dictionaryPrompt: '',
   pinned: false,
+  proxy: { enabled: false, url: '' },
   hotkeys: { input: '', screenshot: '', selection: '' },
   providers: {},
 }
@@ -51,6 +52,10 @@ function normalizeSettings(s) {
     dictionaryMode: s && s.dictionaryMode !== undefined ? !!s.dictionaryMode : true,
     dictionaryPrompt: (s && s.dictionaryPrompt) || defaultSettings.dictionaryPrompt || '',
     pinned: !!(s && s.pinned),
+    proxy: {
+      enabled: !!(s && s.proxy && s.proxy.enabled),
+      url: (s && s.proxy && s.proxy.url) || '',
+    },
     hotkeys: {
       input: hotkeys.input || '',
       screenshot: hotkeys.screenshot || '',
@@ -144,6 +149,26 @@ $('#launch-at-login').addEventListener('change', (e) => {
 $('#pin-window').addEventListener('change', (e) => {
   state.pinned = e.target.checked
   markDirty()
+})
+
+$('#proxy-enabled').addEventListener('change', (e) => {
+  state.proxy.enabled = e.target.checked
+  markDirty()
+})
+$('#proxy-url').addEventListener('input', (e) => {
+  state.proxy.url = e.target.value.trim()
+  markDirty()
+})
+$('#proxy-test').addEventListener('click', async () => {
+  const btn = $('#proxy-test')
+  const old = btn.textContent
+  btn.textContent = '测试中…'
+  btn.disabled = true
+  const r = await window.api.testProxy({ url: state.proxy.url })
+  btn.textContent = old
+  btn.disabled = false
+  if (r.ok) setStatus('#proxy-status', '✓ 连通（' + r.ms + 'ms）', 'ok')
+  else setStatus('#proxy-status', '✗ ' + r.error, 'err')
 })
 
 /* ---------------- 快捷键录制 ---------------- */
@@ -643,6 +668,8 @@ function renderAll() {
   $$('.recorder').forEach(renderHotkey)
   $('#launch-at-login').checked = state.launchAtLogin
   $('#pin-window').checked = state.pinned
+  $('#proxy-enabled').checked = state.proxy.enabled
+  $('#proxy-url').value = state.proxy.url
   $('#ai-system-prompt').value = state.systemPrompt
   $('#dictionary-mode').checked = state.dictionaryMode
   $('#ai-dictionary-prompt').value = state.dictionaryPrompt

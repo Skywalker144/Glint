@@ -14,6 +14,8 @@ const {
   systemPreferences,
   clipboard,
   shell,
+  net,
+  session,
 } = require('electron')
 
 const { translate, translateStream } = require('./translate')
@@ -413,6 +415,7 @@ ipcMain.handle('settings:save', (_e, partial) => {
   const hotkeyErrors = validateHotkeys(s.hotkeys)
   rebuildTray()
   applyLoginItem()
+  applyProxy()
   sendToTranslator('pin:state', !!s.pinned) // 同步主窗口图钉
   return { settings: s, hotkeyErrors }
 })
@@ -438,6 +441,26 @@ ipcMain.handle('settings:fetch-models', async (_e, cfg) => {
     return { ok: true, models }
   } catch (e) {
     return { ok: false, error: e.message }
+  }
+})
+
+// 用给定代理临时连一次 204 连通性端点，测完恢复已保存的代理。
+ipcMain.handle('settings:test-proxy', async (_e, cfg) => {
+  const url = ((cfg && cfg.url) || '').trim()
+  try {
+    await session.defaultSession.setProxy(url ? { proxyRules: url, proxyBypassRules: '<local>' } : { mode: 'direct' })
+    const ac = new AbortController()
+    const timer = setTimeout(() => ac.abort(), 8000)
+    const t0 = Date.now()
+    const res = await net.fetch('https://www.gstatic.com/generate_204', { signal: ac.signal })
+    clearTimeout(timer)
+    const ms = Date.now() - t0
+    applyProxy()
+    if (res.status === 204 || res.ok) return { ok: true, ms }
+    return { ok: false, error: 'HTTP ' + res.status }
+  } catch (e) {
+    applyProxy()
+    return { ok: false, error: e.name === 'AbortError' ? '超时（8s），代理可能不通' : e.message }
   }
 })
 
@@ -551,6 +574,14 @@ function applyLoginItem() {
   }
 }
 
+// 网络代理：开启时让 net.fetch（走 defaultSession）经代理，关闭时直连。
+function applyProxy() {
+  const p = settings.get().proxy || {}
+  const url = p.enabled ? (p.url || '').trim() : ''
+  const config = url ? { proxyRules: url, proxyBypassRules: '<local>' } : { mode: 'direct' }
+  session.defaultSession.setProxy(config).catch((e) => console.warn('设置代理失败：', e.message))
+}
+
 /* ------------------------------------------------------------------ */
 /* 应用生命周期                                                        */
 /* ------------------------------------------------------------------ */
@@ -565,6 +596,7 @@ if (!app.requestSingleInstanceLock()) {
     registerHotkeys()
     prepareOCR() // 后台预编译 Vision OCR 二进制（仅 Mac）
     applyLoginItem() // 按设置同步开机自启
+    applyProxy() // 按设置同步网络代理
   })
 
   app.on('window-all-closed', () => {})

@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('api', {
   saveSettings: (partial) => ipcRenderer.invoke('settings:save', partial),
   testEngine: (cfg) => ipcRenderer.invoke('settings:test', cfg),
   fetchModels: (cfg) => ipcRenderer.invoke('settings:fetch-models', cfg),
+  testProxy: (cfg) => ipcRenderer.invoke('settings:test-proxy', cfg),
   getHistory: () => ipcRenderer.invoke('history:list'),
   clearHistory: () => ipcRenderer.invoke('history:clear'),
   resizeSettings: (height) => ipcRenderer.send('settings:resize-height', height),
