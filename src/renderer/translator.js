@@ -26,6 +26,19 @@ new ResizeObserver(() => {
   window.api.resizeHeight(Math.ceil(appEl.getBoundingClientRect().height))
 }).observe(appEl)
 
+// 输入框高度自适应：没结果时用 CSS 固定高（宽松、好粘贴）；有结果时贴合内容——
+// 短原文收到最小、长原文最多撑到 ~84px（约 3 行）再内部滚动，
+// 避免长原文被死收成 46px（约 1.5 行）而截断显得怪。
+function autoSizeInput() {
+  if (!appEl.classList.contains('has-result')) {
+    input.style.height = '' // 回到 CSS 的 84px
+    return
+  }
+  input.style.height = 'auto'
+  input.style.height = Math.min(84, Math.max(40, input.scrollHeight)) + 'px'
+}
+input.addEventListener('input', autoSizeInput)
+
 const LANG_NAMES = {
   'zh-CN': '中文',
   zh: '中文',
@@ -51,6 +64,7 @@ function renderResult() {
     appliedSeq = seq
     result.innerHTML = html
     appEl.classList.toggle('has-result', !!rawResult)
+    autoSizeInput()
     if (streaming && rawResult) {
       const caret = document.createElement('span')
       caret.className = 'stream-caret'
@@ -73,6 +87,7 @@ function doTranslate() {
   rawResult = ''
   resultbar.hidden = true
   appEl.classList.remove('has-result')
+  autoSizeInput()
   streaming = false
   if (!text) {
     status.textContent = ''
@@ -162,6 +177,7 @@ window.api.onFocusInput(() => {
   result.textContent = ''
   rawResult = ''
   appEl.classList.remove('has-result')
+  autoSizeInput()
   status.textContent = ''
   resultbar.hidden = true
   langtag.textContent = '自动检测语言'
@@ -180,6 +196,7 @@ window.api.onShowMessage((msg) => {
   result.textContent = ''
   rawResult = ''
   appEl.classList.remove('has-result')
+  autoSizeInput()
   resultbar.hidden = true
   status.textContent = msg
 })
