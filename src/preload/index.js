@@ -30,6 +30,8 @@ contextBridge.exposeInMainWorld('api', {
   getPermissions: () => ipcRenderer.invoke('settings:permissions'),
   getAppInfo: () => ipcRenderer.invoke('app:info'),
   checkUpdate: () => ipcRenderer.invoke('update:check'),
+  applyUpdate: () => ipcRenderer.send('update:apply'),
+  onUpdateState: (cb) => ipcRenderer.on('update:state', (_e, s) => cb(s)),
   saveSettings: (partial) => ipcRenderer.invoke('settings:save', partial),
   testEngine: (cfg) => ipcRenderer.invoke('settings:test', cfg),
   fetchModels: (cfg) => ipcRenderer.invoke('settings:fetch-models', cfg),

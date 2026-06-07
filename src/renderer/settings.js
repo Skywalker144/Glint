@@ -664,23 +664,52 @@ $('#update-download').addEventListener('click', () => {
   if (url) window.api.openExternal(url)
 })
 
-async function checkUpdate() {
-  setStatus('#update-status', '检查中…', '')
-  $('#update-download').hidden = true
-  const r = await window.api.checkUpdate()
-  if (!r.ok) {
-    setStatus('#update-status', '✗ 检查失败：' + r.error, 'err')
+function renderUpdateState(s) {
+  if (!s || !s.ok) {
+    setStatus('#update-status', s && s.error ? '✗ 检查失败：' + s.error : '', s && s.error ? 'err' : '')
     return
   }
-  if (r.hasUpdate) {
-    setStatus('#update-status', '发现新版 v' + r.latest + '（当前 v' + r.current + '）', 'ok')
-    $('#update-download').dataset.url = r.url
-    $('#update-download').hidden = false
+  const action = $('#update-action')
+  const dl = $('#update-download')
+  dl.dataset.url = s.url || ''
+  if (!s.hasUpdate) {
+    setStatus('#update-status', '✓ 已是最新版 v' + s.current, 'ok')
+    action.hidden = true
+    dl.hidden = true
+    return
+  }
+  dl.hidden = false
+  if (s.error) {
+    setStatus('#update-status', '✗ 下载失败：' + s.error, 'err')
+    action.hidden = true
+  } else if (s.ready) {
+    setStatus('#update-status', '新版 v' + s.latest + ' 已下载', 'ok')
+    action.hidden = false
+    action.textContent = '重启以更新'
+    action.dataset.act = 'apply'
+  } else if (s.downloading) {
+    setStatus('#update-status', '发现新版 v' + s.latest + '，下载中 ' + Math.round((s.progress || 0) * 100) + '%…', '')
+    action.hidden = true
+  } else if (s.canAutoUpdate) {
+    setStatus('#update-status', '发现新版 v' + s.latest + '，准备下载…', 'ok')
+    action.hidden = true
   } else {
-    setStatus('#update-status', '✓ 已是最新版 v' + r.current, 'ok')
+    setStatus('#update-status', '发现新版 v' + s.latest + '（当前 v' + s.current + '）', 'ok')
+    action.hidden = true
   }
 }
+
+async function checkUpdate() {
+  setStatus('#update-status', '检查中…', '')
+  $('#update-action').hidden = true
+  $('#update-download').hidden = true
+  renderUpdateState(await window.api.checkUpdate())
+}
 $('#check-update').addEventListener('click', checkUpdate)
+$('#update-action').addEventListener('click', () => {
+  if ($('#update-action').dataset.act === 'apply') window.api.applyUpdate()
+})
+window.api.onUpdateState((s) => renderUpdateState(s))
 
 window.api.getAppInfo().then((info) => {
   $('#about-version').textContent = 'v' + info.version

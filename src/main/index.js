@@ -27,6 +27,7 @@ const { translateWith, listModels } = require('./engines')
 const { listProviders, getProvider } = require('./engines/providers')
 const { LANGUAGES, pickDirection, isWordLookup } = require('./languages')
 const { renderMarkdown } = require('./markdown')
+const updater = require('./updater')
 
 const PRELOAD = path.join(__dirname, '..', 'preload', 'index.js')
 const RENDERER = path.join(__dirname, '..', 'renderer')
@@ -44,7 +45,11 @@ let tray = null
 let isQuitting = false
 let captureState = null // { image, scaleFactor }
 let suppressBlurHide = false // 刚显示窗口的瞬间不触发失焦自动隐藏
-let latestUpdate = null // 缓存的可用更新 { latest, url }
+let latestUpdate = null // 可用更新 { latest, url, assets }
+let updateReady = false // 新版已下载就绪
+let updateDownloading = false
+let updateProgress = 0
+let updateError = ''
 
 /* ------------------------------------------------------------------ */
 /* 主翻译窗口                                                          */
@@ -310,6 +315,7 @@ function openSettings() {
 ipcMain.handle('translate', async (_e, text) => translate(text))
 ipcMain.handle('render-markdown', (_e, text) => renderMarkdown(text))
 ipcMain.handle('update:check', () => checkForUpdate())
+ipcMain.on('update:apply', () => applyUpdateAndQuit())
 
 // 流式翻译：渲染层发起，主进程把 meta/delta/done/error 逐步推回。token 用于忽略过期请求。
 ipcMain.on('translate:stream', async (event, payload) => {
@@ -515,9 +521,17 @@ function accelSymbol(accel) {
 function buildTrayMenu() {
   const hk = settings.get().hotkeys
   const items = []
-  if (latestUpdate && latestUpdate.hasUpdate) {
+  if (updateReady && latestUpdate) {
     items.push(
-      { label: '↓ 有新版 v' + latestUpdate.latest + '，点此下载', click: () => shell.openExternal(latestUpdate.url) },
+      { label: '↻ 重启以更新到 v' + latestUpdate.latest, click: applyUpdateAndQuit },
+      { type: 'separator' }
+    )
+  } else if (latestUpdate) {
+    items.push(
+      {
+        label: '↓ 有新版 v' + latestUpdate.latest + (updateDownloading ? '（下载中…）' : ''),
+        click: () => shell.openExternal(latestUpdate.url),
+      },
       { type: 'separator' }
     )
   }
@@ -624,6 +638,55 @@ function isNewer(a, b) {
   return false
 }
 
+function updateStateSummary(extra) {
+  return {
+    ok: true,
+    current: app.getVersion(),
+    latest: latestUpdate ? latestUpdate.latest : '',
+    hasUpdate: !!latestUpdate,
+    ready: updateReady,
+    downloading: updateDownloading,
+    progress: updateProgress,
+    error: updateError,
+    url: latestUpdate ? latestUpdate.url : REPO_URL + '/releases/latest',
+    canAutoUpdate: app.isPackaged && (process.platform === 'darwin' || process.platform === 'win32'),
+    ...(extra || {}),
+  }
+}
+
+function broadcastUpdateState() {
+  if (settingsWin && !settingsWin.isDestroyed()) {
+    settingsWin.webContents.send('update:state', updateStateSummary())
+  }
+}
+
+// 发现新版后后台自动下载（仅打包版、Mac/Win）。
+function maybeAutoDownload() {
+  if (!app.isPackaged || (process.platform !== 'darwin' && process.platform !== 'win32')) return
+  if (updateReady || updateDownloading || !latestUpdate) return
+  updateDownloading = true
+  updateError = ''
+  updateProgress = 0
+  broadcastUpdateState()
+  updater
+    .downloadUpdate(latestUpdate.assets, (p) => {
+      updateProgress = p
+      broadcastUpdateState()
+    })
+    .then(() => {
+      updateDownloading = false
+      updateReady = true
+      updateProgress = 1
+      rebuildTray()
+      broadcastUpdateState()
+    })
+    .catch((e) => {
+      updateDownloading = false
+      updateError = e.message
+      broadcastUpdateState()
+    })
+}
+
 async function checkForUpdate() {
   const current = app.getVersion()
   try {
@@ -633,16 +696,26 @@ async function checkForUpdate() {
     if (!res.ok) return { ok: false, current, error: 'HTTP ' + res.status }
     const data = await res.json()
     const latest = (data.tag_name || '').replace(/^v/, '')
-    const hasUpdate = !!latest && isNewer(latest, current)
-    const result = { ok: true, current, latest, hasUpdate, url: data.html_url || REPO_URL + '/releases/latest' }
-    if (hasUpdate) {
-      latestUpdate = result
-      rebuildTray() // 托盘菜单出现"有新版"入口
+    if (latest && isNewer(latest, current)) {
+      latestUpdate = {
+        latest,
+        url: data.html_url || REPO_URL + '/releases/latest',
+        assets: (data.assets || []).map((a) => ({ name: a.name, url: a.browser_download_url, size: a.size })),
+      }
+      rebuildTray()
+      maybeAutoDownload() // 后台自动下载新版
     }
-    return result
+    return updateStateSummary()
   } catch (e) {
     return { ok: false, current, error: e.message }
   }
+}
+
+function applyUpdateAndQuit() {
+  if (!updateReady) return
+  isQuitting = true
+  updater.applyUpdate()
+  app.quit()
 }
 
 function scheduleUpdateChecks() {
