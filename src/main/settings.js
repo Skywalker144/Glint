@@ -3,7 +3,12 @@
 const fs = require('fs')
 const path = require('path')
 const { app } = require('electron')
-const { DEFAULT_SYSTEM_PROMPT, DEFAULT_DICTIONARY_PROMPT, LEGACY_SYSTEM_PROMPTS } = require('./engines/prompt')
+const {
+  DEFAULT_SYSTEM_PROMPT,
+  DEFAULT_DICTIONARY_PROMPT,
+  LEGACY_SYSTEM_PROMPTS,
+  LEGACY_DICTIONARY_PROMPTS,
+} = require('./engines/prompt')
 
 // 设置持久化在 userData/settings.json。
 
@@ -43,6 +48,9 @@ function migrate(raw) {
   }
   if (raw && LEGACY_SYSTEM_PROMPTS.includes(raw.systemPrompt)) {
     raw.systemPrompt = DEFAULT_SYSTEM_PROMPT
+  }
+  if (raw && LEGACY_DICTIONARY_PROMPTS.includes(raw.dictionaryPrompt)) {
+    raw.dictionaryPrompt = DEFAULT_DICTIONARY_PROMPT
   }
   return raw
 }

@@ -7,11 +7,20 @@ const DEFAULT_SYSTEM_PROMPT =
   '只输出译文，不要添加引号、解释、注释或额外说明。保留原文的换行、段落和基本格式。'
 
 const DEFAULT_DICTIONARY_PROMPT =
+  '你是一部双语词典。用户发来一个单词或短语，用 Markdown 格式输出清晰的词条（不要用 ``` 代码块包裹整体）：\n' +
+  '- 第一行：**词条** 后跟斜体音标/读音（英文用 IPA，中文用拼音），例如 **apple** */ˈæp.əl/*\n' +
+  '- 按词性分组，词性用**粗体**（如 **n.**、**v.**、**adj.**）；释义用{{primary}}，多个义项用有序列表（1. 2. …）\n' +
+  '- 例句放在「**例句**」小标题下，用无序列表，每条格式：- *原文例句* — {{primary}}译文\n' +
+  '若输入其实是句子而非单词，就直接用{{primary}}翻译、不套词典格式。只输出词条内容本身。'
+
+// 旧版词典提示词（没自定义过的用户会被迁移到上面的 Markdown 新版）
+const LEGACY_DICTIONARY_PROMPTS = [
   '你是一部简明双语词典。用户会发来一个单词或短语，请用{{primary}}给出简洁词条：\n' +
-  '- 第一行：词条本身（英文附 IPA 音标，中文附拼音）\n' +
-  '- 词性 + 释义，可分多个义项，每项一行，用{{primary}}解释\n' +
-  '- 1–2 个例句，每句附{{primary}}翻译\n' +
-  '若它其实是句子而非单词，就直接翻译成{{primary}}。只输出词条内容，不要前后缀，不要 Markdown 代码块。'
+    '- 第一行：词条本身（英文附 IPA 音标，中文附拼音）\n' +
+    '- 词性 + 释义，可分多个义项，每项一行，用{{primary}}解释\n' +
+    '- 1–2 个例句，每句附{{primary}}翻译\n' +
+    '若它其实是句子而非单词，就直接翻译成{{primary}}。只输出词条内容，不要前后缀，不要 Markdown 代码块。',
+]
 
 const LEGACY_SYSTEM_PROMPTS = [
   '你是一名专业翻译引擎。请将用户输入的文本翻译为 {{target}}。\n' +
@@ -43,6 +52,7 @@ module.exports = {
   DEFAULT_SYSTEM_PROMPT,
   DEFAULT_DICTIONARY_PROMPT,
   LEGACY_SYSTEM_PROMPTS,
+  LEGACY_DICTIONARY_PROMPTS,
   buildSystemPrompt,
   targetName,
 }
