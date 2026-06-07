@@ -5,6 +5,7 @@ const { contextBridge, ipcRenderer } = require('electron')
 contextBridge.exposeInMainWorld('api', {
   // 翻译窗口
   translate: (text) => ipcRenderer.invoke('translate', text),
+  renderMarkdown: (text) => ipcRenderer.invoke('render-markdown', text),
   translateStream: (text, token) => ipcRenderer.send('translate:stream', { text, token }),
   onTranslateEvent: (cb) => ipcRenderer.on('translate:event', (_e, msg) => cb(msg)),
   hide: () => ipcRenderer.send('hide-window'),

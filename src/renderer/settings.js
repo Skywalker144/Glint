@@ -20,7 +20,7 @@ let state = {
   dictionaryPrompt: '',
   pinned: false,
   proxy: { enabled: false, url: '' },
-  hotkeys: { input: '', screenshot: '', selection: '' },
+  hotkeys: { input: '', screenshot: '', selection: '', clipboard: '' },
   providers: {},
 }
 
@@ -60,6 +60,7 @@ function normalizeSettings(s) {
       input: hotkeys.input || '',
       screenshot: hotkeys.screenshot || '',
       selection: hotkeys.selection || '',
+      clipboard: hotkeys.clipboard || '',
     },
     providers: clone((s && s.providers) || {}),
   }
@@ -610,7 +611,7 @@ $('#history-clear').addEventListener('click', async () => {
 
 function validateBeforeSave() {
   const hk = state.hotkeys
-  const vals = [hk.input, hk.screenshot, hk.selection]
+  const vals = [hk.input, hk.screenshot, hk.selection, hk.clipboard]
   if (vals.some((v) => !v)) return '三个快捷键都要设置'
   if (new Set(vals).size !== vals.length) return '快捷键不能重复'
 
@@ -634,7 +635,7 @@ $('#save').addEventListener('click', async () => {
 
   const r = await window.api.saveSettings(state)
   if (r.hotkeyErrors && r.hotkeyErrors.length) {
-    const names = { input: '输入翻译', screenshot: '截图翻译', selection: '划词翻译' }
+    const names = { input: '输入翻译', screenshot: '截图翻译', selection: '划词翻译', clipboard: '剪贴板翻译' }
     setStatus('#save-status', '✗ 无法注册（可能被占用）：' + r.hotkeyErrors.map((k) => names[k]).join('、'), 'err')
     return
   }

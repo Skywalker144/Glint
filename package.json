@@ -6,6 +6,7 @@
   "main": "src/main/index.js",
   "scripts": {
     "start": "electron .",
+    "postinstall": "node scripts/copy-vendor.js",
     "build:icon": "electron scripts/make-icon.js",
     "build:macocr": "bash scripts/build-macocr.sh",
     "dist:mac": "npm run build:macocr && electron-builder --mac",
@@ -60,6 +61,9 @@
     "electron-builder": "^25.1.8"
   },
   "dependencies": {
+    "katex": "^0.17.0",
+    "markdown-it": "^14.2.0",
+    "markdown-it-texmath": "^1.0.0",
     "tesseract.js": "^7.0.0"
   }
 }

@@ -192,7 +192,7 @@
   gap: 12px;
 }
 .s-row > label {
-  width: 70px;
+  width: 80px;
   flex-shrink: 0;
   color: var(--text);
   font-size: 13px;

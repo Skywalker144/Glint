@@ -26,6 +26,7 @@ const history = require('./history')
 const { translateWith, listModels } = require('./engines')
 const { listProviders, getProvider } = require('./engines/providers')
 const { LANGUAGES, pickDirection, isWordLookup } = require('./languages')
+const { renderMarkdown } = require('./markdown')
 
 const PRELOAD = path.join(__dirname, '..', 'preload', 'index.js')
 const RENDERER = path.join(__dirname, '..', 'renderer')
@@ -122,6 +123,17 @@ function sendToTranslator(channel, payload) {
 function onInputTranslate() {
   showTranslator()
   sendToTranslator('focus-input')
+}
+
+// 功能 4：翻译剪贴板当前文本
+function onClipboardTranslate() {
+  const text = (clipboard.readText() || '').trim()
+  showTranslator()
+  if (!text) {
+    sendToTranslator('show-message', '剪贴板里没有文本。先复制一段文字，再按快捷键。')
+    return
+  }
+  sendToTranslator('translate-text', text)
 }
 
 /* ------------------------------------------------------------------ */
@@ -295,6 +307,7 @@ function openSettings() {
 /* ------------------------------------------------------------------ */
 
 ipcMain.handle('translate', async (_e, text) => translate(text))
+ipcMain.handle('render-markdown', (_e, text) => renderMarkdown(text))
 
 // 流式翻译：渲染层发起，主进程把 meta/delta/done/error 逐步推回。token 用于忽略过期请求。
 ipcMain.on('translate:stream', async (event, payload) => {
@@ -500,6 +513,7 @@ function buildTrayMenu() {
     { label: '输入翻译   ' + accelSymbol(hk.input), click: onInputTranslate },
     { label: '截图翻译   ' + accelSymbol(hk.screenshot), click: onScreenshotTranslate },
     { label: '划词翻译   ' + accelSymbol(hk.selection), click: onSelectionTranslate },
+    { label: '剪贴板翻译 ' + accelSymbol(hk.clipboard), click: onClipboardTranslate },
     { type: 'separator' },
     { label: '设置…', click: openSettings },
     { type: 'separator' },
@@ -531,6 +545,7 @@ function registerHotkeys() {
     input: onInputTranslate,
     screenshot: onScreenshotTranslate,
     selection: onSelectionTranslate,
+    clipboard: onClipboardTranslate,
   }
   for (const key of Object.keys(handlers)) {
     const accel = hk[key]

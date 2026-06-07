@@ -21,6 +21,7 @@ const DEFAULTS = {
     input: 'Alt+Q', // 输入翻译
     screenshot: 'Alt+W', // 截图翻译
     selection: 'Alt+E', // 划词翻译
+    clipboard: 'Alt+R', // 翻译剪贴板
   },
   // 每个服务商各存各的 Key/模型，切换不丢配置。
   providers: {
