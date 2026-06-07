@@ -18,6 +18,8 @@
   --primary-bg: #1a1a1a;
   --primary-text: #ffffff;
   --scroll: #cfcfd4;
+  --switch-off: #d4d4d9; /* 拨动开关关闭态轨道 */
+  --card: #ffffff; /* 分组卡片底色 */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -32,6 +34,8 @@
     --primary-bg: #f2f2f5;
     --primary-text: #1c1c1e;
     --scroll: #48484e;
+    --switch-off: #48484e;
+    --card: #232326;
   }
 }
 

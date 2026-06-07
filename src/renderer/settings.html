@@ -2,7 +2,7 @@
 <html lang="zh">
   <head>
     <meta charset="utf-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:" />
     <link rel="stylesheet" href="theme.css" />
     <link rel="stylesheet" href="settings.css" />
   </head>
@@ -17,13 +17,34 @@
 
       <div class="s-main">
         <nav class="s-nav">
-          <button class="s-tab active" data-tab="general">通用</button>
-          <button class="s-tab" data-tab="translate">翻译</button>
-          <button class="s-tab" data-tab="ai">AI</button>
-          <button class="s-tab" data-tab="hotkeys">快捷键</button>
-          <button class="s-tab" data-tab="permissions">权限</button>
-          <button class="s-tab" data-tab="history">历史</button>
-          <button class="s-tab" data-tab="about">关于</button>
+          <button class="s-tab active" data-tab="general">
+            <svg viewBox="0 0 16 16"><path d="M2 4.5h4.2M10 4.5h4M2 11.5h4M9.8 11.5h4.2" /><circle cx="8" cy="4.5" r="1.8" /><circle cx="8" cy="11.5" r="1.8" /></svg>
+            <span>通用</span>
+          </button>
+          <button class="s-tab" data-tab="translate">
+            <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.3" /><path d="M1.7 8h12.6M8 1.7c2.3 1.8 2.3 10.8 0 12.6M8 1.7c-2.3 1.8-2.3 10.8 0 12.6" /></svg>
+            <span>翻译</span>
+          </button>
+          <button class="s-tab" data-tab="ai">
+            <svg viewBox="0 0 16 16"><path d="M8 1.8l1.7 4.5 4.5 1.7-4.5 1.7L8 14.2 6.3 9.7 1.8 8l4.5-1.7z" /></svg>
+            <span>AI</span>
+          </button>
+          <button class="s-tab" data-tab="hotkeys">
+            <svg viewBox="0 0 16 16"><rect x="1.6" y="4.2" width="12.8" height="7.6" rx="1.6" /><path d="M4 6.8h.01M6.6 6.8h.01M9.2 6.8h.01M11.8 6.8h.01M4 9.4h.01M6 9.4h4M12 9.4h.01" /></svg>
+            <span>快捷键</span>
+          </button>
+          <button class="s-tab" data-tab="permissions">
+            <svg viewBox="0 0 16 16"><rect x="3.2" y="7" width="9.6" height="6.9" rx="1.7" /><path d="M5.4 7V5.2a2.6 2.6 0 0 1 5.2 0V7" /></svg>
+            <span>权限</span>
+          </button>
+          <button class="s-tab" data-tab="history">
+            <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.3" /><path d="M8 4.4V8l2.6 1.6" /></svg>
+            <span>历史</span>
+          </button>
+          <button class="s-tab" data-tab="about">
+            <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.3" /><path d="M8 7.3v3.6M8 5.2h.01" /></svg>
+            <span>关于</span>
+          </button>
         </nav>
 
         <div class="s-content">
@@ -34,14 +55,16 @@
             </div>
 
             <div class="s-section">
-              <label class="s-toggle">
-                <input type="checkbox" id="launch-at-login" />
-                <span>开机时自动启动<small>登录后在后台静默启动，菜单栏待命</small></span>
-              </label>
-              <label class="s-toggle">
-                <input type="checkbox" id="pin-window" />
-                <span>钉住主窗口<small>翻译窗口常驻，切到别的应用也不消失（也可在窗口右上角点图钉）</small></span>
-              </label>
+              <div class="s-card">
+                <label class="s-toggle">
+                  <input type="checkbox" id="launch-at-login" />
+                  <span>开机时自动启动<small>登录后在后台静默启动，菜单栏待命</small></span>
+                </label>
+                <label class="s-toggle">
+                  <input type="checkbox" id="pin-window" />
+                  <span>钉住主窗口<small>翻译窗口常驻，切到别的应用也不消失（也可在窗口右上角点图钉）</small></span>
+                </label>
+              </div>
             </div>
 
             <div class="s-section">
@@ -51,17 +74,19 @@
                   <p>让翻译请求走本地代理（如 Clash），网络受限时用来访问各家 API。</p>
                 </div>
               </div>
-              <label class="s-toggle">
-                <input type="checkbox" id="proxy-enabled" />
-                <span>使用代理<small>关闭时直连</small></span>
-              </label>
-              <div class="s-field">
-                <label>代理地址</label>
-                <div class="s-inline">
-                  <input id="proxy-url" placeholder="127.0.0.1:7890（Clash 混合端口）" spellcheck="false" autocomplete="off" />
-                  <button id="proxy-test" class="ghost">测试</button>
+              <div class="s-card">
+                <label class="s-toggle">
+                  <input type="checkbox" id="proxy-enabled" />
+                  <span>使用代理<small>关闭时直连</small></span>
+                </label>
+                <div class="s-field">
+                  <label>代理地址</label>
+                  <div class="s-inline">
+                    <input id="proxy-url" placeholder="127.0.0.1:7890（Clash 混合端口）" spellcheck="false" autocomplete="off" />
+                    <button id="proxy-test" class="ghost">测试</button>
+                  </div>
+                  <span id="proxy-status" class="s-status"></span>
                 </div>
-                <span id="proxy-status" class="s-status"></span>
               </div>
             </div>
           </section>
@@ -73,11 +98,13 @@
             </div>
 
             <div class="s-section">
-              <div class="s-field">
-                <label>翻译服务商</label>
-                <div class="s-inline">
-                  <select id="provider"></select>
-                  <span id="translation-provider-badge" class="s-badge"></span>
+              <div class="s-card">
+                <div class="s-field">
+                  <label>翻译服务商</label>
+                  <div class="s-inline">
+                    <select id="provider"></select>
+                    <span id="translation-provider-badge" class="s-badge"></span>
+                  </div>
                 </div>
               </div>
               <p id="provider-desc" class="s-tip"></p>
@@ -90,14 +117,14 @@
                   <p>输入是主语言时翻到副语言；其它语言统一翻到主语言。</p>
                 </div>
               </div>
-              <div class="s-grid2">
+              <div class="s-card">
                 <div class="s-field">
                   <label>主语言</label>
-                  <select id="primary-language"></select>
+                  <div class="s-inline"><select id="primary-language"></select></div>
                 </div>
                 <div class="s-field">
                   <label>副语言</label>
-                  <select id="secondary-language"></select>
+                  <div class="s-inline"><select id="secondary-language"></select></div>
                 </div>
               </div>
               <div class="s-readonly">
@@ -132,21 +159,23 @@
                   <span id="ai-provider-badge" class="s-badge"></span>
                 </div>
 
-                <div class="s-field" id="baseurl-field" hidden>
-                  <label>Base URL</label>
-                  <input id="ai-baseurl" placeholder="https://..." spellcheck="false" autocomplete="off" />
-                </div>
-                <div class="s-field">
-                  <label>API Key <a id="key-link" class="s-link" hidden>获取 Key ↗</a></label>
-                  <input id="ai-key" type="password" placeholder="sk-..." spellcheck="false" autocomplete="off" />
-                </div>
-                <div class="s-field">
-                  <label>模型</label>
-                  <div class="s-inline">
-                    <input id="ai-model" list="ai-models" placeholder="模型名" spellcheck="false" autocomplete="off" />
-                    <button id="ai-load" class="ghost">加载模型</button>
+                <div class="s-card">
+                  <div class="s-field" id="baseurl-field" hidden>
+                    <label>Base URL</label>
+                    <div class="s-inline"><input id="ai-baseurl" placeholder="https://..." spellcheck="false" autocomplete="off" /></div>
                   </div>
-                  <datalist id="ai-models"></datalist>
+                  <div class="s-field">
+                    <label>API Key <a id="key-link" class="s-link" hidden>获取 Key ↗</a></label>
+                    <div class="s-inline"><input id="ai-key" type="password" placeholder="sk-..." spellcheck="false" autocomplete="off" /></div>
+                  </div>
+                  <div class="s-field">
+                    <label>模型</label>
+                    <div class="s-inline">
+                      <input id="ai-model" list="ai-models" placeholder="模型名" spellcheck="false" autocomplete="off" />
+                      <button id="ai-load" class="ghost">加载模型</button>
+                    </div>
+                    <datalist id="ai-models"></datalist>
+                  </div>
                 </div>
                 <div class="s-inline s-actions">
                   <button id="ai-test" class="ghost">测试翻译</button>
@@ -179,10 +208,12 @@
                   </div>
                   <button id="ai-dict-reset" class="s-link s-reset" type="button">恢复默认</button>
                 </div>
-                <label class="s-toggle">
-                  <input type="checkbox" id="dictionary-mode" />
-                  <span>启用单词词典<small>输入单词、或划词选中单词时自动切换</small></span>
-                </label>
+                <div class="s-card">
+                  <label class="s-toggle">
+                    <input type="checkbox" id="dictionary-mode" />
+                    <span>启用单词词典<small>输入单词、或划词选中单词时自动切换</small></span>
+                  </label>
+                </div>
                 <textarea id="ai-dictionary-prompt" rows="6" spellcheck="false" placeholder="词典模式的系统提示词"></textarea>
               </div>
             </div>
@@ -195,21 +226,23 @@
             </div>
 
             <div class="s-section">
-              <div class="s-row">
-                <label>输入翻译</label>
-                <input class="recorder" data-key="input" readonly placeholder="点击后按下组合键" />
-              </div>
-              <div class="s-row">
-                <label>截图翻译</label>
-                <input class="recorder" data-key="screenshot" readonly placeholder="点击后按下组合键" />
-              </div>
-              <div class="s-row">
-                <label>划词翻译</label>
-                <input class="recorder" data-key="selection" readonly placeholder="点击后按下组合键" />
-              </div>
-              <div class="s-row">
-                <label>剪贴板翻译</label>
-                <input class="recorder" data-key="clipboard" readonly placeholder="点击后按下组合键" />
+              <div class="s-card">
+                <div class="s-row">
+                  <label>输入翻译</label>
+                  <input class="recorder" data-key="input" readonly placeholder="点击后按下组合键" />
+                </div>
+                <div class="s-row">
+                  <label>截图翻译</label>
+                  <input class="recorder" data-key="screenshot" readonly placeholder="点击后按下组合键" />
+                </div>
+                <div class="s-row">
+                  <label>划词翻译</label>
+                  <input class="recorder" data-key="selection" readonly placeholder="点击后按下组合键" />
+                </div>
+                <div class="s-row">
+                  <label>剪贴板翻译</label>
+                  <input class="recorder" data-key="clipboard" readonly placeholder="点击后按下组合键" />
+                </div>
               </div>
             </div>
           </section>
@@ -220,7 +253,7 @@
               <p>检查截图翻译和划词翻译依赖的系统权限。</p>
             </div>
 
-            <div class="s-permission-list">
+            <div class="s-card s-permission-list">
               <div class="s-permission">
                 <div>
                   <strong>辅助功能</strong>
@@ -278,10 +311,12 @@
             </div>
 
             <div class="s-section">
-              <div class="s-inline s-actions">
-                <button id="check-update" class="ghost">检查更新</button>
-                <button id="update-action" class="primary" hidden>重启以更新</button>
-                <span id="update-status" class="s-status"></span>
+              <div class="s-card">
+                <div class="s-inline s-actions">
+                  <button id="check-update" class="ghost">检查更新</button>
+                  <button id="update-action" class="primary" hidden>重启以更新</button>
+                  <span id="update-status" class="s-status"></span>
+                </div>
               </div>
               <a id="update-download" class="s-link" hidden>或手动前往下载页 ↗</a>
               <p class="s-tip">每天自动检查，发现新版后台自动下载；下载好点「重启以更新」即可。</p>
