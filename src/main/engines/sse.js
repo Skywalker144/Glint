@@ -2,7 +2,7 @@
 
 // 读取 SSE 流：逐行把 `data:` 后面的负载交给 onData。
 // res 需是 fetch Response（net.fetch 的返回），其 body 为 ReadableStream。
-async function readSSE(res, onData) {
+async function readSSE(res, onData, onActivity) {
   if (!res.body || typeof res.body.getReader !== 'function') {
     throw new Error('当前环境不支持流式响应')
   }
@@ -12,6 +12,7 @@ async function readSSE(res, onData) {
   for (;;) {
     const { done, value } = await reader.read()
     if (done) break
+    if (onActivity) onActivity()
     buf += decoder.decode(value, { stream: true })
     let nl
     while ((nl = buf.indexOf('\n')) >= 0) {

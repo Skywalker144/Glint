@@ -332,7 +332,7 @@ ipcMain.on('translate:stream', async (event, payload) => {
     const item = await translateStream(text, (delta) => send({ type: 'delta', delta }))
     send({ type: 'done', item })
   } catch (e) {
-    send({ type: 'error', error: e.message })
+    send({ type: 'error', error: friendlyError(e, engineId) })
   }
 })
 
@@ -378,7 +378,10 @@ ipcMain.on('capture:selected', async (_e, rect) => {
   })
 
   showTranslator()
-  sendToTranslator('show-message', '正在识别文字…（首次使用会下载识别引擎，请稍候）')
+  sendToTranslator(
+    'show-message',
+    process.platform === 'darwin' ? '正在识别文字…' : '正在识别文字…（首次使用会下载识别引擎，请稍候）'
+  )
 
   try {
     const text = await recognize(cropped.toPNG())
@@ -645,6 +648,23 @@ async function checkForUpdate() {
 function scheduleUpdateChecks() {
   setTimeout(() => checkForUpdate(), 5000) // 启动后台静默查一次
   setInterval(() => checkForUpdate(), 24 * 60 * 60 * 1000) // 每天一次
+}
+
+// 把底层报错（HTTP 状态 / 网络 / net::ERR_* / 超时）翻成人话 + 行动指引。
+function friendlyError(e, engineId) {
+  const msg = (e && e.message) || String(e || '未知错误')
+  const p = getProvider(engineId)
+  const isFree = !p || p.kind === 'free'
+  if (/ERR_PROXY/i.test(msg)) return '代理连接失败，检查 设置→通用→网络代理 的地址'
+  if (/abort|ERR_TIMED_OUT|ETIMEDOUT|timed?\s*out|超时/i.test(msg)) return '请求超时——网络或代理较慢，稍后再试'
+  if (/ERR_NAME_NOT_RESOLVED|ERR_INTERNET_DISCONNECTED|ERR_CONNECTION|ERR_NETWORK|ENOTFOUND|EAI_AGAIN/i.test(msg))
+    return isFree ? '网络不通——Google 在受限网络可能要开代理（设置→通用）' : '网络不通——可在 设置→通用 开代理'
+  if (/\b401\b|\b403\b|unauthorized|invalid.*api.*key|permission/i.test(msg)) return 'API Key 无效或没权限，去 设置→AI 检查'
+  if (/\b429\b|rate.?limit|quota|insufficient|exceeded|billing/i.test(msg)) return '请求太频繁或额度/账单用尽，稍后再试'
+  if (/\b404\b/.test(msg)) return '模型或接口地址不对，去 设置→AI 检查模型 / Base URL'
+  if (/\b5\d\d\b/.test(msg)) return '服务商暂时不可用，稍后再试'
+  if (/未配置 API Key|未选择模型|缺少 Base URL/.test(msg)) return msg + '——去 设置→AI 配置'
+  return msg
 }
 
 /* ------------------------------------------------------------------ */

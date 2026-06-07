@@ -21,6 +21,28 @@
   font: inherit;
   outline: none;
   user-select: text;
+  transition: height 0.15s ease;
+}
+/* 有结果时输入框收窄，把空间让给译文 */
+.app.has-result .input {
+  height: 46px;
+}
+
+/* 流式生成时结尾的闪烁光标 */
+.stream-caret {
+  display: inline-block;
+  width: 0.5em;
+  height: 1.05em;
+  margin-left: 1px;
+  background: var(--muted);
+  vertical-align: text-bottom;
+  border-radius: 1px;
+  animation: caret-blink 1s step-end infinite;
+}
+@keyframes caret-blink {
+  50% {
+    opacity: 0;
+  }
 }
 .input::placeholder {
   color: var(--muted);
