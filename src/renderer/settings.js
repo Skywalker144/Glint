@@ -134,6 +134,7 @@ function selectTab(name) {
   })
   if (name === 'permissions') refreshPermissions()
   if (name === 'history') loadHistory()
+  if (name === 'about') checkUpdate()
 }
 
 $$('.s-tab').forEach((tab) => {
@@ -657,6 +658,29 @@ $('#about-repo').addEventListener('click', () => {
   const url = $('#about-repo').dataset.url
   if (url) window.api.openExternal(url)
 })
+
+$('#update-download').addEventListener('click', () => {
+  const url = $('#update-download').dataset.url
+  if (url) window.api.openExternal(url)
+})
+
+async function checkUpdate() {
+  setStatus('#update-status', '检查中…', '')
+  $('#update-download').hidden = true
+  const r = await window.api.checkUpdate()
+  if (!r.ok) {
+    setStatus('#update-status', '✗ 检查失败：' + r.error, 'err')
+    return
+  }
+  if (r.hasUpdate) {
+    setStatus('#update-status', '发现新版 v' + r.latest + '（当前 v' + r.current + '）', 'ok')
+    $('#update-download').dataset.url = r.url
+    $('#update-download').hidden = false
+  } else {
+    setStatus('#update-status', '✓ 已是最新版 v' + r.current, 'ok')
+  }
+}
+$('#check-update').addEventListener('click', checkUpdate)
 
 window.api.getAppInfo().then((info) => {
   $('#about-version').textContent = 'v' + info.version

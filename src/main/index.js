@@ -44,6 +44,7 @@ let tray = null
 let isQuitting = false
 let captureState = null // { image, scaleFactor }
 let suppressBlurHide = false // 刚显示窗口的瞬间不触发失焦自动隐藏
+let latestUpdate = null // 缓存的可用更新 { latest, url }
 
 /* ------------------------------------------------------------------ */
 /* 主翻译窗口                                                          */
@@ -308,6 +309,7 @@ function openSettings() {
 
 ipcMain.handle('translate', async (_e, text) => translate(text))
 ipcMain.handle('render-markdown', (_e, text) => renderMarkdown(text))
+ipcMain.handle('update:check', () => checkForUpdate())
 
 // 流式翻译：渲染层发起，主进程把 meta/delta/done/error 逐步推回。token 用于忽略过期请求。
 ipcMain.on('translate:stream', async (event, payload) => {
@@ -509,7 +511,14 @@ function accelSymbol(accel) {
 
 function buildTrayMenu() {
   const hk = settings.get().hotkeys
-  return Menu.buildFromTemplate([
+  const items = []
+  if (latestUpdate && latestUpdate.hasUpdate) {
+    items.push(
+      { label: '↓ 有新版 v' + latestUpdate.latest + '，点此下载', click: () => shell.openExternal(latestUpdate.url) },
+      { type: 'separator' }
+    )
+  }
+  items.push(
     { label: '输入翻译   ' + accelSymbol(hk.input), click: onInputTranslate },
     { label: '截图翻译   ' + accelSymbol(hk.screenshot), click: onScreenshotTranslate },
     { label: '划词翻译   ' + accelSymbol(hk.selection), click: onSelectionTranslate },
@@ -523,8 +532,9 @@ function buildTrayMenu() {
         isQuitting = true
         app.quit()
       },
-    },
-  ])
+    }
+  )
+  return Menu.buildFromTemplate(items)
 }
 
 function rebuildTray() {
@@ -597,6 +607,46 @@ function applyProxy() {
   session.defaultSession.setProxy(config).catch((e) => console.warn('设置代理失败：', e.message))
 }
 
+/* ---------------- 检查更新（对比 GitHub 最新 Release）---------------- */
+
+const RELEASES_API = 'https://api.github.com/repos/Skywalker144/Glint/releases/latest'
+
+function isNewer(a, b) {
+  const pa = String(a || '').split('.').map((n) => parseInt(n, 10) || 0)
+  const pb = String(b || '').split('.').map((n) => parseInt(n, 10) || 0)
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    if ((pa[i] || 0) > (pb[i] || 0)) return true
+    if ((pa[i] || 0) < (pb[i] || 0)) return false
+  }
+  return false
+}
+
+async function checkForUpdate() {
+  const current = app.getVersion()
+  try {
+    const res = await net.fetch(RELEASES_API, {
+      headers: { 'User-Agent': 'Glint', Accept: 'application/vnd.github+json' },
+    })
+    if (!res.ok) return { ok: false, current, error: 'HTTP ' + res.status }
+    const data = await res.json()
+    const latest = (data.tag_name || '').replace(/^v/, '')
+    const hasUpdate = !!latest && isNewer(latest, current)
+    const result = { ok: true, current, latest, hasUpdate, url: data.html_url || REPO_URL + '/releases/latest' }
+    if (hasUpdate) {
+      latestUpdate = result
+      rebuildTray() // 托盘菜单出现"有新版"入口
+    }
+    return result
+  } catch (e) {
+    return { ok: false, current, error: e.message }
+  }
+}
+
+function scheduleUpdateChecks() {
+  setTimeout(() => checkForUpdate(), 5000) // 启动后台静默查一次
+  setInterval(() => checkForUpdate(), 24 * 60 * 60 * 1000) // 每天一次
+}
+
 /* ------------------------------------------------------------------ */
 /* 应用生命周期                                                        */
 /* ------------------------------------------------------------------ */
@@ -612,6 +662,7 @@ if (!app.requestSingleInstanceLock()) {
     prepareOCR() // 后台预编译 Vision OCR 二进制（仅 Mac）
     applyLoginItem() // 按设置同步开机自启
     applyProxy() // 按设置同步网络代理
+    scheduleUpdateChecks() // 启动 + 每日检查更新
   })
 
   app.on('window-all-closed', () => {})
