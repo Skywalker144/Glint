@@ -32,7 +32,9 @@ const updater = require('./updater')
 const PRELOAD = path.join(__dirname, '..', 'preload', 'index.js')
 const RENDERER = path.join(__dirname, '..', 'renderer')
 
-const WIN_WIDTH = 420 // 主窗口固定宽度
+const WIN_WIDTH = 420 // 主窗口默认宽度
+const WIN_MIN_WIDTH = 360 // 横向拖拽下限
+const WIN_MAX_WIDTH = 820 // 横向拖拽上限
 const WIN_MAX_HEIGHT = 600 // 主窗口高度自适应上限
 const SETTINGS_W = 640
 const SETTINGS_H = 460 // 初始高度；之后由渲染层按当前栏内容自适应
@@ -56,12 +58,13 @@ let updateError = ''
 /* ------------------------------------------------------------------ */
 
 function createTranslatorWindow() {
+  const startW = Math.max(WIN_MIN_WIDTH, Math.min(WIN_MAX_WIDTH, settings.get().windowWidth || WIN_WIDTH))
   translatorWin = new BrowserWindow({
-    width: WIN_WIDTH,
+    width: startW,
     height: 182, // 初始紧凑高度（仅输入框）；之后由渲染层按内容自动调整
     show: false,
     frame: false,
-    resizable: false, // 高度自动贴合内容
+    resizable: true, // 仅横向可拖宽；高度始终随内容自适应（resize-height 里 min==max 锁死纵向）
     transparent: true, // 透明窗口 + CSS 圆角卡片，得到可控半径的 G2 圆角和原生阴影
     hasShadow: true,
     roundedCorners: false,
@@ -72,6 +75,22 @@ function createTranslatorWindow() {
     alwaysOnTop: true,
     backgroundColor: '#00000000',
     webPreferences: { preload: PRELOAD, contextIsolation: true, nodeIntegration: false },
+  })
+
+  // 初始锁死纵向（之后每次 resize-height 会按内容高度重设这两个上下限）
+  translatorWin.setMinimumSize(WIN_MIN_WIDTH, 182)
+  translatorWin.setMaximumSize(WIN_MAX_WIDTH, 182)
+
+  // 用户横向拖拽后记住宽度（防抖 400ms；只在宽度真变了时写，高度变化不触发保存）
+  let widthSaveTimer = null
+  translatorWin.on('resize', () => {
+    if (!translatorWin || translatorWin.isDestroyed()) return
+    if (widthSaveTimer) clearTimeout(widthSaveTimer)
+    widthSaveTimer = setTimeout(() => {
+      if (!translatorWin || translatorWin.isDestroyed()) return
+      const [cw] = translatorWin.getContentSize()
+      if (cw !== (settings.get().windowWidth || WIN_WIDTH)) settings.save({ windowWidth: cw })
+    }, 400)
   })
 
   translatorWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
@@ -361,6 +380,9 @@ ipcMain.on('resize-height', (_e, h) => {
   if (!translatorWin || translatorWin.isDestroyed()) return
   const height = Math.max(120, Math.min(WIN_MAX_HEIGHT, Math.round(h)))
   const [w] = translatorWin.getContentSize()
+  // 高度随内容自适应；同时把纵向 min==max 锁到该高度 → 拖不动高度，只能横向拖宽
+  translatorWin.setMinimumSize(WIN_MIN_WIDTH, height)
+  translatorWin.setMaximumSize(WIN_MAX_WIDTH, height)
   translatorWin.setContentSize(w, height)
 })
 
