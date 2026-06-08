@@ -30,9 +30,16 @@ async function getSelectedText() {
   clipboard.writeText('') // 先清空，便于判断复制是否真的发生
 
   await simulateCopy()
-  await delay(220) // 等系统把选中内容写入剪贴板
 
-  const selected = clipboard.readText()
+  // 轮询等待目标 App 把选中内容写进剪贴板：一有内容就立刻返回（响应快的 App 往往几十毫秒
+  // 就好），最多等 ~700ms 容忍慢的 App。比之前固定 sleep 220ms 稳——固定等待在浏览器 /
+  // Electron 等较慢的 App 上偶发来不及，读到空 → 误报「没检测到选中的文字」。
+  let selected = ''
+  for (let i = 0; i < 28; i++) {
+    await delay(25)
+    selected = clipboard.readText()
+    if (selected.trim()) break
+  }
 
   // 还原用户原本的剪贴板内容
   if (previous) clipboard.writeText(previous)
