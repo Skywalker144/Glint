@@ -312,6 +312,7 @@ function renderProviderState() {
   $('#provider-desc').textContent = meta.desc || (meta.kind === 'free' ? '开箱即用，适合轻量翻译。' : '使用模型 API 翻译，质量和风格由模型决定。')
   setBadge('#translation-provider-badge', status.text, status.cls)
   setBadge('#ai-provider-badge', status.text, status.cls)
+  $('#go-ai-config').hidden = meta.kind === 'free' // 免费引擎无需配置，不显示跳转
 
   if (meta.kind === 'free') {
     $('#ai-free-note').hidden = false
@@ -346,9 +347,13 @@ function renderProviderState() {
 
 function renderPromptMeta() {
   const prompt = ($('#ai-system-prompt').value || state.systemPrompt || '').trim()
-  const hasTarget = /\{\{\s*target\s*\}\}|\{\s*target\s*\}|\$\{\s*target\s*\}/.test(prompt)
+  const has = (name) => new RegExp('\\{\\{?\\s*' + name + '\\s*\\}?\\}|\\$\\{\\s*' + name + '\\s*\\}').test(prompt)
+  const toks = []
+  if (has('primary')) toks.push('{{primary}}')
+  if (has('secondary')) toks.push('{{secondary}}')
+  if (has('target')) toks.push('{{target}}')
   const parts = [prompt.length + ' 字符']
-  if (hasTarget) parts.push('包含目标语言占位符')
+  if (toks.length) parts.push('占位符 ' + toks.join(' '))
   else parts.push(languageLabel(state.primaryLanguage) + ' ⇄ ' + languageLabel(state.secondaryLanguage))
   $('#ai-prompt-meta').textContent = parts.join(' · ')
 }
@@ -359,6 +364,8 @@ $('#provider').addEventListener('change', (e) => {
   renderProviderState()
   markDirty()
 })
+
+$('#go-ai-config').addEventListener('click', () => selectTab('ai'))
 
 $('#primary-language').addEventListener('change', (e) => {
   state.primaryLanguage = e.target.value

@@ -108,6 +108,7 @@
                 </div>
               </div>
               <p id="provider-desc" class="s-tip"></p>
+              <a id="go-ai-config" class="s-link" hidden>前往「AI」页填 Key 和模型 →</a>
             </div>
 
             <div class="s-section">
@@ -187,7 +188,7 @@
                 <div class="s-section-head">
                   <div>
                     <h2>系统提示词</h2>
-                    <p>用于约束 AI 翻译输出。可选使用 {{target}} 作为目标语言占位符。</p>
+                    <p>约束 AI 翻译输出。占位符：{{primary}} 主语言、{{secondary}} 副语言、{{target}} 目标语言。</p>
                   </div>
                   <button id="ai-prompt-reset" class="s-link s-reset" type="button">恢复默认</button>
                 </div>
@@ -204,7 +205,7 @@
                 <div class="s-section-head">
                   <div>
                     <h2>单词词典</h2>
-                    <p>输入单个词时用 AI 给出音标 / 释义 / 例句，而非直接翻译（仅 AI 引擎）。</p>
+                    <p>输入单个词时给出音标 / 释义 / 例句而非直接翻译（仅 AI 引擎）。同样支持 {{primary}} / {{secondary}} 占位符。</p>
                   </div>
                   <button id="ai-dict-reset" class="s-link s-reset" type="button">恢复默认</button>
                 </div>
