@@ -129,9 +129,16 @@ function createTranslatorWindow() {
   translatorWin.on('blur', () => {
     if (suppressBlurHide || isQuitting) return
     if (settings.get().pinned) return
-    if (translatorWin && !translatorWin.isDestroyed() && translatorWin.isVisible()) {
-      translatorWin.hide()
-    }
+    if (!translatorWin || translatorWin.isDestroyed() || !translatorWin.isVisible()) return
+    // 失焦瞬间若光标仍落在窗口范围内（含边缘外一圈余量）→ 多半是拖边缘缩放这类「假失焦」
+    // 误触，而不是真的点了别处，此时不收起。真正切到别的应用时光标会远离本窗口，照常收起。
+    // 这解决了「光标停在可见边缘外、macOS 原生缩放光标(↔)出现、一拖窗口却被收起」的问题：
+    // 原生缩放热区会探出窗口外几像素，落在那条缝里按下会穿透到后面的窗口 → 失焦 → 收起。
+    const p = screen.getCursorScreenPoint()
+    const b = translatorWin.getBounds()
+    const m = 12 // 边缘外余量（px），覆盖原生缩放热区
+    if (p.x >= b.x - m && p.x <= b.x + b.width + m && p.y >= b.y - m && p.y <= b.y + b.height + m) return
+    translatorWin.hide()
   })
 }
 
@@ -457,6 +464,24 @@ ipcMain.on('resize-height', (_e, h) => {
   translatorWin.setMinimumSize(WIN_MIN_WIDTH, height)
   translatorWin.setMaximumSize(WIN_MAX_WIDTH, height)
   translatorWin.setContentSize(w, height)
+})
+
+// 自定义右边缘宽度拖拽（渲染层手柄）：比原生 ~3px 边框好抓，且整段拖动期间抑制失焦
+// 自动收起——避免「够边缘没够准 → 点到窗外 → 窗口被收起」的误触。
+let resizeStartWidth = 0
+ipcMain.on('win:resize-start', () => {
+  if (!translatorWin || translatorWin.isDestroyed()) return
+  resizeStartWidth = translatorWin.getContentSize()[0]
+  suppressBlurHide = true
+})
+ipcMain.on('win:resize-move', (_e, dx) => {
+  if (!translatorWin || translatorWin.isDestroyed()) return
+  const h = translatorWin.getContentSize()[1]
+  const w = Math.max(WIN_MIN_WIDTH, Math.min(WIN_MAX_WIDTH, Math.round(resizeStartWidth + (dx || 0))))
+  translatorWin.setContentSize(w, h)
+})
+ipcMain.on('win:resize-end', () => {
+  suppressBlurHide = false
 })
 
 ipcMain.on('capture:cancel', () => {

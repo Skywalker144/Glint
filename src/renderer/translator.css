@@ -6,7 +6,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 4px 14px 14px;
+  padding: 4px 18px 14px; /* 右侧多留白，给宽度握把一条专属轨道 */
 }
 
 .input {
@@ -236,4 +236,45 @@
 }
 .resultbar[hidden] {
   display: none;
+}
+
+/* 右边缘宽度拖拽手柄：右侧留出一条专属轨道，放三个短竖握把。悬停 / 拖动时整条竖直区域
+   高亮、握把变亮，明确告诉用户「拖这里改宽度」。一条竖握把，手柄在窗口内，拖动期间主进程抑制失焦，
+   所以不会误触收起窗口。只改宽度，高度始终随内容。 */
+.app {
+  position: relative;
+}
+.titlebar {
+  padding-right: 18px; /* 与 .body 右内边距对齐，给握把让出轨道 */
+}
+.resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: ew-resize;
+  -webkit-app-region: no-drag;
+  z-index: 30;
+  transition: background 0.15s ease;
+}
+.resizer span {
+  width: 2px;
+  height: 28px; /* 握把总高，想调改这里 */
+  border-radius: 1px;
+  background: var(--muted);
+  opacity: 0.4;
+  pointer-events: none; /* 事件直接落到 .resizer，避免落在子元素上 */
+  transition: opacity 0.15s ease;
+}
+.resizer:hover,
+.app.resizing .resizer {
+  background: var(--surface-hover);
+}
+.resizer:hover span,
+.app.resizing .resizer span {
+  opacity: 0.95;
 }

@@ -19,6 +19,7 @@ const retryBtn = $('#retry')
 const speakInputBtn = $('#speak-input')
 const speakResultBtn = $('#speak-result')
 const appEl = $('.app')
+const resizer = $('#resizer')
 
 let lastTranslated = ''
 let streamToken = 0
@@ -50,6 +51,38 @@ function autoSizeInput() {
   input.style.height = Math.min(84, Math.max(40, input.scrollHeight)) + 'px'
 }
 input.addEventListener('input', autoSizeInput)
+
+// 右边缘宽度拖拽：指针捕获让整段拖动都在手柄上收到事件（光标移出窗口也不丢），
+// 拖动期间主进程抑制失焦收起，所以不会「刚拖就把窗口关了」。只调整宽度，高度仍随内容。
+if (resizer) {
+  let resizing = false
+  let startX = 0
+  resizer.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return
+    resizing = true
+    startX = e.screenX
+    try {
+      resizer.setPointerCapture(e.pointerId)
+    } catch {}
+    appEl.classList.add('resizing')
+    window.api.resizeStart()
+    e.preventDefault()
+  })
+  resizer.addEventListener('pointermove', (e) => {
+    if (resizing) window.api.resizeMove(e.screenX - startX)
+  })
+  const endResize = (e) => {
+    if (!resizing) return
+    resizing = false
+    appEl.classList.remove('resizing')
+    try {
+      resizer.releasePointerCapture(e.pointerId)
+    } catch {}
+    window.api.resizeEnd()
+  }
+  resizer.addEventListener('pointerup', endResize)
+  resizer.addEventListener('pointercancel', endResize)
+}
 
 const LANG_NAMES = {
   'zh-CN': '中文',
