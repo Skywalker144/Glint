@@ -6,6 +6,7 @@
   "main": "src/main/index.js",
   "scripts": {
     "start": "electron .",
+    "test": "node --test",
     "postinstall": "node scripts/copy-vendor.js",
     "build:icon": "electron scripts/make-icon.js",
     "build:macocr": "bash scripts/build-macocr.sh",

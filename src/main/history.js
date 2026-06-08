@@ -3,25 +3,12 @@
 const fs = require('fs')
 const path = require('path')
 const { app } = require('electron')
+const { MAX_HISTORY, normalizeItem, dedupe } = require('./history-util')
 
-const MAX_HISTORY = 100
 let cache = null
 
 function file() {
   return path.join(app.getPath('userData'), 'history.json')
-}
-
-function normalizeItem(item) {
-  if (!item || !item.original || !item.translated) return null
-  return {
-    id: item.id || String(Date.now()),
-    createdAt: item.createdAt || new Date().toISOString(),
-    original: String(item.original),
-    translated: String(item.translated),
-    source: item.source || 'auto',
-    target: item.target || '',
-    engine: item.engine || '',
-  }
 }
 
 function load() {
@@ -50,8 +37,7 @@ function list() {
 function add(item) {
   const normalized = normalizeItem({ ...item, id: String(Date.now()), createdAt: new Date().toISOString() })
   if (!normalized) return list()
-  const same = (h) => h.original === normalized.original && h.translated === normalized.translated
-  cache = [normalized, ...load().filter((h) => !same(h))].slice(0, MAX_HISTORY)
+  cache = dedupe(load(), normalized, MAX_HISTORY)
   persist()
   return cache
 }
