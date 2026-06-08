@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('api', {
   renderMarkdown: (text) => ipcRenderer.invoke('render-markdown', text),
   translateStream: (text, token, target) => ipcRenderer.send('translate:stream', { text, token, target }),
   stopStream: () => ipcRenderer.send('translate:stop'),
+  speak: (text, code) => ipcRenderer.invoke('tts:speak', { text, code }),
   onTranslateEvent: (cb) => ipcRenderer.on('translate:event', (_e, msg) => cb(msg)),
   hide: () => ipcRenderer.send('hide-window'),
   openSettings: () => ipcRenderer.send('open-settings'),

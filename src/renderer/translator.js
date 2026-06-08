@@ -82,9 +82,11 @@ function guessLang(t) {
   return 'en'
 }
 
-function speak(text, code) {
-  text = (text || '').trim()
-  if (!text || !window.speechSynthesis) return
+let currentAudio = null
+
+// 本地语音（Web Speech）：作为在线 TTS 的离线 / 失败回退。
+function speakLocal(text, code) {
+  if (!window.speechSynthesis) return
   try {
     window.speechSynthesis.cancel()
     const u = new SpeechSynthesisUtterance(text)
@@ -92,6 +94,33 @@ function speak(text, code) {
     if (lang) u.lang = lang
     window.speechSynthesis.speak(u)
   } catch {}
+}
+
+// 朗读：优先用主进程取的在线自然语音（Google TTS，神经网络音质），
+// 离线 / 失败时回退本地 Web Speech。btn 仅用于播放时高亮。
+async function speak(text, code, btn) {
+  text = (text || '').trim()
+  if (!text) return
+  if (currentAudio) {
+    try { currentAudio.pause() } catch {}
+    currentAudio = null
+  }
+  if (window.speechSynthesis) window.speechSynthesis.cancel()
+  if (btn) btn.classList.add('speaking')
+  const clear = () => btn && btn.classList.remove('speaking')
+  try {
+    const r = await window.api.speak(text, code)
+    if (r && r.ok && r.audio) {
+      const audio = new Audio('data:audio/mpeg;base64,' + r.audio)
+      currentAudio = audio
+      audio.onended = clear
+      audio.onerror = clear
+      await audio.play()
+      return
+    }
+  } catch {}
+  clear()
+  speakLocal(text, code) // 离线 / 失败回退本地语音
 }
 
 // 三态按钮：idle 显示「翻译」、streaming 显示「停止」、error 显示「重试」。
@@ -224,9 +253,9 @@ targetSel.addEventListener('change', () => {
 // 朗读原文 / 译文
 speakInputBtn.addEventListener('click', () => {
   const t = input.value.trim()
-  speak(t, lastSource !== 'auto' ? lastSource : guessLang(t))
+  speak(t, lastSource !== 'auto' ? lastSource : guessLang(t), speakInputBtn)
 })
-speakResultBtn.addEventListener('click', () => speak(result.innerText, lastTarget))
+speakResultBtn.addEventListener('click', () => speak(result.innerText, lastTarget, speakResultBtn))
 
 function renderPin() {
   pinBtn.classList.toggle('pinned', pinned)

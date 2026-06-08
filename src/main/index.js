@@ -29,6 +29,7 @@ const { LANGUAGES, pickDirection, isWordLookup, isLanguageCode } = require('./la
 const { renderMarkdown } = require('./markdown')
 const { CHANGELOG } = require('./changelog')
 const { isNewer } = require('./version')
+const tts = require('./tts')
 const updater = require('./updater')
 
 const PRELOAD = path.join(__dirname, '..', 'preload', 'index.js')
@@ -370,6 +371,16 @@ function openSettings() {
 
 ipcMain.handle('translate', async (_e, text) => translate(text))
 ipcMain.handle('render-markdown', (_e, text) => renderMarkdown(text))
+
+// 朗读：取在线自然语音的 MP3（base64）回渲染层播放；失败渲染层回退本地语音。
+ipcMain.handle('tts:speak', async (_e, payload) => {
+  try {
+    const audio = await tts.speak(payload && payload.text, payload && payload.code)
+    return audio ? { ok: true, audio } : { ok: false, error: 'empty' }
+  } catch (e) {
+    return { ok: false, error: e.message }
+  }
+})
 ipcMain.handle('update:check', () => checkForUpdate())
 ipcMain.on('update:apply', () => applyUpdateAndQuit())
 

@@ -57,6 +57,12 @@
   gap: 7px;
 }
 
+/* 朗读按钮播放中：高亮提示 */
+.iconbtn.speaking {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
 .langtag {
   color: var(--muted);
   font-size: 12px;
