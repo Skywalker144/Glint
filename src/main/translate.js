@@ -5,7 +5,7 @@ const { translateWith, translateStreamWith } = require('./engines')
 const { getProvider } = require('./engines/providers')
 const { DEFAULT_DICTIONARY_PROMPT } = require('./engines/prompt')
 const history = require('./history')
-const { pickDirection, isWordLookup } = require('./languages')
+const { pickDirection, isWordLookup, isLanguageCode } = require('./languages')
 
 function pickTarget(text, primaryLanguage = 'zh-CN', secondaryLanguage = 'en') {
   return pickDirection(text, primaryLanguage, secondaryLanguage).target
@@ -40,7 +40,8 @@ async function translate(text) {
 }
 
 // 流式版：边生成边通过 onDelta 回吐；完成后写历史，返回最终 item。
-async function translateStream(text, onDelta) {
+// opts: { signal 中断信号, target 用户手动指定的目标语言（覆盖自动方向） }
+async function translateStream(text, onDelta, opts = {}) {
   text = (text || '').trim()
   if (!text) return { original: '', translated: '', source: '', target: '', engine: '' }
 
@@ -49,21 +50,27 @@ async function translateStream(text, onDelta) {
   const engineId = s.engine || 'google'
   const cfg = (s.providers && s.providers[engineId]) || {}
 
+  // 手动指定了有效目标语言 → 强制翻成它（不走词典、不按自动方向）。
+  const forced = opts.target && isLanguageCode(opts.target) ? opts.target : ''
+  const target = forced || direction.target
+
   const { translated, source } = await translateStreamWith(
     engineId,
     cfg,
     text,
-    direction.target,
+    target,
     {
-      systemPrompt: promptFor(s, engineId, text),
+      systemPrompt: forced ? '' : promptFor(s, engineId, text),
+      forceTarget: !!forced,
       primaryLanguage: s.primaryLanguage,
       secondaryLanguage: s.secondaryLanguage,
       source: direction.source,
+      signal: opts.signal,
     },
     onDelta
   )
 
-  const item = { original: text, translated, source, target: direction.target, engine: engineId }
+  const item = { original: text, translated, source, target, engine: engineId }
   history.add(item)
   return item
 }

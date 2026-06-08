@@ -6,6 +6,11 @@ const DEFAULT_SYSTEM_PROMPT =
   '你是一名专业翻译引擎。请按规则自动判断用户输入的语言：如果输入是{{primary}}，翻译成{{secondary}}；如果不是{{primary}}，翻译成{{primary}}。\n' +
   '只输出译文，不要添加引号、解释、注释或额外说明。保留原文的换行、段落和基本格式。'
 
+// 用户在窗口里手动指定了目标语言时用这条（忽略自动方向，直接翻成 {{target}}）。
+const DEFAULT_TARGET_PROMPT =
+  '你是一名专业翻译引擎。请把用户输入的文本翻译成{{target}}（无论原文是什么语言）。\n' +
+  '只输出译文，不要添加引号、解释、注释或额外说明。保留原文的换行、段落和基本格式。'
+
 const DEFAULT_DICTIONARY_PROMPT =
   '你是一部 {{primary}}–{{secondary}} 双语词典，服务以 {{primary}} 为母语、想查 {{secondary}} 的用户。用户发来一个词，用 Markdown 输出**简洁**词条（整体不要用 ``` 代码块包裹）：\n' +
   '- 词头永远是 {{secondary}} 词：输入若是 {{secondary}} 就用它本身；输入若是 {{primary}}（或其它语言），先译成最贴切的 {{secondary}} 对应词（最多给 1–2 个最常用的）。\n' +
@@ -72,6 +77,7 @@ function buildSystemPrompt(target, template, options = {}) {
 
 module.exports = {
   DEFAULT_SYSTEM_PROMPT,
+  DEFAULT_TARGET_PROMPT,
   DEFAULT_DICTIONARY_PROMPT,
   LEGACY_SYSTEM_PROMPTS,
   LEGACY_DICTIONARY_PROMPTS,

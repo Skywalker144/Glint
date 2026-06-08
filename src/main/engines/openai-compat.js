@@ -59,13 +59,14 @@ async function listModels({ apiKey, baseURL }) {
 }
 
 // 流式翻译：stream:true，逐块取 choices[0].delta.content 通过 onDelta 回吐。
-async function translateStream(text, { sys, apiKey, model, baseURL, extraHeaders, onDelta }) {
+async function translateStream(text, { sys, apiKey, model, baseURL, extraHeaders, onDelta, signal }) {
   if (!baseURL) throw new Error('缺少 Base URL')
   if (!apiKey) throw new Error('未配置 API Key')
   if (!model) throw new Error('未选择模型')
 
   const { res, bump, done } = await fetchStream(trimBase(baseURL) + '/chat/completions', {
     method: 'POST',
+    signal,
     headers: {
       Authorization: 'Bearer ' + apiKey,
       'Content-Type': 'application/json',

@@ -15,6 +15,10 @@ const LANGUAGES = [
 
 const BY_CODE = Object.fromEntries(LANGUAGES.map((l) => [l.code, l]))
 
+function isLanguageCode(code) {
+  return !!BY_CODE[code]
+}
+
 function languageLabel(code) {
   return (BY_CODE[code] && BY_CODE[code].label) || code || '自动'
 }
@@ -76,6 +80,7 @@ function isWordLookup(text) {
 module.exports = {
   LANGUAGES,
   languageLabel,
+  isLanguageCode,
   promptLanguageName,
   isProbablyLanguage,
   pickDirection,

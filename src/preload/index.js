@@ -6,9 +6,11 @@ contextBridge.exposeInMainWorld('api', {
   // 翻译窗口
   translate: (text) => ipcRenderer.invoke('translate', text),
   renderMarkdown: (text) => ipcRenderer.invoke('render-markdown', text),
-  translateStream: (text, token) => ipcRenderer.send('translate:stream', { text, token }),
+  translateStream: (text, token, target) => ipcRenderer.send('translate:stream', { text, token, target }),
+  stopStream: () => ipcRenderer.send('translate:stop'),
   onTranslateEvent: (cb) => ipcRenderer.on('translate:event', (_e, msg) => cb(msg)),
   hide: () => ipcRenderer.send('hide-window'),
+  openSettings: () => ipcRenderer.send('open-settings'),
   setPinned: (val) => ipcRenderer.send('pin:set', val),
   onPinState: (cb) => ipcRenderer.on('pin:state', (_e, v) => cb(v)),
   copyText: (text) => ipcRenderer.send('copy-text', text),

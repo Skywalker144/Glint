@@ -6,7 +6,7 @@ const { translateGoogle } = require('./google')
 const oai = require('./openai-compat')
 const anthropic = require('./anthropic')
 const { getProvider } = require('./providers')
-const { buildSystemPrompt } = require('./prompt')
+const { buildSystemPrompt, DEFAULT_TARGET_PROMPT } = require('./prompt')
 
 function resolveBaseURL(p, cfg) {
   return p.needsBaseURL ? cfg.baseURL || '' : p.baseURL
@@ -63,7 +63,9 @@ async function translateStreamWith(engineId, cfg, text, target, options = {}, on
     return r
   }
 
-  const sys = buildSystemPrompt(target, options.systemPrompt, {
+  // 用户手动指定目标语言时，忽略自定义提示词、直接翻成该目标语言。
+  const template = options.forceTarget ? DEFAULT_TARGET_PROMPT : options.systemPrompt
+  const sys = buildSystemPrompt(target, template, {
     primaryLanguage: options.primaryLanguage,
     secondaryLanguage: options.secondaryLanguage,
   })
@@ -77,6 +79,7 @@ async function translateStreamWith(engineId, cfg, text, target, options = {}, on
       model: cfg.model,
       baseURL,
       onDelta,
+      signal: options.signal,
     })
     return { translated, source }
   }
@@ -88,6 +91,7 @@ async function translateStreamWith(engineId, cfg, text, target, options = {}, on
     baseURL,
     extraHeaders: p.extraHeaders,
     onDelta,
+    signal: options.signal,
   })
   return { translated, source }
 }

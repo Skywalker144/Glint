@@ -54,12 +54,13 @@ async function listModels({ apiKey, baseURL }) {
 }
 
 // 流式翻译：stream:true，取 content_block_delta 的 delta.text 通过 onDelta 回吐。
-async function translateStream(text, { sys, apiKey, model, baseURL, onDelta }) {
+async function translateStream(text, { sys, apiKey, model, baseURL, onDelta, signal }) {
   if (!apiKey) throw new Error('未配置 API Key')
   if (!model) throw new Error('未选择模型')
 
   const { res, bump, done } = await fetchStream(trimBase(baseURL) + '/messages', {
     method: 'POST',
+    signal,
     headers: {
       'x-api-key': apiKey,
       'anthropic-version': '2023-06-01',

@@ -54,11 +54,51 @@
 .toolbar {
   display: flex;
   align-items: center;
+  gap: 7px;
 }
 
 .langtag {
   color: var(--muted);
   font-size: 12px;
+  white-space: nowrap;
+}
+.arrow {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* 目标语言下拉：低调的小胶囊，右侧自带 ▾（用字符而非 data: 图片，免动 CSP） */
+.targetwrap {
+  position: relative;
+  display: inline-flex;
+}
+.targetsel {
+  -webkit-app-region: no-drag;
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  corner-shape: var(--corner-shape);
+  font: inherit;
+  font-size: 12px;
+  padding: 3px 20px 3px 9px;
+  cursor: pointer;
+  outline: none;
+}
+.targetsel:hover {
+  background: var(--surface-hover);
+}
+.targetwrap::after {
+  content: '▾';
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 10px;
+  pointer-events: none;
 }
 
 .status {
@@ -186,6 +226,7 @@
 .resultbar {
   display: flex;
   align-items: center;
+  gap: 7px;
 }
 .resultbar[hidden] {
   display: none;

@@ -25,9 +25,10 @@ const settings = require('./settings')
 const history = require('./history')
 const { translateWith, listModels } = require('./engines')
 const { listProviders, getProvider } = require('./engines/providers')
-const { LANGUAGES, pickDirection, isWordLookup } = require('./languages')
+const { LANGUAGES, pickDirection, isWordLookup, isLanguageCode } = require('./languages')
 const { renderMarkdown } = require('./markdown')
 const { CHANGELOG } = require('./changelog')
+const { isNewer } = require('./version')
 const updater = require('./updater')
 
 const PRELOAD = path.join(__dirname, '..', 'preload', 'index.js')
@@ -48,21 +49,28 @@ let tray = null
 let isQuitting = false
 let captureState = null // { image, scaleFactor }
 let suppressBlurHide = false // 刚显示窗口的瞬间不触发失焦自动隐藏
+let translatorPositioned = false // 主窗口是否已摆过位置（钉住时只在首次摆放）
 let latestUpdate = null // 可用更新 { latest, url, assets }
 let updateReady = false // 新版已下载就绪
 let updateDownloading = false
 let updateProgress = 0
 let updateError = ''
+let activeStream = null // 当前在途的流式请求 AbortController（发起新请求或点停止时取消）
 
 /* ------------------------------------------------------------------ */
 /* 主翻译窗口                                                          */
 /* ------------------------------------------------------------------ */
 
 function createTranslatorWindow() {
-  const startW = Math.max(WIN_MIN_WIDTH, Math.min(WIN_MAX_WIDTH, settings.get().windowWidth || WIN_WIDTH))
+  const s = settings.get()
+  const startW = Math.max(WIN_MIN_WIDTH, Math.min(WIN_MAX_WIDTH, s.windowWidth || WIN_WIDTH))
+  // 钉住且记住的位置仍落在某个显示器内 → 在该位置开窗（否则首次 show 时跟随光标）
+  const useSaved = !!s.pinned && isPositionVisible(s.windowX, s.windowY, startW)
+  if (useSaved) translatorPositioned = true
   translatorWin = new BrowserWindow({
     width: startW,
     height: 182, // 初始紧凑高度（仅输入框）；之后由渲染层按内容自动调整
+    ...(useSaved ? { x: s.windowX, y: s.windowY } : {}),
     show: false,
     frame: false,
     resizable: true, // 仅横向可拖宽；高度始终随内容自适应（resize-height 里 min==max 锁死纵向）
@@ -91,6 +99,18 @@ function createTranslatorWindow() {
       if (!translatorWin || translatorWin.isDestroyed()) return
       const [cw] = translatorWin.getContentSize()
       if (cw !== (settings.get().windowWidth || WIN_WIDTH)) settings.save({ windowWidth: cw })
+    }, 400)
+  })
+
+  // 钉住时记住用户拖动窗口后的位置（防抖 400ms；未钉住时跟随光标、不保存）
+  let posSaveTimer = null
+  translatorWin.on('move', () => {
+    if (!translatorWin || translatorWin.isDestroyed() || !settings.get().pinned) return
+    if (posSaveTimer) clearTimeout(posSaveTimer)
+    posSaveTimer = setTimeout(() => {
+      if (!translatorWin || translatorWin.isDestroyed()) return
+      const [x, y] = translatorWin.getPosition()
+      settings.save({ windowX: x, windowY: y })
     }, 400)
   })
 
@@ -123,9 +143,25 @@ function positionNearCursor(win) {
   win.setPosition(x, y)
 }
 
+// 保存的坐标是否还落在某个显示器内（换显示器/改分辨率后就当无效，回退跟随光标）。
+// 以标题栏中点判断，确保可拖动区域可达。
+function isPositionVisible(x, y, w) {
+  if (typeof x !== 'number' || typeof y !== 'number') return false
+  const px = x + Math.min(w, 220) / 2
+  const py = y + 12
+  return screen.getAllDisplays().some((d) => {
+    const a = d.workArea
+    return px >= a.x && px < a.x + a.width && py >= a.y && py < a.y + a.height
+  })
+}
+
 function showTranslator() {
   if (!translatorWin || translatorWin.isDestroyed()) createTranslatorWindow()
-  positionNearCursor(translatorWin)
+  // 未钉住：每次跟随光标。钉住：保持上次摆放的位置；仅首次（还没摆过）放到光标附近。
+  if (!settings.get().pinned || !translatorPositioned) {
+    positionNearCursor(translatorWin)
+    translatorPositioned = true
+  }
   suppressBlurHide = true // 显示瞬间的焦点抖动不触发自动隐藏
   translatorWin.show()
   translatorWin.focus()
@@ -338,6 +374,7 @@ ipcMain.handle('update:check', () => checkForUpdate())
 ipcMain.on('update:apply', () => applyUpdateAndQuit())
 
 // 流式翻译：渲染层发起，主进程把 meta/delta/done/error 逐步推回。token 用于忽略过期请求。
+// payload.target 为用户在窗口里手动指定的目标语言（空 = 自动方向）。
 ipcMain.on('translate:stream', async (event, payload) => {
   const token = payload && payload.token
   const text = ((payload && payload.text) || '').trim()
@@ -348,23 +385,47 @@ ipcMain.on('translate:stream', async (event, payload) => {
     send({ type: 'done', item: { original: '', translated: '', source: '', target: '', engine: '' } })
     return
   }
+
+  // 取消上一条还在跑的流（连按两次 / 切换方向时不白烧 token）
+  if (activeStream) activeStream.abort()
+  const ac = new AbortController()
+  activeStream = ac
+
   const s = settings.get()
-  const dir = pickDirection(text, s.primaryLanguage, s.secondaryLanguage)
   const engineId = s.engine || 'google'
   const p = getProvider(engineId)
-  const isDict = s.dictionaryMode !== false && p && p.kind !== 'free' && isWordLookup(text)
-  send({ type: 'meta', source: dir.source, target: dir.target, mode: isDict ? 'dict' : 'translate', word: isDict ? text : '' })
+  const forced = payload && payload.target && isLanguageCode(payload.target) ? payload.target : ''
+  const dir = pickDirection(text, s.primaryLanguage, s.secondaryLanguage)
+  const target = forced || dir.target
+  // 手动指定目标语言时按整句翻译处理，不进词典
+  const isDict = !forced && s.dictionaryMode !== false && p && p.kind !== 'free' && isWordLookup(text)
+  send({ type: 'meta', source: dir.source, target, mode: isDict ? 'dict' : 'translate', word: isDict ? text : '' })
   try {
-    const item = await translateStream(text, (delta) => send({ type: 'delta', delta }))
+    const item = await translateStream(text, (delta) => send({ type: 'delta', delta }), { signal: ac.signal, target: forced })
+    if (activeStream === ac) activeStream = null
     send({ type: 'done', item })
   } catch (e) {
+    if (activeStream === ac) activeStream = null
+    // 用户主动停止 / 发起新请求导致的中断：渲染层已自行收尾，这里不再报错
+    if (e && (e.name === 'AbortError' || /abort/i.test(e.message || ''))) return
     send({ type: 'error', error: friendlyError(e, engineId) })
+  }
+})
+
+// 用户点「停止」：中断在途的流式请求（渲染层会保留已生成的部分）。
+ipcMain.on('translate:stop', () => {
+  if (activeStream) {
+    activeStream.abort()
+    activeStream = null
   }
 })
 
 ipcMain.on('hide-window', () => {
   if (translatorWin && !translatorWin.isDestroyed()) translatorWin.hide()
 })
+
+// 主窗口标题栏的齿轮 → 打开设置
+ipcMain.on('open-settings', () => openSettings())
 
 // 切换钉住状态（持久化），并回推给渲染层同步按钮高亮。
 ipcMain.on('pin:set', (_e, val) => {
@@ -582,9 +643,22 @@ function rebuildTray() {
   if (tray) tray.setContextMenu(buildTrayMenu())
 }
 
+// 菜单栏模板图标（黑色「译」，系统按浅/深色自动反色）；自带 @2x 适配 Retina。
+function trayImage() {
+  try {
+    const img = nativeImage.createFromPath(path.join(__dirname, 'assets', 'trayTemplate.png'))
+    if (!img.isEmpty()) {
+      img.setTemplateImage(true)
+      return img
+    }
+  } catch {}
+  return null
+}
+
 function createTray() {
-  tray = new Tray(nativeImage.createEmpty())
-  if (process.platform === 'darwin') tray.setTitle(' 译')
+  const img = trayImage()
+  tray = new Tray(img || nativeImage.createEmpty())
+  if (!img && process.platform === 'darwin') tray.setTitle(' 译') // 没读到图标时退回文字
   tray.setToolTip('闪译 · Glint')
   rebuildTray()
 }
@@ -651,16 +725,6 @@ function applyProxy() {
 /* ---------------- 检查更新（对比 GitHub 最新 Release）---------------- */
 
 const RELEASES_API = 'https://api.github.com/repos/Skywalker144/Glint/releases/latest'
-
-function isNewer(a, b) {
-  const pa = String(a || '').split('.').map((n) => parseInt(n, 10) || 0)
-  const pb = String(b || '').split('.').map((n) => parseInt(n, 10) || 0)
-  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    if ((pa[i] || 0) > (pb[i] || 0)) return true
-    if ((pa[i] || 0) < (pb[i] || 0)) return false
-  }
-  return false
-}
 
 function updateStateSummary(extra) {
   return {

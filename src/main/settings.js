@@ -17,6 +17,8 @@ const DEFAULTS = {
   launchAtLogin: false, // 开机自启
   pinned: false, // 钉住主窗口：false 时失焦自动隐藏，true 时常驻
   windowWidth: 420, // 翻译窗宽度：可横向拖拽，记住上次
+  windowX: null, // 钉住时记住窗口位置（未钉住时跟随光标，不用）
+  windowY: null,
   proxy: { enabled: false, url: '' }, // 网络代理：如 Clash 的 127.0.0.1:7890
   primaryLanguage: 'zh-CN', // 主语言：非主语言输入会翻到这里
   secondaryLanguage: 'en', // 副语言：主语言输入会翻到这里

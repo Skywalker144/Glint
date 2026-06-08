@@ -6,9 +6,18 @@ const input = $('#input')
 const result = $('#result')
 const status = $('#status')
 const langtag = $('#langtag')
+const arrowEl = $('.arrow')
+const targetSel = $('#target-lang')
 const resultbar = $('#resultbar')
 const copyBtn = $('#copy')
+const copyPlainBtn = $('#copy-plain')
 const pinBtn = $('#pin')
+const settingsBtn = $('#settings')
+const translateBtn = $('#translate')
+const stopBtn = $('#stop')
+const retryBtn = $('#retry')
+const speakInputBtn = $('#speak-input')
+const speakResultBtn = $('#speak-result')
 const appEl = $('.app')
 
 let lastTranslated = ''
@@ -19,6 +28,9 @@ let renderScheduled = false
 let renderSeq = 0
 let appliedSeq = 0
 let streaming = false // 是否正在流式生成（控制结尾闪烁光标）
+let forcedTarget = '' // 用户手动选的目标语言（''=自动方向）；窗口内保持，不落盘
+let lastSource = 'auto' // 最近一次的检测源语言（用于朗读原文挑发音）
+let lastTarget = '' // 最近一次的目标语言（用于朗读译文挑发音）
 
 // 让窗口高度自动贴合内容：卡片高度一变就报给主进程，主进程据此调整窗口高度。
 // 没结果时只剩输入框（很矮），有结果/提示时自动长高，避免下方留空白。
@@ -54,6 +66,40 @@ const LANG_NAMES = {
   auto: '自动',
 }
 const langName = (code) => LANG_NAMES[code] || code || '自动'
+
+// 目标语言 → 朗读用的 BCP-47 语言标签（speechSynthesis 据此挑系统语音）。
+const SPEAK_LANG = {
+  'zh-CN': 'zh-CN', zh: 'zh-CN', en: 'en-US', ja: 'ja-JP', ko: 'ko-KR',
+  fr: 'fr-FR', de: 'de-DE', es: 'es-ES', ru: 'ru-RU', it: 'it-IT', pt: 'pt-PT',
+}
+
+// 输入还没翻译过时，按文字系统粗判语言，给朗读挑个合适发音。
+function guessLang(t) {
+  if (/[぀-ヿ]/.test(t)) return 'ja'
+  if (/[가-힯]/.test(t)) return 'ko'
+  if (/[㐀-鿿]/.test(t)) return 'zh-CN'
+  if (/[Ѐ-ӿ]/.test(t)) return 'ru'
+  return 'en'
+}
+
+function speak(text, code) {
+  text = (text || '').trim()
+  if (!text || !window.speechSynthesis) return
+  try {
+    window.speechSynthesis.cancel()
+    const u = new SpeechSynthesisUtterance(text)
+    const lang = SPEAK_LANG[code]
+    if (lang) u.lang = lang
+    window.speechSynthesis.speak(u)
+  } catch {}
+}
+
+// 三态按钮：idle 显示「翻译」、streaming 显示「停止」、error 显示「重试」。
+function setPhase(phase) {
+  translateBtn.hidden = phase !== 'idle'
+  stopBtn.hidden = phase !== 'streaming'
+  retryBtn.hidden = phase !== 'error'
+}
 
 // 把累积的原始译文渲染成 HTML（Markdown + 公式）。token/seq 守卫，避免过期或乱序覆盖。
 function renderResult() {
@@ -91,20 +137,40 @@ function doTranslate() {
   streaming = false
   if (!text) {
     status.textContent = ''
+    setPhase('idle')
     return
   }
   status.textContent = '翻译中…'
   lastTranslated = ''
   streaming = true
-  window.api.translateStream(text, ++streamToken)
+  setPhase('streaming')
+  window.api.translateStream(text, ++streamToken, forcedTarget || '')
+}
+
+// 停止：中断在途请求，保留已生成的部分。
+function stopStreaming() {
+  if (!streaming) return
+  window.api.stopStream()
+  streamToken++ // 作废在途事件
+  streaming = false
+  status.textContent = ''
+  setPhase('idle')
+  if (rawResult) {
+    lastTranslated = rawResult
+    resultbar.hidden = false
+  }
+  renderResult()
 }
 
 // 流式事件：meta 定方向、delta 累积并重渲、done 收尾、error 报错。忽略过期 token。
 window.api.onTranslateEvent((m) => {
   if (m.token !== streamToken) return
   if (m.type === 'meta') {
-    langtag.textContent =
-      m.mode === 'dict' ? '词典 · ' + (m.word || '') : langName(m.source) + ' → ' + langName(m.target)
+    lastSource = m.source || 'auto'
+    lastTarget = m.target || ''
+    const dict = m.mode === 'dict'
+    arrowEl.hidden = dict // 词典查词没有「源→目标」方向，藏掉箭头免得误读
+    langtag.textContent = dict ? '词典 · ' + (m.word || '') : langName(m.source)
   } else if (m.type === 'delta') {
     status.textContent = ''
     rawResult += m.delta
@@ -112,12 +178,14 @@ window.api.onTranslateEvent((m) => {
   } else if (m.type === 'done') {
     status.textContent = ''
     streaming = false
+    setPhase('idle')
     rawResult = (m.item && m.item.translated) || rawResult
     lastTranslated = rawResult
     resultbar.hidden = !rawResult
     renderResult()
   } else if (m.type === 'error') {
     streaming = false
+    setPhase('error')
     status.textContent = '翻译失败：' + m.error
   }
 })
@@ -140,8 +208,25 @@ input.addEventListener('keydown', (e) => {
   }
 })
 
-$('#translate').addEventListener('click', doTranslate)
+translateBtn.addEventListener('click', doTranslate)
+stopBtn.addEventListener('click', stopStreaming)
+retryBtn.addEventListener('click', doTranslate)
 $('#close').addEventListener('click', () => window.api.hide())
+settingsBtn.addEventListener('click', () => window.api.openSettings())
+
+// 目标语言选择：''=自动方向。改完若有输入就立即重翻。
+targetSel.addEventListener('change', () => {
+  forcedTarget = targetSel.value
+  if (input.value.trim()) doTranslate()
+  else input.focus()
+})
+
+// 朗读原文 / 译文
+speakInputBtn.addEventListener('click', () => {
+  const t = input.value.trim()
+  speak(t, lastSource !== 'auto' ? lastSource : guessLang(t))
+})
+speakResultBtn.addEventListener('click', () => speak(result.innerText, lastTarget))
 
 function renderPin() {
   pinBtn.classList.toggle('pinned', pinned)
@@ -164,15 +249,43 @@ copyBtn.addEventListener('click', () => {
   copyBtn.textContent = '已复制'
   setTimeout(() => (copyBtn.textContent = '复制译文'), 1200)
 })
+// 复制纯文本：复制渲染后的可见文字，不带 Markdown 符号（词典条目贴到别处更干净）。
+copyPlainBtn.addEventListener('click', () => {
+  window.api.copyText(result.innerText.trim())
+  copyPlainBtn.textContent = '已复制'
+  setTimeout(() => (copyPlainBtn.textContent = '复制纯文本'), 1200)
+})
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') window.api.hide()
 })
 
+// 用目标语言列表填充下拉框（首项「自动」）。
+async function loadLanguages() {
+  let list = []
+  try {
+    list = await window.api.getLanguages()
+  } catch {}
+  targetSel.innerHTML = ''
+  const auto = document.createElement('option')
+  auto.value = ''
+  auto.textContent = '自动'
+  targetSel.appendChild(auto)
+  for (const l of list || []) {
+    const o = document.createElement('option')
+    o.value = l.code
+    o.textContent = l.label
+    targetSel.appendChild(o)
+  }
+  targetSel.value = forcedTarget
+}
+loadLanguages()
+
 // 来自主进程的指令
 window.api.onFocusInput(() => {
   streamToken++ // 作废可能在途的流
   streaming = false
+  setPhase('idle')
   input.value = ''
   result.textContent = ''
   rawResult = ''
@@ -180,7 +293,8 @@ window.api.onFocusInput(() => {
   autoSizeInput()
   status.textContent = ''
   resultbar.hidden = true
-  langtag.textContent = '自动检测语言'
+  arrowEl.hidden = false
+  langtag.textContent = '自动'
   input.focus()
 })
 
@@ -193,6 +307,7 @@ window.api.onTranslateText((text) => {
 window.api.onShowMessage((msg) => {
   streamToken++ // 作废可能在途的流
   streaming = false
+  setPhase('idle')
   result.textContent = ''
   rawResult = ''
   appEl.classList.remove('has-result')
