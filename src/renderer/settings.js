@@ -716,6 +716,45 @@ window.api.getAppInfo().then((info) => {
   $('#about-repo').dataset.url = info.repo
 })
 
+async function loadChangelog() {
+  if (!window.api.getChangelog) return
+  const [log, info] = await Promise.all([window.api.getChangelog(), window.api.getAppInfo()])
+  const cur = info && info.version
+  const el = $('#changelog')
+  el.innerHTML = ''
+  for (const e of log || []) {
+    const entry = document.createElement('div')
+    entry.className = 'changelog-entry'
+    const head = document.createElement('div')
+    head.className = 'changelog-head'
+    const ver = document.createElement('span')
+    ver.className = 'changelog-ver'
+    ver.textContent = 'v' + e.version
+    head.appendChild(ver)
+    if (e.version === cur) {
+      const badge = document.createElement('span')
+      badge.className = 'changelog-cur'
+      badge.textContent = '当前'
+      head.appendChild(badge)
+    }
+    if (e.date) {
+      const date = document.createElement('span')
+      date.className = 'changelog-date'
+      date.textContent = e.date
+      head.appendChild(date)
+    }
+    const ul = document.createElement('ul')
+    ul.className = 'changelog-list'
+    for (const it of e.items || []) {
+      const li = document.createElement('li')
+      li.textContent = it
+      ul.appendChild(li)
+    }
+    entry.append(head, ul)
+    el.appendChild(entry)
+  }
+}
+
 /* ---------------- 初始化 ---------------- */
 
 function renderAll() {
@@ -754,4 +793,5 @@ window.api.onSettingsData((s) => populate(s))
   renderLanguageOptions()
   populate(await window.api.getSettings())
   refreshPermissions()
+  loadChangelog()
 })()

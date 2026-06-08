@@ -29,6 +29,7 @@ contextBridge.exposeInMainWorld('api', {
   getLanguages: () => ipcRenderer.invoke('settings:languages'),
   getPermissions: () => ipcRenderer.invoke('settings:permissions'),
   getAppInfo: () => ipcRenderer.invoke('app:info'),
+  getChangelog: () => ipcRenderer.invoke('changelog:get'),
   checkUpdate: () => ipcRenderer.invoke('update:check'),
   applyUpdate: () => ipcRenderer.send('update:apply'),
   onUpdateState: (cb) => ipcRenderer.on('update:state', (_e, s) => cb(s)),

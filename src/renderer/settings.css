@@ -521,6 +521,52 @@
   font-weight: 600;
 }
 
+/* 更新日志：可滚动的版本列表 */
+.changelog {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 230px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.changelog-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.changelog-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.changelog-ver {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.changelog-cur {
+  font-size: 11px;
+  color: var(--bg);
+  background: var(--text);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+.changelog-date {
+  color: var(--muted);
+  font-size: 11px;
+}
+.changelog-list {
+  margin: 0;
+  padding-left: 16px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.changelog-list li {
+  margin: 2px 0;
+  line-height: 1.45;
+}
+
 .s-status {
   color: var(--muted);
   font-size: 12px;

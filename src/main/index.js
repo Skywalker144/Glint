@@ -27,6 +27,7 @@ const { translateWith, listModels } = require('./engines')
 const { listProviders, getProvider } = require('./engines/providers')
 const { LANGUAGES, pickDirection, isWordLookup } = require('./languages')
 const { renderMarkdown } = require('./markdown')
+const { CHANGELOG } = require('./changelog')
 const updater = require('./updater')
 
 const PRELOAD = path.join(__dirname, '..', 'preload', 'index.js')
@@ -429,6 +430,7 @@ ipcMain.handle('settings:defaults', () => settings.DEFAULTS)
 ipcMain.handle('settings:providers', () => listProviders())
 ipcMain.handle('settings:languages', () => LANGUAGES)
 ipcMain.handle('app:info', () => ({ version: app.getVersion(), repo: REPO_URL }))
+ipcMain.handle('changelog:get', () => CHANGELOG)
 ipcMain.handle('settings:permissions', () => ({
   platform: process.platform,
   accessibility:
