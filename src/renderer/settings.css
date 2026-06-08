@@ -516,6 +516,10 @@
   color: var(--muted);
   font-size: 12px;
 }
+.s-tip strong {
+  color: var(--text);
+  font-weight: 600;
+}
 
 .s-status {
   color: var(--muted);
