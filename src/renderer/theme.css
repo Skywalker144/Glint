@@ -11,6 +11,7 @@
   --bg: #ffffff;
   --surface: #f4f4f5;
   --surface-hover: #eaeaec;
+  --surface-active: #dedee0; /* 主按钮 hover / 按下时再深一档 */
   --text: #1a1a1a;
   --muted: #8a8a8e;
   --border: #e4e4e7;
@@ -27,6 +28,7 @@
     --bg: #1c1c1e;
     --surface: #2a2a2d;
     --surface-hover: #34343a;
+    --surface-active: #3e3e45; /* 主按钮 hover / 按下时再亮一档 */
     --text: #f2f2f5;
     --muted: #98989f;
     --border: #38383c;
@@ -126,26 +128,31 @@ body {
 }
 
 /* 通用按钮 */
+/* 主按钮：黑白极简下不用纯黑大色块（白底上太突兀，且翻译完成时重新出现会「闪黑」）。
+   改成柔和的浅灰填充 + 深色加粗字：一眼可辨是主操作，又不刺眼；与描边的 .ghost 仅差一档深浅，
+   流式结束「停止」换回「翻译」时只是轻微深浅变化、不再跳黑。 */
 .primary {
   -webkit-app-region: no-drag;
-  background: var(--primary-bg);
-  color: var(--primary-text);
-  border: none;
+  background: var(--surface-hover);
+  color: var(--text);
+  border: 1px solid var(--border);
   border-radius: var(--radius-btn);
   corner-shape: var(--corner-shape);
   padding: 7px 18px;
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+  transition: background 0.15s ease;
 }
 .primary:hover {
-  opacity: 0.85;
+  background: var(--surface-active);
 }
 .primary:active {
-  opacity: 0.7;
+  background: var(--surface-active);
+  filter: brightness(0.96);
 }
 .primary:disabled {
-  opacity: 0.4;
+  opacity: 0.45;
   cursor: default;
 }
 
