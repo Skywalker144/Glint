@@ -500,15 +500,21 @@
   font: inherit;
 }
 
-#ai-config[hidden],
-#ai-connection[hidden],
+#ai-prompt-config[hidden],
+#provider-config[hidden],
+#provider-free-note[hidden],
 #ai-free-note[hidden] {
   display: none;
 }
-#ai-config {
+#ai-prompt-config {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+#provider-config {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .s-tip {
@@ -584,6 +590,16 @@
 }
 .s-status:empty {
   display: none;
+}
+
+/* 标题栏里的自动保存提示：单行、可省略，不挤压标题栏高度 */
+.s-save-status {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-left: 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .s-footer {

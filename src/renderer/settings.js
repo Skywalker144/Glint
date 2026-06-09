@@ -9,7 +9,6 @@ let languageList = []
 let languageByCode = {}
 let defaultSettings = { systemPrompt: '', dictionaryPrompt: '' }
 let historyItems = []
-let initialSnapshot = ''
 let state = {
   engine: 'google',
   launchAtLogin: false,
@@ -66,25 +65,42 @@ function normalizeSettings(s) {
   }
 }
 
-function snapshot() {
-  return JSON.stringify(state)
+let saveTimer = null
+let savedClearTimer = null
+
+// 自动保存：任一设置项变化都即时落盘，没有「保存」按钮。统一走 400ms 防抖——文本输入不会每个
+// 按键都写盘 / 反复重设代理，开关 / 下拉 / 快捷键这类离散改动也合并成一次写入。
+function scheduleSave() {
+  clearTimeout(saveTimer)
+  saveTimer = setTimeout(saveNow, 400)
+}
+function saveNow() {
+  clearTimeout(saveTimer)
+  saveTimer = null
+  window.api
+    .saveSettings(state)
+    .then((r) => {
+      if (r && r.hotkeyErrors && r.hotkeyErrors.length) {
+        const names = { input: '输入翻译', screenshot: '截图翻译', selection: '划词翻译', clipboard: '剪贴板翻译' }
+        flashSaveStatus('✗ 快捷键无法注册（可能被占用）：' + r.hotkeyErrors.map((k) => names[k]).join('、'), 'err')
+      } else {
+        flashSaveStatus('✓ 已自动保存', 'ok')
+      }
+    })
+    .catch((e) => flashSaveStatus('✗ 保存失败：' + e.message, 'err'))
+}
+// 标题栏的自动保存提示：成功短暂显示后淡出，错误保留以便看到。
+function flashSaveStatus(text, cls) {
+  setStatus('#save-status', text, cls)
+  clearTimeout(savedClearTimer)
+  if (cls === 'ok') savedClearTimer = setTimeout(() => setStatus('#save-status', ''), 1600)
 }
 
-function isDirty() {
-  return !!initialSnapshot && snapshot() !== initialSnapshot
-}
-
+// 设置项变化的统一入口：更新派生 UI（徽章、提示词统计）并触发自动保存。
 function markDirty() {
-  renderDirtyState()
   renderProviderState()
   renderPromptMeta()
-}
-
-function renderDirtyState() {
-  const dirty = isDirty()
-  $('#settings-dirty').hidden = !dirty
-  if (dirty) setStatus('#save-status', '有未保存更改', 'warn')
-  else setStatus('#save-status', '')
+  scheduleSave()
 }
 
 function languageLabel(code) {
@@ -121,7 +137,7 @@ function setBadge(sel, text, cls) {
 }
 
 function requestClose() {
-  if (isDirty() && !window.confirm('有未保存的设置，确定要放弃修改吗？')) return
+  if (saveTimer) saveNow() // 关窗前把待保存的防抖立即落盘
   window.api.closeSettings()
 }
 
@@ -308,24 +324,20 @@ function renderProviderState() {
   const cfg = cfgFor(state.engine)
   const status = providerStatus(meta, cfg)
 
+  const isFree = meta.kind === 'free'
   $('#provider').value = state.engine
-  $('#provider-desc').textContent = meta.desc || (meta.kind === 'free' ? '开箱即用，适合轻量翻译。' : '使用模型 API 翻译，质量和风格由模型决定。')
-  setBadge('#translation-provider-badge', status.text, status.cls)
-  setBadge('#ai-provider-badge', status.text, status.cls)
-  $('#go-ai-config').hidden = meta.kind === 'free' // 免费引擎无需配置，不显示跳转
+  $('#provider-desc').textContent =
+    meta.desc || (isFree ? '开箱即用，适合轻量翻译。' : '使用模型 API 翻译，质量和风格由模型决定。')
+  setBadge('#provider-badge', status.text, status.cls)
 
-  if (meta.kind === 'free') {
-    $('#ai-free-note').hidden = false
-    $('#ai-config').hidden = false
-    $('#ai-connection').hidden = true
-    return
-  }
+  // 翻译页：免费引擎给一句说明；AI 引擎就地展开 Key / 模型 / 测试（不再跳到别的页）。
+  $('#provider-free-note').hidden = !isFree
+  $('#provider-config').hidden = isFree
+  // 提示词页：免费引擎不使用提示词 / 词典，藏掉配置只留说明。
+  $('#ai-free-note').hidden = !isFree
+  $('#ai-prompt-config').hidden = isFree
 
-  $('#ai-free-note').hidden = true
-  $('#ai-config').hidden = false
-  $('#ai-connection').hidden = false
-  $('#ai-provider-title').textContent = meta.label
-  $('#ai-provider-subtitle').textContent = meta.needsBaseURL ? '自定义 OpenAI 兼容端点。' : '配置 API Key、模型和连接测试。'
+  if (isFree) return
 
   $('#baseurl-field').hidden = !meta.needsBaseURL
   $('#ai-baseurl').value = cfg.baseURL || ''
@@ -340,6 +352,7 @@ function renderProviderState() {
   }
 
   $('#ai-key').value = cfg.apiKey || ''
+  $('#ai-key').placeholder = meta.keyHint || 'sk-...'
   $('#ai-model').value = cfg.model || ''
   $('#ai-model').placeholder = meta.defaultModel || '模型名'
   setModels(meta.models)
@@ -361,11 +374,8 @@ function renderPromptMeta() {
 $('#provider').addEventListener('change', (e) => {
   state.engine = e.target.value
   cfgFor(state.engine)
-  renderProviderState()
-  markDirty()
+  markDirty() // markDirty 内会 renderProviderState，按新服务商就地展开 Key / 模型
 })
-
-$('#go-ai-config').addEventListener('click', () => selectTab('ai'))
 
 $('#primary-language').addEventListener('change', (e) => {
   state.primaryLanguage = e.target.value
@@ -615,47 +625,8 @@ $('#history-clear').addEventListener('click', async () => {
   setStatus('#save-status', '✓ 已清空历史', 'ok')
 })
 
-/* ---------------- 保存、取消、关于 ---------------- */
+/* ---------------- 关闭、关于 ---------------- */
 
-function validateBeforeSave() {
-  const hk = state.hotkeys
-  const vals = [hk.input, hk.screenshot, hk.selection, hk.clipboard]
-  if (vals.some((v) => !v)) return '三个快捷键都要设置'
-  if (new Set(vals).size !== vals.length) return '快捷键不能重复'
-
-  state.systemPrompt = ($('#ai-system-prompt').value || '').trim()
-  if (!state.systemPrompt) return 'AI 系统提示词不能为空，可点「恢复默认」'
-  if (state.primaryLanguage === state.secondaryLanguage) return '主语言和副语言不能相同'
-
-  const meta = metaById[state.engine]
-  const cfg = cfgFor(state.engine)
-  if (meta && meta.needsBaseURL && !cfg.baseURL) return '自定义服务商需要填 Base URL'
-  if (meta && meta.needsKey && !cfg.apiKey) return '「' + meta.label + '」需要填 API Key'
-  return ''
-}
-
-$('#save').addEventListener('click', async () => {
-  const error = validateBeforeSave()
-  if (error) {
-    setStatus('#save-status', '✗ ' + error, 'err')
-    return
-  }
-
-  const r = await window.api.saveSettings(state)
-  if (r.hotkeyErrors && r.hotkeyErrors.length) {
-    const names = { input: '输入翻译', screenshot: '截图翻译', selection: '划词翻译', clipboard: '剪贴板翻译' }
-    setStatus('#save-status', '✗ 无法注册（可能被占用）：' + r.hotkeyErrors.map((k) => names[k]).join('、'), 'err')
-    return
-  }
-
-  state = normalizeSettings(r.settings || state)
-  initialSnapshot = snapshot()
-  renderAll()
-  setStatus('#save-status', '✓ 已保存', 'ok')
-  setTimeout(() => window.api.closeSettings(), 500)
-})
-
-$('#cancel').addEventListener('click', requestClose)
 $('#close').addEventListener('click', requestClose)
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') requestClose()
@@ -776,14 +747,11 @@ function renderAll() {
   renderLanguageRules()
   renderProviderState()
   renderPromptMeta()
-  renderDirtyState()
 }
 
 function populate(s) {
   state = normalizeSettings(s)
   renderAll()
-  initialSnapshot = snapshot()
-  renderDirtyState()
   setStatus('#save-status', '')
   setStatus('#ai-status', '')
 }

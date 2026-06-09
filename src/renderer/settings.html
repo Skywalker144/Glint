@@ -10,7 +10,7 @@
     <div class="app">
       <div class="titlebar">
         <span class="logo">设置</span>
-        <span class="hint" id="settings-dirty" hidden>有未保存更改</span>
+        <span id="save-status" class="s-status s-save-status"></span>
         <span class="spacer"></span>
         <button id="close" class="iconbtn" title="关闭 (Esc)">✕</button>
       </div>
@@ -27,7 +27,7 @@
           </button>
           <button class="s-tab" data-tab="ai">
             <svg viewBox="0 0 16 16"><path d="M8 1.8l1.7 4.5 4.5 1.7-4.5 1.7L8 14.2 6.3 9.7 1.8 8l4.5-1.7z" /></svg>
-            <span>AI</span>
+            <span>提示词</span>
           </button>
           <button class="s-tab" data-tab="hotkeys">
             <svg viewBox="0 0 16 16"><rect x="1.6" y="4.2" width="12.8" height="7.6" rx="1.6" /><path d="M4 6.8h.01M6.6 6.8h.01M9.2 6.8h.01M11.8 6.8h.01M4 9.4h.01M6 9.4h4M12 9.4h.01" /></svg>
@@ -94,7 +94,7 @@
           <section class="s-panel" data-panel="translate" hidden>
             <div class="s-pagehead">
               <h1>翻译</h1>
-              <p>选择翻译服务，并查看当前语言方向。</p>
+              <p>选择翻译服务并就地完成配置，查看语言方向。</p>
             </div>
 
             <div class="s-section">
@@ -103,12 +103,42 @@
                   <label>翻译服务商</label>
                   <div class="s-inline">
                     <select id="provider"></select>
-                    <span id="translation-provider-badge" class="s-badge"></span>
+                    <span id="provider-badge" class="s-badge"></span>
                   </div>
                 </div>
               </div>
               <p id="provider-desc" class="s-tip"></p>
-              <a id="go-ai-config" class="s-link" hidden>前往「AI」页填 Key 和模型 →</a>
+
+              <!-- 免费 Google：无需任何配置 -->
+              <div id="provider-free-note" class="s-callout" hidden>
+                免费 Google 翻译开箱即用，无需 API Key 或模型，也不使用系统提示词。
+              </div>
+
+              <!-- AI 服务商：就地填 Key / 模型 / 测试，选完即配，不用再跳到别的页 -->
+              <div id="provider-config" hidden>
+                <div class="s-card">
+                  <div class="s-field" id="baseurl-field" hidden>
+                    <label>Base URL</label>
+                    <div class="s-inline"><input id="ai-baseurl" placeholder="https://..." spellcheck="false" autocomplete="off" /></div>
+                  </div>
+                  <div class="s-field">
+                    <label>API Key <a id="key-link" class="s-link" hidden>获取 Key ↗</a></label>
+                    <div class="s-inline"><input id="ai-key" type="password" placeholder="sk-..." spellcheck="false" autocomplete="off" /></div>
+                  </div>
+                  <div class="s-field">
+                    <label>模型</label>
+                    <div class="s-inline">
+                      <input id="ai-model" list="ai-models" placeholder="模型名" spellcheck="false" autocomplete="off" />
+                      <button id="ai-load" class="ghost">加载模型</button>
+                    </div>
+                    <datalist id="ai-models"></datalist>
+                  </div>
+                </div>
+                <div class="s-inline s-actions">
+                  <button id="ai-test" class="ghost">测试翻译</button>
+                  <span id="ai-status" class="s-status"></span>
+                </div>
+              </div>
             </div>
 
             <div class="s-section">
@@ -142,48 +172,15 @@
 
           <section class="s-panel" data-panel="ai" hidden>
             <div class="s-pagehead">
-              <h1>AI</h1>
-              <p>配置模型、连接状态和发给 AI 的系统提示词。</p>
+              <h1>提示词</h1>
+              <p>约束 AI 翻译的输出风格与单词词典行为（仅 AI 服务商生效）。</p>
             </div>
 
             <div id="ai-free-note" class="s-callout" hidden>
-              当前选择的是免费 Google 翻译，不会使用 AI 配置和系统提示词。
+              当前选择的是免费 Google 翻译，不使用系统提示词与词典；切换到 AI 服务商后可在此配置。
             </div>
 
-            <div id="ai-config" hidden>
-              <div id="ai-connection" class="s-section">
-                <div class="s-section-head">
-                  <div>
-                    <h2 id="ai-provider-title">服务商配置</h2>
-                    <p id="ai-provider-subtitle">配置 API Key、模型和连接测试。</p>
-                  </div>
-                  <span id="ai-provider-badge" class="s-badge"></span>
-                </div>
-
-                <div class="s-card">
-                  <div class="s-field" id="baseurl-field" hidden>
-                    <label>Base URL</label>
-                    <div class="s-inline"><input id="ai-baseurl" placeholder="https://..." spellcheck="false" autocomplete="off" /></div>
-                  </div>
-                  <div class="s-field">
-                    <label>API Key <a id="key-link" class="s-link" hidden>获取 Key ↗</a></label>
-                    <div class="s-inline"><input id="ai-key" type="password" placeholder="sk-..." spellcheck="false" autocomplete="off" /></div>
-                  </div>
-                  <div class="s-field">
-                    <label>模型</label>
-                    <div class="s-inline">
-                      <input id="ai-model" list="ai-models" placeholder="模型名" spellcheck="false" autocomplete="off" />
-                      <button id="ai-load" class="ghost">加载模型</button>
-                    </div>
-                    <datalist id="ai-models"></datalist>
-                  </div>
-                </div>
-                <div class="s-inline s-actions">
-                  <button id="ai-test" class="ghost">测试翻译</button>
-                  <span id="ai-status" class="s-status"></span>
-                </div>
-              </div>
-
+            <div id="ai-prompt-config" hidden>
               <div class="s-section">
                 <div class="s-section-head">
                   <div>
@@ -334,12 +331,6 @@
         </div>
       </div>
 
-      <div class="s-footer">
-        <span id="save-status" class="s-status"></span>
-        <span class="spacer"></span>
-        <button id="cancel" class="ghost">取消</button>
-        <button id="save" class="primary">保存</button>
-      </div>
     </div>
 
     <script src="settings.js"></script>

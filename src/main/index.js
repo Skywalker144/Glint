@@ -727,9 +727,10 @@ function validateHotkeys(hk) {
   const failed = []
   for (const key of Object.keys(hk)) {
     const accel = hk[key]
+    if (!accel) continue // 空 = 用户主动不设该快捷键（仍可从菜单栏触发），不算错误
     let ok = false
     try {
-      ok = !!accel && globalShortcut.register(accel, () => {})
+      ok = globalShortcut.register(accel, () => {})
     } catch {
       ok = false
     }
