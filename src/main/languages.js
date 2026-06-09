@@ -74,7 +74,16 @@ function pickDirection(text, primaryLanguage, secondaryLanguage) {
 function isWordLookup(text) {
   const t = (text || '').trim()
   if (!t || t.length > 40) return false
-  return /^[\p{L}\p{M}][\p{L}\p{M}'’\-·]*$/u.test(t)
+  // 形态上得像「一个 token」：无内部空白、无数字/句读，只由字母（含撇号 / 连字符 / 中点）组成。
+  if (!/^[\p{L}\p{M}][\p{L}\p{M}'’\-·]*$/u.test(t)) return false
+  // 中日韩没有词间空格，光靠「无空白」会把整句也当成词。把汉字 / 平假名 / 片假名算作同一个 CJK 桶
+  // （日文「食べる」这种汉字+假名混写是单词常态，不算多语言），含 CJK 时再加两道闸：
+  const cjk = (t.match(/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/gu) || []).length
+  if (cjk > 0) {
+    if (cjk > 4) return false // ① 表意字数过多 → 短语 / 句子；真正查词一般 1–4 字
+    if (/[A-Za-z]{2,}/.test(t)) return false // ② 汉字里夹着成段拉丁词（LLM、API、用AI…）→ 短语；只夹单字母的借词（T恤、C语言）仍当词
+  }
+  return true
 }
 
 module.exports = {
