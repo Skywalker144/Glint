@@ -42,13 +42,19 @@ new ResizeObserver(() => {
 // 输入框高度自适应：没结果时用 CSS 固定高（宽松、好粘贴）；有结果时贴合内容——
 // 短原文收到最小、长原文最多撑到 ~84px（约 3 行）再内部滚动，
 // 避免长原文被死收成 46px（约 1.5 行）而截断显得怪。
+// 原文框高度自适应：贴着内容长高、避免空白，超过上限才内部滚动。两点防「幽灵滚动条」：
+//   1) +2 补 border-box 下上下各 1px 边框（scrollHeight 不含 border，否则内容差几像素放不下）；
+//   2) 没真超过上限就把 overflowY 设为 hidden，绝不出现一条「滚不动」的滚动条。
+// 上限按行数留足：有结果时 ~4 行（装得下常见 3 行选区且不出滚动条，之前 84px 刚好差 1px →
+// 3 行就冒滚动条），无结果时更宽松，方便粘贴长文再翻。
 function autoSizeInput() {
-  if (!appEl.classList.contains('has-result')) {
-    input.style.height = '' // 回到 CSS 的 84px
-    return
-  }
-  input.style.height = 'auto'
-  input.style.height = Math.min(84, Math.max(40, input.scrollHeight)) + 'px'
+  const hasResult = appEl.classList.contains('has-result')
+  const minH = hasResult ? 40 : 84 // 有结果收紧到 ~1.5 行；无结果保持宽松默认（约 3 行高）
+  const maxH = hasResult ? 96 : 200 // 超过才滚动：~4 行 / ~9 行
+  input.style.height = 'auto' // 先收起，让 scrollHeight 反映纯内容高度（收缩时也量得准）
+  const full = input.scrollHeight + 2
+  input.style.height = Math.min(maxH, Math.max(minH, full)) + 'px'
+  input.style.overflowY = full > maxH ? 'auto' : 'hidden'
 }
 input.addEventListener('input', autoSizeInput)
 
@@ -376,4 +382,9 @@ window.api.onShowMessage((msg) => {
   autoSizeInput()
   resultbar.hidden = true
   status.textContent = msg
+  // 把焦点收到输入框并全选已有文字：
+  // - 焦点不落到第一个可聚焦元素（设置齿轮），免得它上面画出键盘焦点环、还可能误触发设置；
+  // - 全选让用户在取词 / 识别失败后直接打字就能替换掉原文框里残留的旧文字。
+  input.focus()
+  input.select()
 })

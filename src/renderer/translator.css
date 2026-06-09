@@ -124,6 +124,7 @@
   corner-shape: var(--corner-shape);
   padding: 10px 12px;
   white-space: normal;
+  overflow-wrap: break-word; /* 长链接 / 无空格长串按窗口宽度断行，不再横向溢出滚动 */
   user-select: text;
   font-size: 15px;
 }
