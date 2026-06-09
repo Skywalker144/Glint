@@ -29,16 +29,25 @@ async function getSelectedText() {
   const previous = clipboard.readText()
   clipboard.writeText('') // 先清空，便于判断复制是否真的发生
 
+  // 发 ⌘C 前先等一小会儿：⌥E 这类全局快捷键触发时，用户的 Option 等修饰键往往还按着，
+  // 此刻合成的 ⌘C 会和残留的 ⌥ 叠成 ⌥⌘C，多数 App 不识别为复制 → 取词失败（时灵时不灵，
+  // 还可能误触 ⌥⌘C 这类别的快捷键）。等 ~90ms 让修饰键先抬起，再发第一次复制。
+  await delay(90)
   await simulateCopy()
 
-  // 轮询等待目标 App 把选中内容写进剪贴板：一有内容就立刻返回（响应快的 App 往往几十毫秒
-  // 就好），最多等 ~700ms 容忍慢的 App。比之前固定 sleep 220ms 稳——固定等待在浏览器 /
-  // Electron 等较慢的 App 上偶发来不及，读到空 → 误报「没检测到选中的文字」。
+  // 轮询等目标 App 把选中内容写进剪贴板：一有内容就立刻返回（快的 App 几十毫秒就好）。
+  // 过了 ~200ms 还是空，就补发一次 ⌘C——这时修饰键必已抬起，覆盖「第一发因修饰键残留 /
+  // 抢焦点没生效」与「App 较慢」两种情况。比固定 sleep 稳得多。
   let selected = ''
-  for (let i = 0; i < 28; i++) {
+  let retried = false
+  for (let i = 0; i < 30; i++) {
     await delay(25)
     selected = clipboard.readText()
     if (selected.trim()) break
+    if (i === 8 && !retried) {
+      retried = true
+      await simulateCopy()
+    }
   }
 
   // 还原用户原本的剪贴板内容
