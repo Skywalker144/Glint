@@ -6,10 +6,18 @@ const { translateGoogle } = require('./google')
 const oai = require('./openai-compat')
 const anthropic = require('./anthropic')
 const { getProvider } = require('./providers')
-const { buildSystemPrompt, DEFAULT_TARGET_PROMPT } = require('./prompt')
+const { buildSystemPrompt, DEFAULT_TARGET_PROMPT, targetName } = require('./prompt')
 
 function resolveBaseURL(p, cfg) {
   return p.needsBaseURL ? cfg.baseURL || '' : p.baseURL
+}
+
+// 词典模式直接发原词；普通整句翻译时，把「翻成 {target}」的指令贴在原文前一起发给模型。
+// 方向（target）已由 pickDirection 算好，光靠系统提示词让弱模型（如 deepseek flash）自判方向时，
+// 偶尔会把英文整段原样吐回（echo）——在 user 消息里点明确切目标语言能稳住方向、消除 echo。
+function buildUserContent(text, target, dict) {
+  if (dict) return text
+  return '请把下面的文本翻译成' + targetName(target) + '，只输出译文本身：\n\n' + text
 }
 
 // 统一翻译入口，返回 { translated, source }
@@ -27,13 +35,14 @@ async function translateWith(engineId, cfg, text, target, options = {}) {
   })
   const source = options.source || 'auto'
   const baseURL = resolveBaseURL(p, cfg)
+  const user = buildUserContent(text, target, options.dict)
 
   if (p.kind === 'anthropic') {
-    const translated = await anthropic.translate(text, { sys, apiKey: cfg.apiKey, model: cfg.model, baseURL })
+    const translated = await anthropic.translate(user, { sys, apiKey: cfg.apiKey, model: cfg.model, baseURL })
     return { translated, source }
   }
 
-  const translated = await oai.translate(text, {
+  const translated = await oai.translate(user, {
     sys,
     apiKey: cfg.apiKey,
     model: cfg.model,
@@ -71,9 +80,10 @@ async function translateStreamWith(engineId, cfg, text, target, options = {}, on
   })
   const source = options.source || 'auto'
   const baseURL = resolveBaseURL(p, cfg)
+  const user = buildUserContent(text, target, options.dict)
 
   if (p.kind === 'anthropic') {
-    const translated = await anthropic.translateStream(text, {
+    const translated = await anthropic.translateStream(user, {
       sys,
       apiKey: cfg.apiKey,
       model: cfg.model,
@@ -84,7 +94,7 @@ async function translateStreamWith(engineId, cfg, text, target, options = {}, on
     return { translated, source }
   }
 
-  const translated = await oai.translateStream(text, {
+  const translated = await oai.translateStream(user, {
     sys,
     apiKey: cfg.apiKey,
     model: cfg.model,

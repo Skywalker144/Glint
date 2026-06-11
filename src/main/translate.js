@@ -11,11 +11,15 @@ function pickTarget(text, primaryLanguage = 'zh-CN', secondaryLanguage = 'en') {
   return pickDirection(text, primaryLanguage, secondaryLanguage).target
 }
 
-// 单词时（且为 AI 引擎、开启词典）用词典提示词，否则用翻译提示词。
-function promptFor(s, engineId, text) {
+// 输入像单词、且为 AI 引擎、开启词典时走词典模式。
+function isDictLookup(s, engineId, text) {
   const p = getProvider(engineId)
-  const isDict = s.dictionaryMode !== false && p && p.kind !== 'free' && isWordLookup(text)
-  return isDict ? s.dictionaryPrompt || DEFAULT_DICTIONARY_PROMPT : s.systemPrompt
+  return s.dictionaryMode !== false && p && p.kind !== 'free' && isWordLookup(text)
+}
+
+// 单词时用词典提示词，否则用翻译提示词。
+function promptFor(s, engineId, text) {
+  return isDictLookup(s, engineId, text) ? s.dictionaryPrompt || DEFAULT_DICTIONARY_PROMPT : s.systemPrompt
 }
 
 // 统一入口：根据设置里选中的服务商分发。返回 {original, translated, source, target, engine}
@@ -30,6 +34,7 @@ async function translate(text) {
 
   const { translated, source } = await translateWith(engineId, cfg, text, direction.target, {
     systemPrompt: promptFor(s, engineId, text),
+    dict: isDictLookup(s, engineId, text),
     primaryLanguage: s.primaryLanguage,
     secondaryLanguage: s.secondaryLanguage,
     source: direction.source,
@@ -53,6 +58,7 @@ async function translateStream(text, onDelta, opts = {}) {
   // 手动指定了有效目标语言 → 强制翻成它（不走词典、不按自动方向）。
   const forced = opts.target && isLanguageCode(opts.target) ? opts.target : ''
   const target = forced || direction.target
+  const dict = !forced && isDictLookup(s, engineId, text)
 
   const { translated, source } = await translateStreamWith(
     engineId,
@@ -62,6 +68,7 @@ async function translateStream(text, onDelta, opts = {}) {
     {
       systemPrompt: forced ? '' : promptFor(s, engineId, text),
       forceTarget: !!forced,
+      dict,
       primaryLanguage: s.primaryLanguage,
       secondaryLanguage: s.secondaryLanguage,
       source: direction.source,
