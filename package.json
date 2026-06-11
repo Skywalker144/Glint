@@ -1,6 +1,6 @@
 {
   "name": "glint",
-  "version": "0.2.12",
+  "version": "0.2.13",
   "private": true,
   "description": "闪译 · Glint — 划词 / 截图 / 输入翻译，黑白极简的跨平台桌面翻译工具（Electron）",
   "main": "src/main/index.js",
