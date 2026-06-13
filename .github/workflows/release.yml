@@ -1,6 +1,9 @@
 name: Release
 
 # 推送 v* 标签时，在 Mac 和 Windows 上分别打包，并发布到 GitHub Release（草稿）。
+# 两个平台串行（max-parallel: 1）跑：并行时两边会几乎同时发现「该 tag 还没 release」
+# 而各建一份草稿，导致 mac / win 资源分到两份草稿里；串行后第一个 job 建好草稿，
+# 第二个 electron-builder 会复用同一份草稿往里传，最终是单份齐全的 release。
 on:
   push:
     tags:
@@ -13,6 +16,7 @@ jobs:
   build:
     strategy:
       fail-fast: false
+      max-parallel: 1 # 串行打包，避免两个 job 抢着建 GitHub Release 草稿（会分叉成两份）
       matrix:
         include:
           - os: macos-latest
