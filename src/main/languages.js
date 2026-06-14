@@ -27,35 +27,33 @@ function promptLanguageName(code) {
   return (BY_CODE[code] && BY_CODE[code].promptName) || languageLabel(code)
 }
 
-function hasHan(text) {
-  return /[㐀-鿿豈-﫿]/.test(text)
+// 各书写系统的「分量」：表意文字（汉字）/ 假名 / 谚文 / 西里尔按字符数计，
+// 拉丁按「词」（连续字母段）数计——让「一个汉字 ≈ 一个英文词」，量纲一致，
+// 中英混排时才能按主体语种判方向，而不是「文本里沾一个汉字就当中文」
+// （否则整段英文里夹个「秒开 / 彻底删除此库」就被判成中文 → 英译英 echo）。
+function scriptWeights(text) {
+  const t = text || ''
+  return {
+    han: (t.match(/\p{Script=Han}/gu) || []).length,
+    kana: (t.match(/[\p{Script=Hiragana}\p{Script=Katakana}]/gu) || []).length,
+    hangul: (t.match(/\p{Script=Hangul}/gu) || []).length,
+    cyrillic: (t.match(/\p{Script=Cyrillic}/gu) || []).length,
+    latin: (t.match(/[A-Za-zÀ-ÖØ-öø-ÿ]+/g) || []).length,
+  }
 }
 
-function hasKana(text) {
-  return /[぀-ヿ]/.test(text)
-}
-
-function hasHangul(text) {
-  return /[ᄀ-ᇿ㄰-㆏가-힯]/.test(text)
-}
-
-function hasCyrillic(text) {
-  return /[Ѐ-ӿ]/.test(text)
-}
-
-function hasLatin(text) {
-  return /[A-Za-zÀ-ÖØ-öø-ÿ]/.test(text)
-}
-
+// 判断文本的「主体书写系统」是否属于某语言：混排时按分量比谁主导决定。
+// 含假名 / 谚文则排除中文（日文汉字+假名、韩文都不算中文）。
 function isProbablyLanguage(text, code) {
   const t = text || ''
   if (!t.trim()) return false
-  if (code === 'zh-CN') return hasHan(t) && !hasKana(t) && !hasHangul(t)
-  if (code === 'ja') return hasKana(t)
-  if (code === 'ko') return hasHangul(t)
-  if (code === 'ru') return hasCyrillic(t)
+  const w = scriptWeights(t)
+  if (code === 'zh-CN') return w.han > 0 && w.kana === 0 && w.hangul === 0 && w.han >= w.latin
+  if (code === 'ja') return w.kana > 0
+  if (code === 'ko') return w.hangul > 0
+  if (code === 'ru') return w.cyrillic > 0
   if (['en', 'fr', 'de', 'es', 'it', 'pt'].includes(code)) {
-    return hasLatin(t) && !hasHan(t) && !hasKana(t) && !hasHangul(t) && !hasCyrillic(t)
+    return w.latin > 0 && w.kana === 0 && w.hangul === 0 && w.cyrillic === 0 && w.latin >= w.han
   }
   return false
 }

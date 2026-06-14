@@ -44,6 +44,24 @@ test('isWordLookup: 单词命中、整句不命中', () => {
   assert.ok(!isWordLookup('a'.repeat(50)))
 })
 
+test('pickDirection: 英文为主、夹少量中文词 → 仍判英文（修复「英译英」echo）', () => {
+  const mostlyEnglish =
+    'Done. Thumbnail lazy-loading is implemented and verified. Each thumbnail is its own ' +
+    'encrypted blob, the meta only carries lightweight flags, so unlock only decrypts the slim ' +
+    'metas → 秒开. There is still a pending Rust change (彻底删除此库), so do a full restart.'
+  assert.ok(!isProbablyLanguage(mostlyEnglish, 'zh-CN'))
+  const d = pickDirection(mostlyEnglish, 'zh-CN', 'en')
+  assert.strictEqual(d.source, 'auto')
+  assert.strictEqual(d.target, 'zh-CN')
+})
+
+test('pickDirection: 中文为主、夹外来词（LLM / app）→ 仍判中文', () => {
+  assert.ok(isProbablyLanguage('我在用 LLM 写一个翻译 app', 'zh-CN'))
+  const d = pickDirection('我在用 LLM 写一个翻译 app', 'zh-CN', 'en')
+  assert.strictEqual(d.source, 'zh-CN')
+  assert.strictEqual(d.target, 'en')
+})
+
 test('isProbablyLanguage: 文字系统判断', () => {
   assert.ok(isProbablyLanguage('hello', 'en'))
   assert.ok(!isProbablyLanguage('你好', 'en'))
