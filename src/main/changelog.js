@@ -3,6 +3,13 @@
 // 更新日志（面向用户，最新在上）。关于页渲染本数组，发布新版时同步在此加一条。
 const CHANGELOG = [
   {
+    version: '0.2.15',
+    date: '2026-06-19',
+    items: [
+      'DeepSeek 翻译明显提速：V4 模型（flash / pro）默认会先「思考」一轮，导致出字前要干等一会儿——现在默认关闭思考，译文不变、出字更快；同时把模型列表更新为现售的 deepseek-v4-flash / deepseek-v4-pro',
+    ],
+  },
+  {
     version: '0.2.14',
     date: '2026-06-14',
     items: [
