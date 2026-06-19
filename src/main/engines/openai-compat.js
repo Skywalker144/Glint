@@ -9,7 +9,7 @@ function trimBase(u) {
   return (u || '').replace(/\/+$/, '')
 }
 
-async function translate(text, { sys, apiKey, model, baseURL, extraHeaders }) {
+async function translate(text, { sys, apiKey, model, baseURL, extraHeaders, extraBody }) {
   if (!baseURL) throw new Error('缺少 Base URL')
   if (!apiKey) throw new Error('未配置 API Key')
   if (!model) throw new Error('未选择模型')
@@ -21,7 +21,9 @@ async function translate(text, { sys, apiKey, model, baseURL, extraHeaders }) {
       'Content-Type': 'application/json',
       ...(extraHeaders || {}),
     },
+    // extraBody 在前、固定字段在后：服务商只能「补字段」（如 DeepSeek 关思考），改不动 model/messages。
     body: JSON.stringify({
+      ...(extraBody || {}),
       model,
       temperature: 0,
       messages: [
@@ -59,7 +61,7 @@ async function listModels({ apiKey, baseURL }) {
 }
 
 // 流式翻译：stream:true，逐块取 choices[0].delta.content 通过 onDelta 回吐。
-async function translateStream(text, { sys, apiKey, model, baseURL, extraHeaders, onDelta, signal }) {
+async function translateStream(text, { sys, apiKey, model, baseURL, extraHeaders, extraBody, onDelta, signal }) {
   if (!baseURL) throw new Error('缺少 Base URL')
   if (!apiKey) throw new Error('未配置 API Key')
   if (!model) throw new Error('未选择模型')
@@ -72,7 +74,9 @@ async function translateStream(text, { sys, apiKey, model, baseURL, extraHeaders
       'Content-Type': 'application/json',
       ...(extraHeaders || {}),
     },
+    // extraBody 在前、固定字段在后：服务商只能「补字段」（如 DeepSeek 关思考），改不动 model/stream/messages。
     body: JSON.stringify({
+      ...(extraBody || {}),
       model,
       temperature: 0,
       stream: true,

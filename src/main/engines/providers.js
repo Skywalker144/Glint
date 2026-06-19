@@ -30,8 +30,12 @@ const PROVIDERS = [
     label: 'DeepSeek',
     kind: 'openai',
     baseURL: 'https://api.deepseek.com/v1',
-    defaultModel: 'deepseek-chat',
-    models: ['deepseek-chat', 'deepseek-reasoner'],
+    defaultModel: 'deepseek-v4-flash',
+    models: ['deepseek-v4-flash', 'deepseek-v4-pro'],
+    // V4 是混合思考模型，默认开着思考——翻译不是推理任务，白烧 reasoning token、
+    // 拖慢出字。统一关掉（官方参数 thinking:{type:'disabled'}，实测 chat_template_kwargs /
+    // enable_thinking 都无效），方向与译文不变、延迟明显下降。
+    extraBody: { thinking: { type: 'disabled' } },
     keyHint: 'sk-...',
     keyURL: 'https://platform.deepseek.com/api_keys',
     needsKey: true,

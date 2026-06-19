@@ -48,6 +48,7 @@ async function translateWith(engineId, cfg, text, target, options = {}) {
     model: cfg.model,
     baseURL,
     extraHeaders: p.extraHeaders,
+    extraBody: p.extraBody,
   })
   return { translated, source }
 }
@@ -100,6 +101,7 @@ async function translateStreamWith(engineId, cfg, text, target, options = {}, on
     model: cfg.model,
     baseURL,
     extraHeaders: p.extraHeaders,
+    extraBody: p.extraBody,
     onDelta,
     signal: options.signal,
   })
