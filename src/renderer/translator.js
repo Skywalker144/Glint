@@ -268,6 +268,10 @@ result.addEventListener('click', (e) => {
 })
 
 input.addEventListener('keydown', (e) => {
+  // 中文输入法组词期间的回车/Esc 是「上屏 / 取消候选」（比如不切输入法直接打英文，
+  // 打完按回车把英文上屏），要交给输入法处理，别当成提交翻译或关窗——否则上屏的回车
+  // 会顺带触发翻译。isComposing 偶尔来不及置位，再用 keyCode 229 兜底。
+  if (e.isComposing || e.keyCode === 229) return
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault()
     doTranslate()
