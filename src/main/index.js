@@ -558,7 +558,7 @@ ipcMain.handle('settings:save', (_e, partial) => {
   const s = settings.save(partial)
   // 设置窗口此时聚焦、全局快捷键已禁用，这里只做注册校验（之后关窗会真正注册）。
   const hotkeyErrors = validateHotkeys(s.hotkeys)
-  rebuildTray()
+  applyTrayVisibility()
   applyLoginItem()
   applyProxy()
   sendToTranslator('pin:state', !!s.pinned) // 同步主窗口图钉
@@ -697,6 +697,22 @@ function createTray() {
   if (!img && process.platform === 'darwin') tray.setTitle(' 译') // 没读到图标时退回文字
   tray.setToolTip('闪译 · Glint')
   rebuildTray()
+}
+
+// 按设置创建 / 销毁菜单栏（托盘）图标。隐藏后应用只剩快捷键 + 翻译窗齿轮进设置，
+// 没有 Dock 图标也无碍（本就 LSUIElement）。在启动和保存设置时各调一次，切换即时生效。
+function applyTrayVisibility() {
+  const hide = settings.get().hideTrayIcon
+  if (hide) {
+    if (tray) {
+      tray.destroy()
+      tray = null
+    }
+  } else if (!tray) {
+    createTray()
+  } else {
+    rebuildTray()
+  }
 }
 
 function registerHotkeys() {
@@ -875,7 +891,7 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     if (process.platform === 'darwin') app.dock.hide()
     createTranslatorWindow()
-    createTray()
+    applyTrayVisibility()
     registerHotkeys()
     prepareOCR() // 后台预编译 Vision OCR 二进制（仅 Mac）
     applyLoginItem() // 按设置同步开机自启

@@ -16,6 +16,7 @@ const DEFAULTS = {
   engine: 'google', // 选中的服务商 id（见 engines/providers.js）
   launchAtLogin: false, // 开机自启
   pinned: false, // 钉住主窗口：false 时失焦自动隐藏，true 时常驻
+  hideTrayIcon: false, // 隐藏菜单栏（托盘）图标：true 时仅靠快捷键 + 翻译窗齿轮进设置
   windowWidth: 420, // 翻译窗宽度：可横向拖拽，记住上次
   windowX: null, // 钉住时记住窗口位置（未钉住时跟随光标，不用）
   windowY: null,

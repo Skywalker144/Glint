@@ -18,6 +18,7 @@ let state = {
   dictionaryMode: true,
   dictionaryPrompt: '',
   pinned: false,
+  hideTrayIcon: false,
   proxy: { enabled: false, url: '' },
   hotkeys: { input: '', screenshot: '', selection: '', clipboard: '' },
   providers: {},
@@ -51,6 +52,7 @@ function normalizeSettings(s) {
     dictionaryMode: s && s.dictionaryMode !== undefined ? !!s.dictionaryMode : true,
     dictionaryPrompt: (s && s.dictionaryPrompt) || defaultSettings.dictionaryPrompt || '',
     pinned: !!(s && s.pinned),
+    hideTrayIcon: !!(s && s.hideTrayIcon),
     proxy: {
       enabled: !!(s && s.proxy && s.proxy.enabled),
       url: (s && s.proxy && s.proxy.url) || '',
@@ -166,6 +168,11 @@ $('#launch-at-login').addEventListener('change', (e) => {
 
 $('#pin-window').addEventListener('change', (e) => {
   state.pinned = e.target.checked
+  markDirty()
+})
+
+$('#hide-tray-icon').addEventListener('change', (e) => {
+  state.hideTrayIcon = e.target.checked
   markDirty()
 })
 
@@ -739,6 +746,7 @@ function renderAll() {
   $$('.recorder').forEach(renderHotkey)
   $('#launch-at-login').checked = state.launchAtLogin
   $('#pin-window').checked = state.pinned
+  $('#hide-tray-icon').checked = state.hideTrayIcon
   $('#proxy-enabled').checked = state.proxy.enabled
   $('#proxy-url').value = state.proxy.url
   $('#ai-system-prompt').value = state.systemPrompt
