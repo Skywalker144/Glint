@@ -1,6 +1,8 @@
 /* 共享主题：黑白单色，跟随系统浅/深；G2 圆角；通用组件。多窗口复用。 */
 
 :root {
+  color-scheme: light dark; /* 让原生控件（下拉展开的选项列表、滚动条等）跟随系统浅/深，不再固定浅色 */
+
   /* G2 平滑圆角（squircle），统一用变量方便整体微调 */
   --corner-shape: squircle;
   --radius-window: 16px;
