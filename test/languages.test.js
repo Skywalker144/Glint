@@ -2,7 +2,12 @@
 
 const { test } = require('node:test')
 const assert = require('node:assert')
-const { pickDirection, isWordLookup, isProbablyLanguage } = require('../src/main/languages')
+const {
+  pickDirection,
+  isWordLookup,
+  isProbablyLanguage,
+  needsSemanticDirection,
+} = require('../src/main/languages')
 
 test('pickDirection: 中文输入 → 副语言（之前线上反过的方向）', () => {
   const d = pickDirection('迭代', 'zh-CN', 'en')
@@ -13,6 +18,9 @@ test('pickDirection: 中文输入 → 副语言（之前线上反过的方向）
 test('pickDirection: 英文输入 → 主语言', () => {
   const d = pickDirection('iterate', 'zh-CN', 'en')
   assert.strictEqual(d.target, 'zh-CN')
+
+  const filename = pickDirection('meta_game_payoff_heatmap.png', 'zh-CN', 'en')
+  assert.strictEqual(filename.target, 'zh-CN')
 })
 
 test('pickDirection: 其它语言（日语）→ 主语言', () => {
@@ -69,4 +77,23 @@ test('isProbablyLanguage: 文字系统判断', () => {
   assert.ok(!isProbablyLanguage('こんにちは', 'zh-CN'))
   assert.ok(isProbablyLanguage('こんにちは', 'ja'))
   assert.ok(isProbablyLanguage('Привет', 'ru'))
+})
+
+test('needsSemanticDirection: 拉丁语系不由字母系统强制方向', () => {
+  assert.ok(needsSemanticDirection('Hello, world.', 'fr'))
+  assert.ok(needsSemanticDirection('Bonjour tout le monde.', 'en'))
+  assert.ok(needsSemanticDirection('Hola, mundo.', 'en'))
+  assert.ok(!needsSemanticDirection('你好世界', 'en'))
+})
+
+test('needsSemanticDirection: 纯汉字和西里尔文本保留语义判断', () => {
+  assert.ok(needsSemanticDirection('你好世界', 'zh-CN'))
+  assert.ok(needsSemanticDirection('東京', 'ja'))
+  assert.ok(needsSemanticDirection('Привет', 'ru'))
+  assert.ok(!needsSemanticDirection('안녕하세요', 'ko'))
+})
+
+test('pickDirection: 标记需要 AI 做语义方向判断的输入', () => {
+  assert.strictEqual(pickDirection('hello', 'fr', 'en').semantic, true)
+  assert.strictEqual(pickDirection('こんにちは', 'ja', 'en').semantic, false)
 })

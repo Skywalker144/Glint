@@ -35,7 +35,7 @@ const DEFAULTS = {
   // 每个服务商各存各的 Key/模型，切换不丢配置。
   providers: {
     openai: { apiKey: '', model: 'gpt-4o-mini' },
-    deepseek: { apiKey: '', model: 'deepseek-chat' },
+    deepseek: { apiKey: '', model: 'deepseek-v4-flash' },
     anthropic: { apiKey: '', model: 'claude-3-5-haiku-latest' },
     gemini: { apiKey: '', model: 'gemini-2.0-flash' },
     openrouter: { apiKey: '', model: 'openai/gpt-4o-mini' },
@@ -49,6 +49,10 @@ function migrate(raw) {
     raw.providers = raw.providers || {}
     raw.providers.openrouter = raw.openrouter
     delete raw.openrouter
+  }
+  // DeepSeek 翻译工作负载固定到 V4 Flash；仅迁移旧默认值，不覆盖用户手动选的其它模型。
+  if (raw && raw.providers && raw.providers.deepseek && raw.providers.deepseek.model === 'deepseek-chat') {
+    raw.providers.deepseek.model = 'deepseek-v4-flash'
   }
   if (raw && LEGACY_SYSTEM_PROMPTS.includes(raw.systemPrompt)) {
     raw.systemPrompt = DEFAULT_SYSTEM_PROMPT
@@ -119,4 +123,4 @@ function save(partial) {
   return cache
 }
 
-module.exports = { get, save, load, DEFAULTS }
+module.exports = { get, save, load, migrate, DEFAULTS }

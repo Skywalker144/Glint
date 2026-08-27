@@ -480,6 +480,8 @@ $('#ai-test').addEventListener('click', async () => {
     model: cfg.model,
     baseURL: cfg.baseURL,
     systemPrompt: state.systemPrompt,
+    primaryLanguage: state.primaryLanguage,
+    secondaryLanguage: state.secondaryLanguage,
   })
   if (r.ok) setStatus('#ai-status', '✓ 成功：' + r.text, 'ok')
   else setStatus('#ai-status', '✗ ' + r.error, 'err')

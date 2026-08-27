@@ -417,7 +417,14 @@ ipcMain.on('translate:stream', async (event, payload) => {
   const target = forced || dir.target
   // 手动指定目标语言时按整句翻译处理，不进词典
   const isDict = !forced && s.dictionaryMode !== false && p && p.kind !== 'free' && isWordLookup(text)
-  send({ type: 'meta', source: dir.source, target, mode: isDict ? 'dict' : 'translate', word: isDict ? text : '' })
+  const semanticDirection = !forced && !isDict && p && p.kind !== 'free' && dir.semantic
+  send({
+    type: 'meta',
+    source: semanticDirection ? 'auto' : dir.source,
+    target: semanticDirection ? '' : target,
+    mode: isDict ? 'dict' : 'translate',
+    word: isDict ? text : '',
+  })
   try {
     const item = await translateStream(text, (delta) => send({ type: 'delta', delta }), { signal: ac.signal, target: forced })
     if (activeStream === ac) activeStream = null
@@ -567,12 +574,21 @@ ipcMain.handle('settings:save', (_e, partial) => {
 
 ipcMain.handle('settings:test', async (_e, cfg) => {
   try {
+    const sample = 'Hello, world. This is a test.'
+    const primaryLanguage = cfg.primaryLanguage || 'zh-CN'
+    const secondaryLanguage = cfg.secondaryLanguage || 'en'
+    const direction = pickDirection(sample, primaryLanguage, secondaryLanguage)
     const { translated } = await translateWith(
       cfg.engine,
       { apiKey: cfg.apiKey, model: cfg.model, baseURL: cfg.baseURL },
-      'Hello, world. This is a test.',
-      'zh-CN',
-      { systemPrompt: cfg.systemPrompt }
+      sample,
+      direction.target,
+      {
+        systemPrompt: cfg.systemPrompt,
+        semanticDirection: direction.semantic,
+        primaryLanguage,
+        secondaryLanguage,
+      }
     )
     return { ok: true, text: translated }
   } catch (e) {

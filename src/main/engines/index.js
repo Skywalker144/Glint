@@ -6,18 +6,11 @@ const { translateGoogle } = require('./google')
 const oai = require('./openai-compat')
 const anthropic = require('./anthropic')
 const { getProvider } = require('./providers')
-const { buildSystemPrompt, DEFAULT_TARGET_PROMPT, targetName } = require('./prompt')
+const { buildSystemPrompt, buildUserContent, DEFAULT_TARGET_PROMPT } = require('./prompt')
+const { prepareTranslationInput, restoreTranslationInput } = require('./input-shape')
 
 function resolveBaseURL(p, cfg) {
   return p.needsBaseURL ? cfg.baseURL || '' : p.baseURL
-}
-
-// 词典模式直接发原词；普通整句翻译时，把「翻成 {target}」的指令贴在原文前一起发给模型。
-// 方向（target）已由 pickDirection 算好，光靠系统提示词让弱模型（如 deepseek flash）自判方向时，
-// 偶尔会把英文整段原样吐回（echo）——在 user 消息里点明确切目标语言能稳住方向、消除 echo。
-function buildUserContent(text, target, dict) {
-  if (dict) return text
-  return '请把下面的文本翻译成' + targetName(target) + '，只输出译文本身：\n\n' + text
 }
 
 // 统一翻译入口，返回 { translated, source }
@@ -25,8 +18,11 @@ async function translateWith(engineId, cfg, text, target, options = {}) {
   const p = getProvider(engineId)
   if (!p) throw new Error('未知翻译引擎：' + engineId)
 
+  const prepared = prepareTranslationInput(text)
+
   if (p.kind === 'free') {
-    return translateGoogle(text, target) // { translated, source }
+    const result = await translateGoogle(prepared.text, target)
+    return { ...result, translated: restoreTranslationInput(result.translated, prepared) }
   }
 
   const sys = buildSystemPrompt(target, options.systemPrompt, {
@@ -35,11 +31,11 @@ async function translateWith(engineId, cfg, text, target, options = {}) {
   })
   const source = options.source || 'auto'
   const baseURL = resolveBaseURL(p, cfg)
-  const user = buildUserContent(text, target, options.dict)
+  const user = buildUserContent(prepared.text, target, options)
 
   if (p.kind === 'anthropic') {
     const translated = await anthropic.translate(user, { sys, apiKey: cfg.apiKey, model: cfg.model, baseURL })
-    return { translated, source }
+    return { translated: restoreTranslationInput(translated, prepared), source }
   }
 
   const translated = await oai.translate(user, {
@@ -50,7 +46,7 @@ async function translateWith(engineId, cfg, text, target, options = {}) {
     extraHeaders: p.extraHeaders,
     extraBody: p.extraBody,
   })
-  return { translated, source }
+  return { translated: restoreTranslationInput(translated, prepared), source }
 }
 
 // 拉取某服务商的模型列表
@@ -67,10 +63,13 @@ async function translateStreamWith(engineId, cfg, text, target, options = {}, on
   const p = getProvider(engineId)
   if (!p) throw new Error('未知翻译引擎：' + engineId)
 
+  const prepared = prepareTranslationInput(text)
+
   if (p.kind === 'free') {
-    const r = await translateGoogle(text, target)
-    if (onDelta && r.translated) onDelta(r.translated)
-    return r
+    const result = await translateGoogle(prepared.text, target)
+    const translated = restoreTranslationInput(result.translated, prepared)
+    if (onDelta && translated) onDelta(translated)
+    return { ...result, translated }
   }
 
   // 用户手动指定目标语言时，忽略自定义提示词、直接翻成该目标语言。
@@ -81,7 +80,14 @@ async function translateStreamWith(engineId, cfg, text, target, options = {}, on
   })
   const source = options.source || 'auto'
   const baseURL = resolveBaseURL(p, cfg)
-  const user = buildUserContent(text, target, options.dict)
+  const user = buildUserContent(prepared.text, target, options)
+
+  // 主体照常流式输出；文件扩展名在模型完成后作为最后一小段补回。
+  const finishStream = (translated) => {
+    const restored = restoreTranslationInput(translated, prepared)
+    if (onDelta && prepared.suffix && restored) onDelta(prepared.suffix)
+    return restored
+  }
 
   if (p.kind === 'anthropic') {
     const translated = await anthropic.translateStream(user, {
@@ -92,7 +98,7 @@ async function translateStreamWith(engineId, cfg, text, target, options = {}, on
       onDelta,
       signal: options.signal,
     })
-    return { translated, source }
+    return { translated: finishStream(translated), source }
   }
 
   const translated = await oai.translateStream(user, {
@@ -105,7 +111,7 @@ async function translateStreamWith(engineId, cfg, text, target, options = {}, on
     onDelta,
     signal: options.signal,
   })
-  return { translated, source }
+  return { translated: finishStream(translated), source }
 }
 
 module.exports = { translateWith, translateStreamWith, listModels }

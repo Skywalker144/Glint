@@ -58,6 +58,29 @@ function isProbablyLanguage(text, code) {
   return false
 }
 
+// 单靠文字系统无法可靠区分主语言时，把方向判断交给 AI。
+// 例如英 / 法 / 德都使用拉丁字母，俄语与其它西里尔语言共用字母，
+// 纯汉字文本也可能是中文或日文。这些场景若由程序强制 target，会覆盖模型的正确语种判断。
+function needsSemanticDirection(text, primaryLanguage) {
+  const t = text || ''
+  if (!t.trim()) return false
+  const primary = primaryLanguage || 'zh-CN'
+  const w = scriptWeights(t)
+  const latinPrimary = ['en', 'fr', 'de', 'es', 'it', 'pt'].includes(primary)
+
+  if (latinPrimary) {
+    return w.latin > 0 && w.latin >= w.han && w.kana === 0 && w.hangul === 0 && w.cyrillic === 0
+  }
+  if (primary === 'ru') return w.cyrillic > 0
+  if (primary === 'zh-CN') {
+    return w.han > 0 && w.kana === 0 && w.hangul === 0 && w.han >= w.latin
+  }
+  if (primary === 'ja') {
+    return w.han > 0 && w.kana === 0 && w.hangul === 0 && w.han >= w.latin
+  }
+  return false
+}
+
 function pickDirection(text, primaryLanguage, secondaryLanguage) {
   const primary = primaryLanguage || 'zh-CN'
   const secondary = secondaryLanguage || 'en'
@@ -65,6 +88,7 @@ function pickDirection(text, primaryLanguage, secondaryLanguage) {
   return {
     source,
     target: source === primary ? secondary : primary,
+    semantic: needsSemanticDirection(text, primary),
   }
 }
 
@@ -90,6 +114,7 @@ module.exports = {
   isLanguageCode,
   promptLanguageName,
   isProbablyLanguage,
+  needsSemanticDirection,
   pickDirection,
   isWordLookup,
 }

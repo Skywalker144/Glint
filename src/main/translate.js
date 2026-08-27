@@ -31,15 +31,19 @@ async function translate(text) {
   const direction = pickDirection(text, s.primaryLanguage, s.secondaryLanguage)
   const engineId = s.engine || 'google'
   const cfg = (s.providers && s.providers[engineId]) || {}
+  const dict = isDictLookup(s, engineId, text)
+  const p = getProvider(engineId)
+  const semanticDirection = !dict && p && p.kind !== 'free' && direction.semantic
 
   const { translated, source } = await translateWith(engineId, cfg, text, direction.target, {
-    systemPrompt: promptFor(s, engineId, text),
-    dict: isDictLookup(s, engineId, text),
+    systemPrompt: dict ? s.dictionaryPrompt || DEFAULT_DICTIONARY_PROMPT : s.systemPrompt,
+    dict,
+    semanticDirection,
     primaryLanguage: s.primaryLanguage,
     secondaryLanguage: s.secondaryLanguage,
-    source: direction.source,
+    source: semanticDirection ? 'auto' : direction.source,
   })
-  const item = { original: text, translated, source, target: direction.target, engine: engineId }
+  const item = { original: text, translated, source, target: semanticDirection ? '' : direction.target, engine: engineId }
   history.add(item)
   return item
 }
@@ -59,6 +63,8 @@ async function translateStream(text, onDelta, opts = {}) {
   const forced = opts.target && isLanguageCode(opts.target) ? opts.target : ''
   const target = forced || direction.target
   const dict = !forced && isDictLookup(s, engineId, text)
+  const p = getProvider(engineId)
+  const semanticDirection = !forced && !dict && p && p.kind !== 'free' && direction.semantic
 
   const { translated, source } = await translateStreamWith(
     engineId,
@@ -69,15 +75,16 @@ async function translateStream(text, onDelta, opts = {}) {
       systemPrompt: forced ? '' : promptFor(s, engineId, text),
       forceTarget: !!forced,
       dict,
+      semanticDirection,
       primaryLanguage: s.primaryLanguage,
       secondaryLanguage: s.secondaryLanguage,
-      source: direction.source,
+      source: semanticDirection ? 'auto' : direction.source,
       signal: opts.signal,
     },
     onDelta
   )
 
-  const item = { original: text, translated, source, target, engine: engineId }
+  const item = { original: text, translated, source, target: semanticDirection ? '' : target, engine: engineId }
   history.add(item)
   return item
 }
