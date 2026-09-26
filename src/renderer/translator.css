@@ -5,11 +5,13 @@
 .body {
   display: flex;
   flex-direction: column;
+  min-height: 0;
   gap: 10px;
   padding: 4px 18px 14px; /* 右侧多留白，给宽度握把一条专属轨道 */
 }
 
 .input {
+  flex-shrink: 0;
   resize: none;
   height: 84px;
   background: var(--surface);
@@ -22,10 +24,6 @@
   outline: none;
   user-select: text;
   transition: height 0.15s ease;
-}
-/* 有结果时输入框收窄，把空间让给译文 */
-.app.has-result .input {
-  height: 46px;
 }
 
 /* 流式生成时结尾的闪烁光标 */
@@ -52,6 +50,7 @@
 }
 
 .toolbar {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -117,6 +116,8 @@
 }
 
 .result {
+  min-height: 0;
+  flex-shrink: 1;
   max-height: 340px;
   overflow-y: auto;
   background: var(--surface);
@@ -231,6 +232,7 @@
 }
 
 .resultbar {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -279,3 +281,29 @@
 .app.resizing .resizer span {
   opacity: 0.95;
 }
+
+.source-preview {
+  flex-shrink: 0;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  background: var(--surface);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-field);
+  padding: 9px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+.source-preview[hidden], .input[hidden], .resultbar button[hidden], .targetwrap[hidden] {
+  display: none;
+}
+.title-action { padding: 2px 8px; font-size: 12px; }
+.toolbar { flex-wrap: wrap; }
+.toolbar .primary, .toolbar .ghost { padding: 5px 10px; }
+.resultbar { flex-wrap: wrap; }
+.resultbar .ghost { padding: 4px 8px; font-size: 12px; }

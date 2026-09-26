@@ -20,6 +20,7 @@ const speakInputBtn = $('#speak-input')
 const speakResultBtn = $('#speak-result')
 const appEl = $('.app')
 const resizer = $('#resizer')
+window.api.onHeightLimit((height) => { appEl.style.maxHeight = height + 'px' })
 
 let lastTranslated = ''
 let streamToken = 0
@@ -39,24 +40,56 @@ new ResizeObserver(() => {
   window.api.resizeHeight(Math.ceil(appEl.getBoundingClientRect().height))
 }).observe(appEl)
 
-// 输入框高度自适应：没结果时用 CSS 固定高（宽松、好粘贴）；有结果时贴合内容——
-// 短原文收到最小、长原文最多撑到 ~84px（约 3 行）再内部滚动，
-// 避免长原文被死收成 46px（约 1.5 行）而截断显得怪。
-// 原文框高度自适应：贴着内容长高、避免空白，超过上限才内部滚动。两点防「幽灵滚动条」：
-//   1) +2 补 border-box 下上下各 1px 边框（scrollHeight 不含 border，否则内容差几像素放不下）；
-//   2) 没真超过上限就把 overflowY 设为 hidden，绝不出现一条「滚不动」的滚动条。
-// 上限按行数留足：有结果时 ~4 行（装得下常见 3 行选区且不出滚动条，之前 84px 刚好差 1px →
-// 3 行就冒滚动条），无结果时更宽松，方便粘贴长文再翻。
+const preview = $('#source-preview')
+const modeSelect = $('#lookup-mode')
+const saveWordBtn = $('#save-word')
+const supplementBtn = $('#ai-supplement')
+let completedItem = null
+let baseItem = null
+let submittedText = ''
+let lastWasSupplement = false
+let submitted = false
+let editing = false
+
 function autoSizeInput() {
-  const hasResult = appEl.classList.contains('has-result')
-  const minH = hasResult ? 40 : 84 // 有结果收紧到 ~1.5 行；无结果保持宽松默认（约 3 行高）
-  const maxH = hasResult ? 96 : 200 // 超过才滚动：~4 行 / ~9 行
-  input.style.height = 'auto' // 先收起，让 scrollHeight 反映纯内容高度（收缩时也量得准）
+  const collapsed = submitted && !editing
+  preview.hidden = !collapsed
+  input.hidden = collapsed
+  preview.textContent = input.value.replace(/\s+/g, ' ').trim()
+  if (collapsed) return
+  input.style.height = 'auto'
   const full = input.scrollHeight + 2
-  input.style.height = Math.min(maxH, Math.max(minH, full)) + 'px'
-  input.style.overflowY = full > maxH ? 'auto' : 'hidden'
+  input.style.height = Math.min(200, Math.max(84, full)) + 'px'
+  input.style.overflowY = full > 200 ? 'auto' : 'hidden'
 }
 input.addEventListener('input', autoSizeInput)
+preview.addEventListener('click', () => {
+  editing = true
+  autoSizeInput()
+  input.focus()
+})
+$('#vocabulary').addEventListener('click', () => window.api.openSettings('vocabulary'))
+modeSelect.addEventListener('change', () => {
+  if (modeSelect.value !== 'translate') {
+    forcedTarget = ''
+    targetSel.value = ''
+  }
+  if (input.value.trim()) doTranslate()
+})
+saveWordBtn.addEventListener('click', async () => {
+  const item = completedItem
+  if (!item) return
+  saveWordBtn.disabled = true
+  try {
+    await window.api.addVocabulary(item)
+    if (completedItem === item) saveWordBtn.textContent = '★ 已收藏'
+  } catch (error) {
+    if (completedItem === item) status.textContent = '收藏失败：' + error.message
+  } finally {
+    if (completedItem === item) saveWordBtn.disabled = false
+  }
+})
+supplementBtn.addEventListener('click', () => doTranslate(true))
 
 // 右边缘宽度拖拽：指针捕获让整段拖动都在手柄上收到事件（光标移出窗口也不丢），
 // 拖动期间主进程抑制失焦收起，所以不会「刚拖就把窗口关了」。只调整宽度，高度仍随内容。
@@ -106,61 +139,7 @@ const LANG_NAMES = {
 }
 const langName = (code) => LANG_NAMES[code] || code || '自动'
 
-// 目标语言 → 朗读用的 BCP-47 语言标签（speechSynthesis 据此挑系统语音）。
-const SPEAK_LANG = {
-  'zh-CN': 'zh-CN', zh: 'zh-CN', en: 'en-US', ja: 'ja-JP', ko: 'ko-KR',
-  fr: 'fr-FR', de: 'de-DE', es: 'es-ES', ru: 'ru-RU', it: 'it-IT', pt: 'pt-PT',
-}
-
-// 输入还没翻译过时，按文字系统粗判语言，给朗读挑个合适发音。
-function guessLang(t) {
-  if (/[぀-ヿ]/.test(t)) return 'ja'
-  if (/[가-힯]/.test(t)) return 'ko'
-  if (/[㐀-鿿]/.test(t)) return 'zh-CN'
-  if (/[Ѐ-ӿ]/.test(t)) return 'ru'
-  return 'en'
-}
-
-let currentAudio = null
-
-// 本地语音（Web Speech）：作为在线 TTS 的离线 / 失败回退。
-function speakLocal(text, code) {
-  if (!window.speechSynthesis) return
-  try {
-    window.speechSynthesis.cancel()
-    const u = new SpeechSynthesisUtterance(text)
-    const lang = SPEAK_LANG[code]
-    if (lang) u.lang = lang
-    window.speechSynthesis.speak(u)
-  } catch {}
-}
-
-// 朗读：优先用主进程取的在线自然语音（Google TTS，神经网络音质），
-// 离线 / 失败时回退本地 Web Speech。btn 仅用于播放时高亮。
-async function speak(text, code, btn) {
-  text = (text || '').trim()
-  if (!text) return
-  if (currentAudio) {
-    try { currentAudio.pause() } catch {}
-    currentAudio = null
-  }
-  if (window.speechSynthesis) window.speechSynthesis.cancel()
-  if (btn) btn.classList.add('speaking')
-  const clear = () => btn && btn.classList.remove('speaking')
-  try {
-    const r = await window.api.speak(text, code)
-    if (r && r.ok && r.audio) {
-      const audio = new Audio('data:audio/mpeg;base64,' + r.audio)
-      currentAudio = audio
-      audio.onended = clear
-      audio.onerror = clear
-      await audio.play()
-      return
-    }
-  } catch {}
-  clear()
-  speakLocal(text, code) // 离线 / 失败回退本地语音
-}
+const speak = window.GlintSpeech.speak
 
 // 三态按钮：idle 显示「翻译」、streaming 显示「停止」、error 显示「重试」。
 function setPhase(phase) {
@@ -177,7 +156,6 @@ function renderResult() {
     if (token !== streamToken || seq < appliedSeq) return
     appliedSeq = seq
     result.innerHTML = html
-    appEl.classList.toggle('has-result', !!rawResult)
     autoSizeInput()
     if (streaming && rawResult) {
       const caret = document.createElement('span')
@@ -195,12 +173,25 @@ function scheduleRender() {
   })
 }
 
-function doTranslate() {
-  const text = input.value.trim()
+function doTranslate(supplement = false) {
+  window.api.stopStream()
+  streamToken++
+  baseItem = null
+  lastWasSupplement = supplement === true
+  const previousItem = completedItem
+  completedItem = null
+  saveWordBtn.hidden = true
+  supplementBtn.hidden = true
+  saveWordBtn.disabled = false
+  saveWordBtn.textContent = '☆ 收藏'
+  const text = supplement === true && previousItem ? previousItem.original : input.value.trim()
+  input.value = text
+  submittedText = text
+  submitted = !!text
+  editing = false
   result.textContent = ''
   rawResult = ''
   resultbar.hidden = true
-  appEl.classList.remove('has-result')
   autoSizeInput()
   streaming = false
   if (!text) {
@@ -212,7 +203,7 @@ function doTranslate() {
   lastTranslated = ''
   streaming = true
   setPhase('streaming')
-  window.api.translateStream(text, ++streamToken, forcedTarget || '')
+  window.api.translateStream(text, streamToken, forcedTarget || '', modeSelect.value, supplement === true)
 }
 
 // 停止：中断在途请求，保留已生成的部分。
@@ -223,6 +214,12 @@ function stopStreaming() {
   streaming = false
   status.textContent = ''
   setPhase('idle')
+  if (baseItem) {
+    completedItem = baseItem
+    rawResult = baseItem.translated
+    saveWordBtn.hidden = false
+    supplementBtn.hidden = !baseItem.canSupplement
+  }
   if (rawResult) {
     lastTranslated = rawResult
     resultbar.hidden = false
@@ -234,11 +231,13 @@ function stopStreaming() {
 window.api.onTranslateEvent((m) => {
   if (m.token !== streamToken) return
   if (m.type === 'meta') {
+    baseItem = m.base ? { ...m, original: submittedText, translated: m.base } : null
     lastSource = m.source || 'auto'
     lastTarget = m.target || ''
     const dict = m.mode === 'dict'
-    arrowEl.hidden = dict // 词典查词没有「源→目标」方向，藏掉箭头免得误读
-    langtag.textContent = dict ? '词典 · ' + (m.word || '') : langName(m.source)
+    arrowEl.hidden = dict
+    targetSel.closest('.targetwrap').hidden = dict
+    langtag.textContent = dict ? '词典' : langName(m.source)
   } else if (m.type === 'delta') {
     status.textContent = ''
     rawResult += m.delta
@@ -247,6 +246,9 @@ window.api.onTranslateEvent((m) => {
     status.textContent = ''
     streaming = false
     setPhase('idle')
+    completedItem = m.item || null
+    saveWordBtn.hidden = completedItem?.mode !== 'dict'
+    supplementBtn.hidden = !completedItem?.canSupplement
     rawResult = (m.item && m.item.translated) || rawResult
     lastTranslated = rawResult
     resultbar.hidden = !rawResult
@@ -254,7 +256,16 @@ window.api.onTranslateEvent((m) => {
   } else if (m.type === 'error') {
     streaming = false
     setPhase('error')
-    status.textContent = '翻译失败：' + m.error
+    if (baseItem) {
+      completedItem = baseItem
+      rawResult = baseItem.translated
+      lastTranslated = rawResult
+      resultbar.hidden = false
+      saveWordBtn.hidden = false
+      supplementBtn.hidden = !baseItem.canSupplement
+      renderResult()
+    }
+    status.textContent = (baseItem ? 'AI 补充失败：' : '翻译失败：') + m.error
   }
 })
 
@@ -280,15 +291,16 @@ input.addEventListener('keydown', (e) => {
   }
 })
 
-translateBtn.addEventListener('click', doTranslate)
+translateBtn.addEventListener('click', () => doTranslate())
 stopBtn.addEventListener('click', stopStreaming)
-retryBtn.addEventListener('click', doTranslate)
+retryBtn.addEventListener('click', () => doTranslate(lastWasSupplement))
 $('#close').addEventListener('click', () => window.api.hide())
 settingsBtn.addEventListener('click', () => window.api.openSettings())
 
 // 目标语言选择：''=自动方向。改完若有输入就立即重翻。
 targetSel.addEventListener('change', () => {
   forcedTarget = targetSel.value
+  if (forcedTarget) modeSelect.value = 'translate'
   if (input.value.trim()) doTranslate()
   else input.focus()
 })
@@ -296,7 +308,7 @@ targetSel.addEventListener('change', () => {
 // 朗读原文 / 译文
 speakInputBtn.addEventListener('click', () => {
   const t = input.value.trim()
-  speak(t, lastSource !== 'auto' ? lastSource : guessLang(t), speakInputBtn)
+  speak(t, lastSource, speakInputBtn)
 })
 speakResultBtn.addEventListener('click', () => speak(result.innerText, lastTarget, speakResultBtn))
 
@@ -355,17 +367,24 @@ loadLanguages()
 
 // 来自主进程的指令
 window.api.onFocusInput(() => {
+  window.api.stopStream()
+  baseItem = null
   streamToken++ // 作废可能在途的流
   streaming = false
   setPhase('idle')
+  submitted = false
+  editing = false
+  completedItem = null
+  saveWordBtn.hidden = true
+  supplementBtn.hidden = true
   input.value = ''
   result.textContent = ''
   rawResult = ''
-  appEl.classList.remove('has-result')
   autoSizeInput()
   status.textContent = ''
   resultbar.hidden = true
   arrowEl.hidden = false
+  targetSel.closest('.targetwrap').hidden = false
   langtag.textContent = '自动'
   input.focus()
 })
@@ -377,12 +396,18 @@ window.api.onTranslateText((text) => {
 })
 
 window.api.onShowMessage((msg) => {
+  window.api.stopStream()
+  baseItem = null
+  submitted = false
+  editing = false
+  completedItem = null
+  saveWordBtn.hidden = true
+  supplementBtn.hidden = true
   streamToken++ // 作废可能在途的流
   streaming = false
   setPhase('idle')
   result.textContent = ''
   rawResult = ''
-  appEl.classList.remove('has-result')
   autoSizeInput()
   resultbar.hidden = true
   status.textContent = msg

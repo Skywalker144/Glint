@@ -2,7 +2,7 @@
 <html lang="zh">
   <head>
     <meta charset="utf-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; media-src 'self' data:; img-src 'self' data:" />
     <link rel="stylesheet" href="theme.css" />
     <link rel="stylesheet" href="settings.css" />
   </head>
@@ -37,6 +37,7 @@
             <svg viewBox="0 0 16 16"><rect x="3.2" y="7" width="9.6" height="6.9" rx="1.7" /><path d="M5.4 7V5.2a2.6 2.6 0 0 1 5.2 0V7" /></svg>
             <span>权限</span>
           </button>
+          <button class="s-tab" data-tab="vocabulary"><svg viewBox="0 0 16 16"><path d="M3 2h10v12l-5-3-5 3z" /></svg><span>生词本</span></button>
           <button class="s-tab" data-tab="history">
             <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.3" /><path d="M8 4.4V8l2.6 1.6" /></svg>
             <span>历史</span>
@@ -101,6 +102,9 @@
               <p>选择翻译服务并就地完成配置，查看语言方向。</p>
             </div>
 
+            <div class="s-card">
+              <label class="s-toggle"><input type="checkbox" id="dictionary-mode" /><span>自动查词<small>英汉单词和已收录短语使用离线词库，其他内容使用所选翻译引擎</small></span></label>
+            </div>
             <div class="s-section">
               <div class="s-card">
                 <div class="s-field">
@@ -181,7 +185,7 @@
             </div>
 
             <div id="ai-free-note" class="s-callout" hidden>
-              当前选择的是免费 Google 翻译，不使用系统提示词与词典；切换到 AI 服务商后可在此配置。
+              当前选择的是免费 Google 翻译。离线英汉词典仍可使用；切换到 AI 服务商后，可使用 AI 补充并配置提示词。
             </div>
 
             <div id="ai-prompt-config" hidden>
@@ -206,15 +210,9 @@
                 <div class="s-section-head">
                   <div>
                     <h2>单词词典</h2>
-                    <p>输入单个词时给出音标 / 释义 / 例句而非直接翻译（仅 AI 引擎）。同样支持 {{primary}} / {{secondary}} 占位符。</p>
+                    <p>词库未收录时使用的 AI 词条提示词。支持 {{primary}} / {{secondary}} 占位符；离线词典内容不受此设置影响。</p>
                   </div>
                   <button id="ai-dict-reset" class="s-link s-reset" type="button">恢复默认</button>
-                </div>
-                <div class="s-card">
-                  <label class="s-toggle">
-                    <input type="checkbox" id="dictionary-mode" />
-                    <span>启用单词词典<small>输入单词、或划词选中单词时自动切换</small></span>
-                  </label>
                 </div>
                 <textarea id="ai-dictionary-prompt" rows="6" spellcheck="false" placeholder="词典模式的系统提示词"></textarea>
               </div>
@@ -283,6 +281,18 @@
             </div>
           </section>
 
+          <section class="s-panel" data-panel="vocabulary" hidden>
+            <div class="s-pagehead"><h1>生词本</h1><p>收藏查过的单词与短语，随时回顾。</p></div>
+            <div class="s-toolbar vocabulary-toolbar">
+              <input id="vocabulary-search" class="s-search" placeholder="搜索单词或释义" aria-label="搜索生词本" />
+              <select id="vocabulary-filter" aria-label="掌握状态"><option value="all">全部</option><option value="learning">学习中</option><option value="mastered">已掌握</option></select>
+              <button id="vocabulary-export" class="ghost">导出</button>
+            </div>
+            <p id="vocabulary-summary" class="s-tip" aria-live="polite"></p>
+            <div id="vocabulary-list"></div>
+            <div class="vocabulary-pagination"><button id="vocabulary-previous" class="ghost">上一页</button><span id="vocabulary-page"></span><button id="vocabulary-next" class="ghost">下一页</button></div>
+          </section>
+
           <section class="s-panel" data-panel="history" hidden>
             <div class="s-pagehead">
               <h1>历史</h1>
@@ -337,6 +347,8 @@
 
     </div>
 
+    <script src="speech.js"></script>
+    <script src="vocabulary.js"></script>
     <script src="settings.js"></script>
   </body>
 </html>

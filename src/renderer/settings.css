@@ -612,3 +612,34 @@
   padding: 10px 16px;
   border-top: 0.5px solid var(--window-border);
 }
+
+.vocabulary-toolbar { flex-wrap: wrap; }
+.vocabulary-toolbar select {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px;
+  font: inherit;
+}
+.vocabulary-entry {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-field);
+  padding: 12px;
+  margin-bottom: 10px;
+}
+.vocabulary-heading, .vocabulary-actions, .vocabulary-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.vocabulary-heading strong { font-size: 17px; overflow-wrap: anywhere; }
+.vocabulary-actions { justify-content: flex-start; flex-wrap: wrap; }
+.vocabulary-actions .ghost { padding: 4px 10px; font-size: 12px; }
+.vocabulary-entry summary { cursor: pointer; margin-top: 8px; }
+.vocabulary-definition { user-select: text; overflow-wrap: anywhere; }
+.vocabulary-definition a { color: var(--text); }
+.vocabulary-definition pre { overflow: auto; }
+.vocabulary-pagination { font-size: 12px; }
+.vocabulary-pagination button:disabled { opacity: .4; cursor: default; }

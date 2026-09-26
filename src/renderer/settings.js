@@ -151,6 +151,7 @@ function selectTab(name) {
     p.hidden = p.dataset.panel !== name
   })
   if (name === 'permissions') refreshPermissions()
+  if (name === 'vocabulary') window.VocabularyPage.load()
   if (name === 'history') loadHistory()
   if (name === 'about') checkUpdate()
 }
@@ -340,7 +341,6 @@ function renderProviderState() {
   // 翻译页：免费引擎给一句说明；AI 引擎就地展开 Key / 模型 / 测试（不再跳到别的页）。
   $('#provider-free-note').hidden = !isFree
   $('#provider-config').hidden = isFree
-  // 提示词页：免费引擎不使用提示词 / 词典，藏掉配置只留说明。
   $('#ai-free-note').hidden = !isFree
   $('#ai-prompt-config').hidden = isFree
 
@@ -766,7 +766,11 @@ function populate(s) {
   setStatus('#ai-status', '')
 }
 
-window.api.onSettingsData((s) => populate(s))
+window.api.onSettingsData((s) => {
+  populate(s)
+  if (!$('[data-panel="vocabulary"]').hidden) window.VocabularyPage.load()
+})
+window.api.onSettingsTab((tab) => selectTab(tab))
 
 ;(async function init() {
   metaList = await window.api.getProviders()

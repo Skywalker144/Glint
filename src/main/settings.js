@@ -24,7 +24,7 @@ const DEFAULTS = {
   primaryLanguage: 'zh-CN', // 主语言：非主语言输入会翻到这里
   secondaryLanguage: 'en', // 副语言：主语言输入会翻到这里
   systemPrompt: DEFAULT_SYSTEM_PROMPT, // AI 翻译服务商使用的系统提示词模板
-  dictionaryMode: true, // 输入单个词时用 AI 词典（仅 AI 引擎）
+  dictionaryMode: true,
   dictionaryPrompt: DEFAULT_DICTIONARY_PROMPT, // 词典模式的系统提示词模板
   hotkeys: {
     input: 'Alt+Q', // 输入翻译

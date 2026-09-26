@@ -16,6 +16,7 @@ const {
   shell,
   net,
   session,
+  dialog,
 } = require('electron')
 
 const { translate, translateStream } = require('./translate')
@@ -23,9 +24,11 @@ const { recognize, prepare: prepareOCR } = require('./ocr')
 const { getSelectedText } = require('./platform')
 const settings = require('./settings')
 const history = require('./history')
+const { Vocabulary } = require('./vocabulary')
+const fs = require('node:fs/promises')
 const { translateWith, listModels } = require('./engines')
 const { listProviders, getProvider } = require('./engines/providers')
-const { LANGUAGES, pickDirection, isWordLookup, isLanguageCode } = require('./languages')
+const { LANGUAGES, pickDirection } = require('./languages')
 const { renderMarkdown } = require('./markdown')
 const { CHANGELOG } = require('./changelog')
 const { isNewer } = require('./version')
@@ -116,6 +119,9 @@ function createTranslatorWindow() {
   })
 
   translatorWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  translatorWin.webContents.once('did-finish-load', () => {
+    sendToTranslator('window:height-limit', WIN_MAX_HEIGHT)
+  })
   translatorWin.loadFile(path.join(RENDERER, 'translator.html'))
 
   translatorWin.on('close', (e) => {
@@ -359,7 +365,7 @@ function createSettingsWindow() {
   settingsWin.on('hide', () => registerHotkeys())
 }
 
-function openSettings() {
+function openSettings(tab) {
   if (!settingsWin || settingsWin.isDestroyed()) createSettingsWindow()
   const area = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea
   settingsWin.setPosition(
@@ -369,7 +375,12 @@ function openSettings() {
   settingsWin.show()
   settingsWin.focus()
   if (process.platform === 'darwin') app.focus({ steal: true })
-  settingsWin.webContents.send('settings:data', settings.get())
+  const showPage = () => {
+    settingsWin.webContents.send('settings:data', settings.get())
+    if (tab === 'vocabulary') settingsWin.webContents.send('settings:tab', tab)
+  }
+  if (settingsWin.webContents.isLoading()) settingsWin.webContents.once('did-finish-load', showPage)
+  else showPage()
 }
 
 /* ------------------------------------------------------------------ */
@@ -409,24 +420,12 @@ ipcMain.on('translate:stream', async (event, payload) => {
   const ac = new AbortController()
   activeStream = ac
 
-  const s = settings.get()
-  const engineId = s.engine || 'google'
-  const p = getProvider(engineId)
-  const forced = payload && payload.target && isLanguageCode(payload.target) ? payload.target : ''
-  const dir = pickDirection(text, s.primaryLanguage, s.secondaryLanguage)
-  const target = forced || dir.target
-  // 手动指定目标语言时按整句翻译处理，不进词典
-  const isDict = !forced && s.dictionaryMode !== false && p && p.kind !== 'free' && isWordLookup(text)
-  const semanticDirection = !forced && !isDict && p && p.kind !== 'free' && dir.semantic
-  send({
-    type: 'meta',
-    source: semanticDirection ? 'auto' : dir.source,
-    target: semanticDirection ? '' : target,
-    mode: isDict ? 'dict' : 'translate',
-    word: isDict ? text : '',
-  })
+  const engineId = settings.get().engine || 'google'
   try {
-    const item = await translateStream(text, (delta) => send({ type: 'delta', delta }), { signal: ac.signal, target: forced })
+    const item = await translateStream(text, (delta) => send({ type: 'delta', delta }), {
+      signal: ac.signal, target: payload?.target, mode: payload?.mode, supplement: payload?.supplement === true,
+      onMeta: (metadata) => send({ type: 'meta', ...metadata }),
+    })
     if (activeStream === ac) activeStream = null
     send({ type: 'done', item })
   } catch (e) {
@@ -450,7 +449,7 @@ ipcMain.on('hide-window', () => {
 })
 
 // 主窗口标题栏的齿轮 → 打开设置
-ipcMain.on('open-settings', () => openSettings())
+ipcMain.on('open-settings', (_event, tab) => openSettings(tab))
 
 // 切换钉住状态（持久化），并回推给渲染层同步按钮高亮。
 ipcMain.on('pin:set', (_e, val) => {
@@ -623,6 +622,22 @@ ipcMain.handle('settings:test-proxy', async (_e, cfg) => {
     applyProxy()
     return { ok: false, error: e.name === 'AbortError' ? '超时（8s），代理可能不通' : e.message }
   }
+})
+
+const vocabulary = () => new Vocabulary(path.join(app.getPath('userData'), 'vocabulary.json'))
+ipcMain.handle('vocabulary:list', () => vocabulary().list())
+ipcMain.handle('vocabulary:add', (_event, item) => vocabulary().add(item))
+ipcMain.handle('vocabulary:update', (_event, id, mastered) => vocabulary().update(id, mastered))
+ipcMain.handle('vocabulary:remove', (_event, id) => vocabulary().remove(id))
+ipcMain.handle('vocabulary:export', async (event) => {
+  const content = vocabulary().export()
+  const result = await dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender), {
+    title: '导出生词本', defaultPath: 'Glint-vocabulary.json',
+    filters: [{ name: 'JSON', extensions: ['json'] }],
+  })
+  if (result.canceled || !result.filePath) return { canceled: true }
+  await fs.writeFile(result.filePath, content, 'utf8')
+  return { canceled: false }
 })
 
 ipcMain.handle('history:list', () => history.list())

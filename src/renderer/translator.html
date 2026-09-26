@@ -12,6 +12,7 @@
       <div class="titlebar">
         <span class="logo">译</span>
         <span class="spacer"></span>
+        <button id="vocabulary" class="ghost title-action" title="打开生词本">生词本</button>
         <button id="settings" class="iconbtn" title="设置">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="3.2"></circle>
@@ -28,6 +29,7 @@
       </div>
 
       <div class="body">
+        <button id="source-preview" class="source-preview" title="点击展开原文" aria-label="展开原文" hidden></button>
         <textarea
           id="input"
           class="input"
@@ -48,6 +50,7 @@
             <select id="target-lang" class="targetsel"></select>
           </span>
           <span class="spacer"></span>
+          <select id="lookup-mode" class="targetsel" aria-label="查询模式"><option value="auto">自动识别</option><option value="translate">翻译模式</option><option value="dict">词典模式</option></select>
           <button id="stop" class="ghost" hidden>停止</button>
           <button id="retry" class="ghost" hidden>重试</button>
           <button id="translate" class="primary">翻译</button>
@@ -63,6 +66,8 @@
               <path d="M15.5 8.5a5 5 0 0 1 0 7"></path>
             </svg>
           </button>
+          <button id="save-word" class="ghost" hidden>☆ 收藏</button>
+          <button id="ai-supplement" class="ghost" hidden>AI 补充</button>
           <span class="spacer"></span>
           <button id="copy-plain" class="ghost">复制纯文本</button>
           <button id="copy" class="ghost">复制译文</button>
@@ -73,6 +78,7 @@
       <div id="resizer" class="resizer" title="拖动调整宽度"><span></span></div>
     </div>
 
+    <script src="speech.js"></script>
     <script src="translator.js"></script>
   </body>
 </html>
