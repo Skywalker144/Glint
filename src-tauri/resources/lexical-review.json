@@ -1,4 +1,0 @@
-{
-  "quantities": { "lemma": "quantity", "relation": "复数", "pure": true },
-  "goods": { "lemma": "good", "relation": "复数形式，具有独立义项", "pure": false }
-}
