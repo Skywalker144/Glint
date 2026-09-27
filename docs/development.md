@@ -6,6 +6,7 @@
 | --- | --- |
 | 窗口、菜单栏、快捷键、命令协调 | [main.rs](../src-tauri/src/main.rs) |
 | 取词、截图、OCR、语言识别、焦点恢复 | [Swift 原生桥](../src-tauri/native/main.swift)、[Rust 调用](../src-tauri/src/platform.rs) |
+| 界面样式与卡片布局 | [style.css](../src/style.css) |
 | 查询状态与界面 | [query.ts](../src/query.ts)、[main.ts](../src/main.ts) |
 | 本地词典与词形关系 | [dictionary.rs](../src-tauri/src/dictionary.rs) |
 | AI 请求、流式解析、钥匙串读取 | [ai.rs](../src-tauri/src/ai.rs) |

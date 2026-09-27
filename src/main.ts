@@ -5,19 +5,33 @@ import { QueryState, type Mode } from "./query.ts";
 import type { Card, Prepared, Settings, SavedWord } from "./types.ts";
 import "./style.css";
 
+const icons = {
+  pin: '<path d="m9 3 6 0-1 6 4 4v2H6v-2l4-4-1-6Z"/><path d="M12 15v6"/>',
+  star: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z"/>',
+  book: '<path d="M6 4h12v17l-6-4-6 4V4Z"/><path d="M9 8h6"/>',
+  settings: '<rect x="3" y="4" width="18" height="6" rx="3"/><rect x="3" y="14" width="18" height="6" rx="3"/><path d="M8 7h.01M16 17h.01"/>',
+  speak: '<path d="m11 4-6 5H2v6h3l6 5V4Z"/><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>',
+  copy: '<rect x="8" y="3" width="12" height="14" rx="2"/><path d="M16 17v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3"/>',
+  swap: '<path d="M4 8h16l-4-4M20 16H4l4 4"/>',
+  enter: '<path d="M20 5v9H4m5-5-5 5 5 5"/>',
+  close: '<path d="m6 6 12 12M6 18 18 6"/>',
+} as const;
+function icon(name: keyof typeof icons) {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name]}</svg>`;
+}
+
 const root = document.querySelector<HTMLDivElement>("#app")!;
 root.innerHTML = `
   <header data-tauri-drag-region>
-    <button id="close" class="close" title="收起 · Esc" aria-label="收起">×</button>
-    <span class="brand" data-tauri-drag-region>✦ <b>Glint</b></span>
-    <nav><button id="favorite" title="收藏" aria-label="收藏" disabled>☆</button><button id="book" title="生词本">生词本</button><button id="pin" title="固定窗口" aria-pressed="false">固定</button><button id="settings" title="设置" aria-label="设置">⚙</button></nav>
+    <button id="pin" class="icon-button" title="固定窗口" aria-label="固定窗口" aria-pressed="false">${icon("pin")}</button>
+    <nav aria-label="工具栏"><button id="favorite" class="icon-button" title="收藏" aria-label="收藏" disabled>${icon("star")}</button><button id="book" class="icon-button" title="生词本" aria-label="生词本">${icon("book")}</button><button id="settings" class="icon-button" title="设置" aria-label="设置">${icon("settings")}</button><button id="close" class="icon-button" title="收起 · Esc" aria-label="收起">${icon("close")}</button></nav>
   </header>
   <main id="query-view">
-    <div class="input-wrap"><textarea id="input" rows="3" placeholder="输入单词、短语或需要翻译的文字…" aria-label="原文" spellcheck="false"></textarea><button id="submit" class="submit" title="查询 · Enter" aria-label="查询">↵</button></div>
+    <div class="input-wrap"><textarea id="input" rows="4" placeholder="输入单词、短语或需要翻译的文字…" aria-label="原文" spellcheck="false"></textarea><div class="input-actions"><button id="speak-input" class="icon-button" title="系统朗读原文" aria-label="系统朗读原文">${icon("speak")}</button><button id="copy-input" class="icon-button" title="复制原文" aria-label="复制原文">${icon("copy")}</button><span id="detected" class="detected" hidden></span><button id="submit" class="icon-button submit" title="查询 · Enter" aria-label="查询">${icon("enter")}</button></div></div>
+    <div class="language-row"><div class="languages"><select id="source" aria-label="源语言"></select><button id="swap" class="icon-button" title="交换语言" aria-label="交换语言">${icon("swap")}</button><select id="target" aria-label="目标语言"></select></div><button id="auto" class="subtle" title="恢复自动识别语言">自动</button></div>
     <details class="context-field"><summary>添加语境（可选）</summary><textarea id="context" rows="2" placeholder="粘贴单词所在的句子，收藏时一并保存" aria-label="语境"></textarea></details>
-    <div class="languages"><select id="source" aria-label="源语言"></select><button id="swap" title="交换语言" aria-label="交换语言">⇄</button><select id="target" aria-label="目标语言"></select><button id="auto" class="subtle">恢复自动</button></div>
     <div class="modebar"><div role="tablist" aria-label="查询模式"><button id="dictionary" role="tab" aria-selected="true">词典</button><button id="translation" role="tab" aria-selected="false">翻译</button></div><span id="state"></span></div>
-    <section id="result"><div class="empty"><span class="spark">✦</span><h1>让理解，自然发生。</h1><p>查一个词，读懂一句话。</p><small>Enter 查询 · Shift + Enter 换行</small></div></section>
+    <section id="result" aria-label="查询结果"><div class="empty"><span class="spark">✦</span><h1>让理解，自然发生。</h1><p>查一个词，读懂一句话。</p><small>Enter 查询 · Shift + Enter 换行</small></div></section>
     <footer><span id="origin">本地词典 · 离线可用</span><div><button id="copy" hidden>复制译文</button><button id="stop" hidden>停止</button><button id="retry" hidden>重试</button></div></footer>
   </main>
   <main id="settings-view" hidden><div class="section-heading"><h1>设置</h1><button class="back">返回</button></div>
@@ -87,6 +101,10 @@ function controls() {
     !card || state.stale || busy;
   element<HTMLButtonElement>("swap").disabled =
     !state.resolvedSource || !state.resolvedTarget || busy;
+  element<HTMLButtonElement>("speak-input").disabled = !input.value.trim();
+  element<HTMLButtonElement>("copy-input").disabled = !input.value.trim();
+  element("detected").hidden = !state.resolvedSource || state.stale;
+  element("detected").textContent = `识别为 ${languages[state.resolvedSource] ?? state.resolvedSource}`;
   element("stop").hidden = !busy;
   element("retry").hidden = !state.input.trim() || busy;
   element("copy").hidden = state.mode !== "translation" || !state.output;
@@ -110,7 +128,7 @@ function controls() {
       id === "source" ? state.resolvedSource : state.resolvedTarget;
     select.options[0].text = resolved
       ? `自动（${languages[resolved] ?? resolved}）`
-      : "自动";
+      : id === "source" ? "自动检测" : "自动选择";
   }
 }
 
@@ -133,7 +151,7 @@ async function showView(next: string) {
 
 function renderCard(value: Card) {
   card = value;
-  result.innerHTML = `<div class="word-heading"><h1>${escape(value.entry.word)}</h1><button id="speak" class="subtle">◖ 系统朗读</button></div>
+  result.innerHTML = `<article class="result-card"><div class="card-heading"><span class="provider-icon">Aa</span>${escape(value.source === "ECDICT" ? "本地词典" : value.source + " 释义")}</div><div class="word-heading"><h1>${escape(value.entry.word)}</h1><button id="speak" class="subtle">◖ 系统朗读</button></div>
     ${value.entry.word !== value.original ? `<p class="query-original">原查询：${escape(value.original)}</p>` : ""}
     ${value.entry.phonetic ? `<p class="phonetic">/${escape(value.entry.phonetic)}/</p>` : ""}
     ${value.relations.length ? `<div class="relations">${value.relations.map((r) => `<div>${escape(value.original)} → <button class="lemma" data-lemma="${escape(r.lemma)}">${escape(r.lemma)}</button><span>${escape(r.relation)}</span></div>`).join("")}${value.confirmed ? "" : "<small>保留原词义；词形关系不代表同一义项。</small>"}</div>` : ""}
@@ -143,7 +161,7 @@ function renderCard(value: Card) {
       .map((line) => `<p>${escape(line)}</p>`)
       .join("")}</div>
     ${value.entry.definition ? `<details><summary>${value.source === "ECDICT" ? "英文释义" : "例句与补充"}</summary><p class="multiline">${escape(value.entry.definition)}</p></details>` : ""}
-    ${value.source === "ECDICT" ? '<button id="supplement" class="supplement">用 AI 补充例句与辨析</button><div id="supplement-result"></div>' : ""}`;
+    ${value.source === "ECDICT" ? '<button id="supplement" class="supplement">用 AI 补充例句与辨析</button><div id="supplement-result"></div>' : ""}</article>`;
   element("origin").textContent =
     value.source === "ECDICT"
       ? "ECDICT · 本地词典"
@@ -159,6 +177,18 @@ function renderCard(value: Card) {
   );
   if (value.source === "ECDICT") action("supplement", supplement);
   controls();
+}
+
+function renderTranslation(text: string) {
+  if (!element("translation-content")) {
+    result.innerHTML = `<details class="result-card translation-card" open><summary class="card-heading"><span class="provider-icon">✦</span>AI 翻译</summary><p id="translation-content" class="translation-text"></p><div class="card-actions"><button id="speak-result" class="icon-button" title="系统朗读译文" aria-label="系统朗读译文">${icon("speak")}</button><button id="copy-result" class="icon-button" title="复制译文" aria-label="复制译文">${icon("copy")}</button></div></details>`;
+    action("speak-result", () => invoke("speak", { text: state.output }));
+    action("copy-result", async () => {
+      await invoke("copy", { text: state.output });
+      report("已复制译文");
+    });
+  }
+  element("translation-content").textContent = text;
 }
 
 async function supplement() {
@@ -222,7 +252,7 @@ async function query(mode?: Mode) {
       if (state.accept(id, text)) {
         element("origin").textContent = "AI 翻译";
         card = null;
-        result.innerHTML = `<p class="translation-text">${escape(text)}</p>`;
+        renderTranslation(text);
         controls();
       }
     };
@@ -244,7 +274,7 @@ async function query(mode?: Mode) {
       state.accept(id, response);
       element("origin").textContent = "AI 翻译";
       card = null;
-      result.innerHTML = `<p class="translation-text">${escape(response)}</p>`;
+      renderTranslation(response);
     }
   } catch (error) {
     if (id === state.request) report(error);
@@ -296,6 +326,11 @@ for (const id of ["source", "target"] as const)
   });
 action("close", () => invoke("hide"));
 action("submit", () => query());
+action("speak-input", () => invoke("speak", { text: input.value }));
+action("copy-input", async () => {
+  await invoke("copy", { text: input.value });
+  report("已复制原文");
+});
 action("retry", () => query(state.mode));
 action("stop", stop);
 action("dictionary", () => query("dictionary"));
