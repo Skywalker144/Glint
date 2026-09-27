@@ -1,0 +1,24 @@
+{
+  "name": "glint",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "tauri": "tauri",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "dictionary": "python3 scripts/build-dictionary.py",
+    "desktop": "npm run prepare:desktop && tauri dev",
+    "bundle": "npm run prepare:desktop && tauri build --bundles app",
+    "prepare:desktop": "npm run dictionary && bash scripts/build-native.sh"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.11.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.3",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.0"
+  }
+}

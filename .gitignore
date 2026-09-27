@@ -1,0 +1,8 @@
+.DS_Store
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/gen/
+src-tauri/resources/ecdict.csv
+src-tauri/resources/dictionary.sqlite
+src-tauri/resources/glint-native

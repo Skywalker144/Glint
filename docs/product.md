@@ -1,6 +1,6 @@
 # Glint 产品方案
 
-Glint 是基于 **Tauri 2** 的轻量桌面翻译工具，交互参考 [Bob](https://github.com/ripperhe/bob)。首版仅支持 macOS，以下为待实现方案。
+Glint 是基于 **Tauri 2** 的轻量桌面翻译工具，交互参考 [Bob](https://github.com/ripperhe/bob)。首版仅支持 macOS。本文定义产品目标，实现入口与验收状态见 [开发文档](development.md)。
 
 ## 1. 首版范围
 
