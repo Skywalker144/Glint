@@ -9,6 +9,11 @@ const root = path.resolve(__dirname, '..')
 fs.mkdirSync(path.join(root, '.cache'), { recursive: true })
 const dataPath = fs.mkdtempSync(path.join(root, '.cache/vocabulary-ui-'))
 app.setPath('userData', dataPath)
+const legacyNotebook = JSON.stringify({ version: 1, entries: [{
+  id: 'legacy-pear', word: 'pear', source: 'en', target: 'zh-CN',
+  translated: '**pear**\nn. 梨', createdAt: '2026-09-01T00:00:00.000Z',
+}] })
+fs.writeFileSync(path.join(dataPath, 'vocabulary.json'), legacyNotebook)
 const settings = require('../src/main/settings')
 const { translateStream } = require('../src/main/translate')
 const { vocabulary, registerVocabularyIPC } = require('../src/main/vocabulary')
@@ -90,6 +95,11 @@ app.whenReady().then(async () => {
     webPreferences: { preload: path.join(root, 'src/preload/index.js'), contextIsolation: true, nodeIntegration: false },
   })
   await win.loadFile(path.join(root, 'src/renderer/translator.html'))
+  await until('vocabularyReady')
+  assert.equal(vocabulary.list()[0].headword, 'pear')
+  assert.equal(vocabulary.list()[0].queryCount, 0)
+  assert.equal(fs.readFileSync(path.join(dataPath, 'vocabulary.json.v1.bak'), 'utf8'), legacyNotebook)
+  vocabulary.remove(vocabulary.list()[0].id)
   await lookup('apples')
   await until("!document.querySelector('#favorite').disabled")
   await click('#favorite')
@@ -184,7 +194,7 @@ app.whenReady().then(async () => {
   await click('#remove', reopened)
   await until("document.querySelector('.empty').textContent.includes('收入生词本')", reopened)
   assert.deepEqual(errors, [])
-  console.log('PASS: canonical forms, durable counts, toggle, failure/abort exclusion, window entry/reopen, cross-window sync, sorting/search, offline details, light/dark and minimum-width layout')
+  console.log('PASS: legacy notebook migration, canonical forms, durable counts, toggle, failure/abort exclusion, window entry/reopen, cross-window sync, sorting/search, offline details, light/dark and minimum-width layout')
   console.log('Screenshots: ' + dataPath)
   app.exit(0)
 }).catch(error => { console.error(error); app.exit(1) })

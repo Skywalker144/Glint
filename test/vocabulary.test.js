@@ -62,3 +62,68 @@ test('failed writes do not change in-memory favorites and damaged files are not 
   assert.throws(() => new VocabularyStore(file).add(entry('pear')))
   assert.equal(fs.readFileSync(file, 'utf8'), '{broken')
 })
+
+test('version 1 notebooks migrate once with an exact backup and retain favorites', (t) => {
+  const { file, store } = fixture(t)
+  const createdAt = '2026-09-01T00:00:00.000Z'
+  const translated = '**run** /rʌn/\n\n**中文释义**\n跑'
+  const original = JSON.stringify({ version: 1, entries: [{
+    id: 'old-id', word: 'ran', original: 'ran', source: 'en', target: 'zh-CN',
+    translated, createdAt, updatedAt: createdAt, mastered: false, attribution: 'ECDICT',
+  }] }, null, 2)
+  fs.writeFileSync(file, original)
+  const [saved] = store.list()
+  assert.equal(saved.headword, 'run')
+  assert.equal(saved.id, entry('run').id)
+  assert.equal(saved.translated, translated)
+  assert.equal(saved.createdAt, createdAt)
+  assert.equal(saved.queryCount, 0)
+  assert.equal(fs.readFileSync(file + '.v1.bak', 'utf8'), original)
+  assert.ok(Array.isArray(JSON.parse(fs.readFileSync(file, 'utf8'))))
+  store.recordLookup(entry('run'))
+  assert.equal(new VocabularyStore(file).list()[0].queryCount, 1)
+  assert.equal(fs.readFileSync(file + '.v1.bak', 'utf8'), original)
+})
+
+test('empty version 1 notebooks migrate and accept new favorites', (t) => {
+  const { file, store } = fixture(t)
+  fs.writeFileSync(file, JSON.stringify({ version: 1, entries: [] }))
+  assert.deepEqual(store.list(), [])
+  store.add(entry())
+  assert.equal(new VocabularyStore(file).list()[0].headword, 'apple')
+})
+
+test('invalid legacy data and failed migration writes preserve the original file', (t) => {
+  const { file } = fixture(t)
+  for (const data of [{ version: 2, entries: [] }, { version: 1, entries: [null] }]) {
+    const raw = JSON.stringify(data)
+    fs.writeFileSync(file, raw)
+    assert.throws(() => new VocabularyStore(file).list())
+    assert.equal(fs.readFileSync(file, 'utf8'), raw)
+  }
+  const raw = JSON.stringify({ version: 1, entries: [] })
+  fs.writeFileSync(file, raw)
+  fs.mkdirSync(file + '.tmp')
+  const store = new VocabularyStore(file)
+  assert.throws(() => store.list())
+  assert.equal(fs.readFileSync(file, 'utf8'), raw)
+  fs.rmdirSync(file + '.tmp')
+  assert.deepEqual(store.list(), [])
+})
+
+test('migration merges canonical duplicates and does not overwrite an existing backup', (t) => {
+  const { file, store } = fixture(t)
+  const saved = {
+    id: 'old-id', word: 'apples', source: 'en', target: 'zh-CN',
+    translated: '**apple**\nn. 苹果', createdAt: '2026-09-02T00:00:00.000Z',
+  }
+  const raw = JSON.stringify({ version: 1, entries: [saved, { ...saved, id: 'other-id', word: 'apple', createdAt: '2026-09-01T00:00:00.000Z' }] })
+  fs.writeFileSync(file, raw)
+  fs.writeFileSync(file + '.v1.bak', 'Existing backup')
+  assert.throws(() => store.list())
+  assert.equal(fs.readFileSync(file + '.v1.bak', 'utf8'), 'Existing backup')
+  assert.equal(fs.readFileSync(file, 'utf8'), raw)
+  fs.unlinkSync(file + '.v1.bak')
+  assert.equal(store.list().length, 1)
+  assert.equal(store.list()[0].createdAt, '2026-09-01T00:00:00.000Z')
+})

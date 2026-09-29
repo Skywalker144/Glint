@@ -13,16 +13,46 @@ class VocabularyStore extends EventEmitter {
 
   list() {
     if (!this.items) {
+      let raw
       try {
-        const items = JSON.parse(fs.readFileSync(this.file, 'utf8'))
-        if (!Array.isArray(items) || items.some(item => !item || typeof item.id !== 'string' || !Number.isSafeInteger(item.queryCount) || item.queryCount < 0)) {
-          throw new Error('生词本数据格式无效')
-        }
-        this.items = items
+        raw = fs.readFileSync(this.file, 'utf8')
       } catch (error) {
         if (error.code !== 'ENOENT') throw error
         this.items = []
+        return []
       }
+      const data = JSON.parse(raw)
+      let items = data
+      if (data?.version === 1 && Array.isArray(data.entries)) {
+        const entries = new Map()
+        for (const value of data.entries) {
+          const entry = value && dictionaryEntry(value.translated, {
+            dict: true, secondaryLanguage: value.source, primaryLanguage: value.target,
+          })
+          if (!entry || typeof value.word !== 'string' || !value.word.trim() ||
+              typeof value.createdAt !== 'string' || !Number.isFinite(Date.parse(value.createdAt))) {
+            throw new Error('旧版生词本包含无法迁移的词条，原文件已保留')
+          }
+          const previous = entries.get(entry.id)
+          if (previous) {
+            if (value.createdAt < previous.createdAt) previous.createdAt = value.createdAt
+          } else {
+            entries.set(entry.id, { ...entry, createdAt: value.createdAt, queryCount: 0, lastQueriedAt: null })
+          }
+        }
+        items = [...entries.values()]
+        const backup = this.file + '.v1.bak'
+        try {
+          fs.writeFileSync(backup, raw, { encoding: 'utf8', flag: 'wx', mode: 0o600 })
+        } catch (error) {
+          if (error.code !== 'EEXIST' || fs.readFileSync(backup, 'utf8') !== raw) throw error
+        }
+        this.persist(items)
+      }
+      if (!Array.isArray(items) || items.some(item => !item || typeof item.id !== 'string' || !Number.isSafeInteger(item.queryCount) || item.queryCount < 0)) {
+        throw new Error('生词本数据格式无效')
+      }
+      this.items = items
     }
     return structuredClone(this.items)
   }
