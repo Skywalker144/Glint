@@ -1,6 +1,6 @@
 {
   "name": "glint",
-  "version": "0.2.18",
+  "version": "0.2.19",
   "private": true,
   "description": "闪译 · Glint — 划词 / 截图 / 输入翻译，黑白极简的跨平台桌面翻译工具（Electron）",
   "main": "src/main/index.js",
@@ -11,7 +11,8 @@
     "build:icon": "electron scripts/make-icon.js",
     "build:macocr": "bash scripts/build-macocr.sh",
     "dist:mac": "npm run build:macocr && electron-builder --mac",
-    "dist:win": "electron-builder --win"
+    "dist:win": "electron-builder --win",
+    "test:ui": "electron scripts/check-translator.cjs && electron scripts/check-vocabulary.cjs"
   },
   "author": "Steve Tu",
   "license": "MIT",
