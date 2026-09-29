@@ -1,5 +1,7 @@
 'use strict'
 
+const { scriptWeights } = require('../shared/language-scripts')
+
 const LANGUAGES = [
   { code: 'zh-CN', label: '中文', promptName: '中文' },
   { code: 'en', label: '英语', promptName: '英文' },
@@ -7,10 +9,10 @@ const LANGUAGES = [
   { code: 'ko', label: '韩语', promptName: '韩语' },
   { code: 'fr', label: '法语', promptName: '法语' },
   { code: 'de', label: '德语', promptName: '德语' },
-  { code: 'es', label: '西班牙语', promptName: '西班牙语' },
+  { code: 'es', shortLabel: '西语', label: '西班牙语', promptName: '西班牙语' },
   { code: 'ru', label: '俄语', promptName: '俄语' },
-  { code: 'it', label: '意大利语', promptName: '意大利语' },
-  { code: 'pt', label: '葡萄牙语', promptName: '葡萄牙语' },
+  { code: 'it', shortLabel: '意语', label: '意大利语', promptName: '意大利语' },
+  { code: 'pt', shortLabel: '葡语', label: '葡萄牙语', promptName: '葡萄牙语' },
 ]
 
 const BY_CODE = Object.fromEntries(LANGUAGES.map((l) => [l.code, l]))
@@ -25,21 +27,6 @@ function languageLabel(code) {
 
 function promptLanguageName(code) {
   return (BY_CODE[code] && BY_CODE[code].promptName) || languageLabel(code)
-}
-
-// 各书写系统的「分量」：表意文字（汉字）/ 假名 / 谚文 / 西里尔按字符数计，
-// 拉丁按「词」（连续字母段）数计——让「一个汉字 ≈ 一个英文词」，量纲一致，
-// 中英混排时才能按主体语种判方向，而不是「文本里沾一个汉字就当中文」
-// （否则整段英文里夹个「秒开 / 彻底删除此库」就被判成中文 → 英译英 echo）。
-function scriptWeights(text) {
-  const t = text || ''
-  return {
-    han: (t.match(/\p{Script=Han}/gu) || []).length,
-    kana: (t.match(/[\p{Script=Hiragana}\p{Script=Katakana}]/gu) || []).length,
-    hangul: (t.match(/\p{Script=Hangul}/gu) || []).length,
-    cyrillic: (t.match(/\p{Script=Cyrillic}/gu) || []).length,
-    latin: (t.match(/[A-Za-zÀ-ÖØ-öø-ÿ]+/g) || []).length,
-  }
 }
 
 // 判断文本的「主体书写系统」是否属于某语言：混排时按分量比谁主导决定。

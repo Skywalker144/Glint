@@ -97,3 +97,13 @@ test('pickDirection: 标记需要 AI 做语义方向判断的输入', () => {
   assert.strictEqual(pickDirection('hello', 'fr', 'en').semantic, true)
   assert.strictEqual(pickDirection('こんにちは', 'ja', 'en').semantic, false)
 })
+
+test('mixed language scripts: reject single languages and Japanese script combinations', () => {
+  const { hasMixedLanguageScripts } = require('../src/shared/language-scripts')
+  for (const text of ['', '123!?', 'hello world', '你好世界', '食べる東京カタカナ', '한국 漢字', 'Bonjour hello']) {
+    assert.strictEqual(hasMixedLanguageScripts(text), false, text)
+  }
+  for (const text of ['你好 hello', '日本語 English', '한국어 English', 'Привет hello']) {
+    assert.strictEqual(hasMixedLanguageScripts(text), true, text)
+  }
+})

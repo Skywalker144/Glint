@@ -94,10 +94,11 @@ function updateLanguageControls() {
   const targetLanguage = languageList.find((language) => language.code === target)
   sourceSel.value = forcedSource
   targetSel.value = forcedTarget
-  sourceSel.title = forcedSource ? '原文语言' : '自动识别' + (sourceLanguage ? '：' + sourceLanguage.label : '')
-  targetSel.title = forcedTarget ? '译文语言' : '自动选择' + (targetLanguage ? '：' + targetLanguage.label : '')
-  swapBtn.disabled = !sourceLanguage || !targetLanguage || source === target
-  swapBtn.title = swapBtn.disabled ? '请先确定两侧语言' : '交换语言'
+  sourceSel.title = (forcedSource ? '原文语言' : '自动识别') + (sourceLanguage ? '：' + sourceLanguage.label : '')
+  targetSel.title = (forcedTarget ? '译文语言' : '自动选择') + (targetLanguage ? '：' + targetLanguage.label : '')
+  const mixed = hasMixedLanguageScripts(input.value)
+  swapBtn.disabled = !mixed || !sourceLanguage || !targetLanguage || source === target
+  swapBtn.title = !mixed ? '仅混合语言原文可交换' : swapBtn.disabled ? '请先确定两种不同的语言' : '交换语言'
 }
 
 // 目标语言 → 朗读用的 BCP-47 语言标签（speechSynthesis 据此挑系统语音）。
@@ -344,7 +345,7 @@ async function loadLanguages() {
     for (const language of languageList) {
       const option = document.createElement('option')
       option.value = language.code
-      option.textContent = language.label
+      option.textContent = language.shortLabel || language.label
       select.appendChild(option)
     }
   }
@@ -354,6 +355,7 @@ loadLanguages()
 
 // 来自主进程的指令
 window.api.onFocusInput(() => {
+  input.value = ''
   requestMode = 'auto'
   setMode('translate')
   lastSource = 'auto'
@@ -362,7 +364,6 @@ window.api.onFocusInput(() => {
   streamToken++ // 作废可能在途的流
   streaming = false
   setPhase('idle')
-  input.value = ''
   result.textContent = ''
   rawResult = ''
   status.textContent = ''

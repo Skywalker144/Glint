@@ -11,7 +11,9 @@
 
 .input {
   resize: none;
-  height: 84px;
+  field-sizing: content;
+  min-height: calc(1lh + 22px);
+  max-height: calc(2lh + 22px);
   flex-shrink: 0;
   overflow-y: auto;
   background: var(--surface);
@@ -76,11 +78,14 @@
   border-radius: 9px;
   background: var(--surface);
 }
-.mode-switch button {
+.mode-switch button,
+#copy {
   -webkit-app-region: no-drag;
   border: 0;
   border-radius: 6px;
-  padding: 4px 9px;
+  width: 48px;
+  height: 26px;
+  padding: 0;
   font: inherit;
   font-size: 12px;
   white-space: nowrap;
@@ -88,7 +93,8 @@
   color: var(--muted);
   cursor: pointer;
 }
-.mode-switch button:hover {
+.mode-switch button:hover,
+#copy:hover {
   color: var(--text);
 }
 .mode-switch button[aria-pressed="true"] {
@@ -114,10 +120,9 @@
 }
 
 .languagewrap {
-  position: relative;
   display: inline-flex;
   min-width: 0;
-  flex: 0 1 86px;
+  flex: 0 0 54px;
 }
 .languagesel {
   -webkit-app-region: no-drag;
@@ -130,7 +135,8 @@
   corner-shape: var(--corner-shape);
   font: inherit;
   font-size: 12px;
-  padding: 3px 20px 3px 9px;
+  padding: 3px 6px;
+  text-align: center;
   cursor: pointer;
   min-width: 0;
   width: 100%;
@@ -138,16 +144,6 @@
 }
 .languagesel:hover {
   background: var(--surface-hover);
-}
-.languagewrap::after {
-  content: '▾';
-  position: absolute;
-  right: 7px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--muted);
-  font-size: 10px;
-  pointer-events: none;
 }
 
 .status {
