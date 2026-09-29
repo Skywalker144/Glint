@@ -186,14 +186,26 @@ app.whenReady().then(async () => {
     })()`)
     assert.ok(fits, 'Toolbar must fit at 360px')
     const layout = await win.webContents.executeJavaScript(`(() => {
-      const rect = selector => { const r = document.querySelector(selector).getBoundingClientRect(); return { width: r.width, height: r.height, center: r.x + r.width / 2 } }
-      return { source: rect('#source-lang'), target: rect('#target-lang'), swap: rect('#swap-languages'), copy: rect('#copy'), mode: rect('#dictionary-mode'), arrow: getComputedStyle(document.querySelector('.languagewrap'), '::after').content }
+      const rect = selector => { const r = document.querySelector(selector).getBoundingClientRect(); return { width: r.width, height: r.height, center: r.x + r.width / 2, left: r.left, right: r.right, bottom: r.bottom } }
+      return {
+        source: rect('#source-lang'), target: rect('#target-lang'), swap: rect('#swap-languages'), copy: rect('#copy'), mode: rect('#dictionary-mode'),
+        input: rect('#input'), result: rect('#result'), app: rect('.app'),
+        footerButtons: [...document.querySelectorAll('#resultbar button')].map(button => button.getBoundingClientRect().height),
+        corners: [...document.querySelectorAll('.input, .result, .iconbtn, .languagesel, .mode-switch, .mode-switch button, #copy')].map(element => getComputedStyle(element).cornerShape),
+        arrow: getComputedStyle(document.querySelector('.languagewrap'), '::after').content,
+      }
     })()`)
     assert.equal(layout.source.width, layout.target.width)
     assert.ok(layout.source.width <= 56)
     assert.ok(Math.abs(layout.swap.center - (layout.source.center + layout.target.center) / 2) < 1)
     assert.equal(layout.copy.width, layout.mode.width)
-    assert.equal(layout.copy.height, layout.mode.height)
+    assert.equal(layout.source.height, layout.mode.height)
+    assert.equal(layout.target.height, layout.mode.height)
+    assert.ok(layout.footerButtons.every(height => height === 24), 'Footer controls must share a compact, usable hit area')
+    assert.ok(layout.app.bottom - layout.result.bottom <= 35, 'Result footer and surrounding whitespace must fit within 35px')
+    assert.equal(layout.input.left, layout.result.left)
+    assert.equal(layout.input.right, layout.result.right)
+    assert.ok(layout.corners.every(shape => shape === 'round'), 'Translation controls must share the mode switch corner shape')
     assert.equal(layout.arrow, 'none')
     fs.writeFileSync(path.join(dataPath, theme + '.png'), (await win.webContents.capturePage()).toPNG())
   }

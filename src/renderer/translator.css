@@ -2,18 +2,26 @@
 
 /* 高度随内容自适应，由 JS 同步给窗口 */
 
+:root {
+  --corner-shape: round;
+  --radius-field: 9px;
+  --radius-btn: 6px;
+  --control-height: 26px;
+  --icon-size: 24px;
+}
+
 .body {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 4px 18px 14px; /* 右侧多留白，给宽度握把一条专属轨道 */
+  gap: 8px;
+  padding: 4px 18px 6px;
 }
 
 .input {
   resize: none;
   field-sizing: content;
-  min-height: calc(1lh + 22px);
-  max-height: calc(2lh + 22px);
+  min-height: calc(1lh + 18px);
+  max-height: calc(2lh + 18px);
   flex-shrink: 0;
   overflow-y: auto;
   background: var(--surface);
@@ -21,7 +29,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-field);
   corner-shape: var(--corner-shape);
-  padding: 10px 12px;
+  padding: 8px 12px;
   font: inherit;
   outline: none;
   user-select: text;
@@ -53,11 +61,22 @@
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
 }
 
-/* 朗读按钮播放中：高亮提示 */
-.iconbtn.speaking {
+.iconbtn {
+  width: var(--icon-size);
+  height: var(--icon-size);
+  padding: 0;
+  flex-shrink: 0;
+  border-radius: var(--radius-btn);
+}
+.iconbtn svg {
+  width: 14px;
+  height: 14px;
+}
+.iconbtn.speaking,
+.iconbtn[aria-pressed="true"] {
   color: var(--text);
   background: var(--surface-hover);
 }
@@ -75,16 +94,19 @@
   flex-shrink: 0;
   padding: 2px;
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius-field);
+  corner-shape: var(--corner-shape);
   background: var(--surface);
 }
 .mode-switch button,
+.statusbar .ghost,
 #copy {
   -webkit-app-region: no-drag;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-btn);
+  corner-shape: var(--corner-shape);
   width: 48px;
-  height: 26px;
+  height: var(--control-height);
   padding: 0;
   font: inherit;
   font-size: 12px;
@@ -94,8 +116,10 @@
   cursor: pointer;
 }
 .mode-switch button:hover,
+.statusbar .ghost:hover,
 #copy:hover {
   color: var(--text);
+  background: var(--surface-hover);
 }
 .mode-switch button[aria-pressed="true"] {
   color: var(--text);
@@ -105,7 +129,7 @@
 .statusbar {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
 }
 .statusbar:has(.status:empty):not(:has(button:not([hidden]))) {
   display: none;
@@ -115,8 +139,10 @@
 }
 .statusbar .ghost {
   margin-left: auto;
-  padding: 3px 9px;
-  font-size: 12px;
+  width: auto;
+  padding: 0 9px;
+  background: var(--surface);
+  color: var(--text);
 }
 
 .languagewrap {
@@ -131,16 +157,16 @@
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-btn);
   corner-shape: var(--corner-shape);
   font: inherit;
   font-size: 12px;
-  padding: 3px 6px;
+  height: var(--control-height);
+  padding: 0 6px;
   text-align: center;
   cursor: pointer;
   min-width: 0;
   width: 100%;
-  outline: none;
 }
 .languagesel:hover {
   background: var(--surface-hover);
@@ -148,8 +174,9 @@
 
 .status {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .status:empty {
   display: none;
@@ -215,14 +242,14 @@
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 13px;
   background: var(--surface-hover);
-  border-radius: 5px;
-  corner-shape: squircle;
+  border-radius: var(--radius-btn);
+  corner-shape: var(--corner-shape);
   padding: 1px 5px;
 }
 .result pre {
   background: var(--surface-hover);
-  border-radius: 8px;
-  corner-shape: squircle;
+  border-radius: var(--radius-field);
+  corner-shape: var(--corner-shape);
   padding: 10px 12px;
   overflow-x: auto;
   margin: 0 0 8px;
@@ -269,10 +296,21 @@
   display: none;
 }
 
+.result-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.result-section:has(.result:empty):has(.resultbar[hidden]) {
+  display: none;
+}
 .resultbar {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
+}
+#copy {
+  height: var(--icon-size);
 }
 .resultbar[hidden] {
   display: none;
@@ -285,7 +323,8 @@
   position: relative;
 }
 .titlebar {
-  padding-right: 18px; /* 与 .body 右内边距对齐，给握把让出轨道 */
+  gap: 6px;
+  padding: 8px 18px 6px;
 }
 .resizer {
   position: absolute;
@@ -319,11 +358,6 @@
   opacity: 0.95;
 }
 
-#favorite {
-  color: var(--text);
-  width: 28px;
-  height: 28px;
-}
 #favorite[hidden] {
   display: none;
 }
