@@ -6,6 +6,7 @@ const input = $('#input')
 const result = $('#result')
 const status = $('#status')
 const langtag = $('#langtag')
+const dictionaryBtn = $('#dictionary-mode')
 const arrowEl = $('.arrow')
 const targetSel = $('#target-lang')
 const resultbar = $('#resultbar')
@@ -29,6 +30,7 @@ let renderScheduled = false
 let renderSeq = 0
 let appliedSeq = 0
 let streaming = false // 是否正在流式生成（控制结尾闪烁光标）
+let translationOnlyText = null
 let forcedTarget = '' // 用户手动选的目标语言（''=自动方向）；窗口内保持，不落盘
 let lastSource = 'auto' // 最近一次的检测源语言（用于朗读原文挑发音）
 let lastTarget = '' // 最近一次的目标语言（用于朗读译文挑发音）
@@ -56,7 +58,11 @@ function autoSizeInput() {
   input.style.height = Math.min(maxH, Math.max(minH, full)) + 'px'
   input.style.overflowY = full > maxH ? 'auto' : 'hidden'
 }
-input.addEventListener('input', autoSizeInput)
+input.addEventListener('input', () => {
+  if (input.value.trim() !== translationOnlyText) translationOnlyText = null
+  dictionaryBtn.hidden = true
+  autoSizeInput()
+})
 
 // 右边缘宽度拖拽：指针捕获让整段拖动都在手柄上收到事件（光标移出窗口也不丢），
 // 拖动期间主进程抑制失焦收起，所以不会「刚拖就把窗口关了」。只调整宽度，高度仍随内容。
@@ -197,6 +203,10 @@ function scheduleRender() {
 
 function doTranslate() {
   const text = input.value.trim()
+  if (text !== translationOnlyText) translationOnlyText = null
+  dictionaryBtn.hidden = true
+  arrowEl.hidden = false
+  langtag.textContent = '自动'
   result.textContent = ''
   rawResult = ''
   resultbar.hidden = true
@@ -212,7 +222,7 @@ function doTranslate() {
   lastTranslated = ''
   streaming = true
   setPhase('streaming')
-  window.api.translateStream(text, ++streamToken, forcedTarget || '')
+  window.api.translateStream(text, ++streamToken, forcedTarget || '', translationOnlyText === text ? 'translate' : 'auto')
 }
 
 // 停止：中断在途请求，保留已生成的部分。
@@ -238,7 +248,8 @@ window.api.onTranslateEvent((m) => {
     lastTarget = m.target || ''
     const dict = m.mode === 'dict'
     arrowEl.hidden = dict // 词典查词没有「源→目标」方向，藏掉箭头免得误读
-    langtag.textContent = dict ? '词典 · ' + (m.word || '') : langName(m.source)
+    dictionaryBtn.hidden = !dict
+    langtag.textContent = dict ? (m.word || '') : langName(m.source)
   } else if (m.type === 'delta') {
     status.textContent = ''
     rawResult += m.delta
@@ -278,6 +289,11 @@ input.addEventListener('keydown', (e) => {
   } else if (e.key === 'Escape') {
     window.api.hide()
   }
+})
+
+dictionaryBtn.addEventListener('click', () => {
+  translationOnlyText = input.value.trim()
+  doTranslate()
 })
 
 translateBtn.addEventListener('click', doTranslate)
@@ -355,6 +371,8 @@ loadLanguages()
 
 // 来自主进程的指令
 window.api.onFocusInput(() => {
+  translationOnlyText = null
+  dictionaryBtn.hidden = true
   streamToken++ // 作废可能在途的流
   streaming = false
   setPhase('idle')
@@ -371,12 +389,15 @@ window.api.onFocusInput(() => {
 })
 
 window.api.onTranslateText((text) => {
+  translationOnlyText = null
   input.value = text
   input.focus()
   doTranslate()
 })
 
 window.api.onShowMessage((msg) => {
+  translationOnlyText = null
+  dictionaryBtn.hidden = true
   streamToken++ // 作废可能在途的流
   streaming = false
   setPhase('idle')

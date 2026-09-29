@@ -64,10 +64,19 @@
 }
 
 .langtag {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--muted);
   font-size: 12px;
   white-space: nowrap;
 }
+#dictionary-mode {
+  flex-shrink: 0;
+  padding: 3px 9px;
+  font-size: 12px;
+}
+
 .arrow {
   color: var(--muted);
   font-size: 12px;

@@ -6,7 +6,7 @@ contextBridge.exposeInMainWorld('api', {
   // 翻译窗口
   translate: (text) => ipcRenderer.invoke('translate', text),
   renderMarkdown: (text) => ipcRenderer.invoke('render-markdown', text),
-  translateStream: (text, token, target) => ipcRenderer.send('translate:stream', { text, token, target }),
+  translateStream: (text, token, target, mode) => ipcRenderer.send('translate:stream', { text, token, target, mode }),
   stopStream: () => ipcRenderer.send('translate:stop'),
   speak: (text, code) => ipcRenderer.invoke('tts:speak', { text, code }),
   onTranslateEvent: (cb) => ipcRenderer.on('translate:event', (_e, msg) => cb(msg)),

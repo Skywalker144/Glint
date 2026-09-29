@@ -25,7 +25,7 @@ const settings = require('./settings')
 const history = require('./history')
 const { translateWith, listModels } = require('./engines')
 const { listProviders, getProvider } = require('./engines/providers')
-const { LANGUAGES, pickDirection, isWordLookup, isLanguageCode } = require('./languages')
+const { LANGUAGES, pickDirection } = require('./languages')
 const { renderMarkdown } = require('./markdown')
 const { CHANGELOG } = require('./changelog')
 const { isNewer } = require('./version')
@@ -411,22 +411,13 @@ ipcMain.on('translate:stream', async (event, payload) => {
 
   const s = settings.get()
   const engineId = s.engine || 'google'
-  const p = getProvider(engineId)
-  const forced = payload && payload.target && isLanguageCode(payload.target) ? payload.target : ''
-  const dir = pickDirection(text, s.primaryLanguage, s.secondaryLanguage)
-  const target = forced || dir.target
-  // 手动指定目标语言时按整句翻译处理，不进词典
-  const isDict = !forced && s.dictionaryMode !== false && p && p.kind !== 'free' && isWordLookup(text)
-  const semanticDirection = !forced && !isDict && p && p.kind !== 'free' && dir.semantic
-  send({
-    type: 'meta',
-    source: semanticDirection ? 'auto' : dir.source,
-    target: semanticDirection ? '' : target,
-    mode: isDict ? 'dict' : 'translate',
-    word: isDict ? text : '',
-  })
   try {
-    const item = await translateStream(text, (delta) => send({ type: 'delta', delta }), { signal: ac.signal, target: forced })
+    const item = await translateStream(text, (delta) => send({ type: 'delta', delta }), {
+      signal: ac.signal,
+      target: payload && payload.target,
+      mode: payload && payload.mode,
+      onMeta: (meta) => send({ type: 'meta', ...meta }),
+    })
     if (activeStream === ac) activeStream = null
     send({ type: 'done', item })
   } catch (e) {
