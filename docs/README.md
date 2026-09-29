@@ -6,3 +6,5 @@
 - [语言选择、交换、模式切换与纯文本复制交互](../src/renderer/translator.js)
 - [模式与提示词回归测试](../test/translation-request.test.js)：`node --test test/translation-request.test.js test/prompt.test.js test/languages.test.js`
 - [Electron 交互验证](../scripts/test-translator.cjs)：`npx electron scripts/test-translator.cjs`，使用隔离的 `.cache` 数据目录及本地模拟流式接口。
+- [词典格式与可选补充内容提示词](../src/main/engines/prompt.js)
+- [词典内容偏好与持久化默认值](../src/main/settings.js)

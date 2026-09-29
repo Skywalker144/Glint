@@ -86,3 +86,11 @@ test('automatic Google source remains server-detected', () => {
   const request = resolveTranslationRequest('東京', { ...settings, engine: 'google' })
   assert.equal(request.options.forceSource, false)
 })
+
+test('dictionary content preferences reach the engine for automatic and manual modes', () => {
+  const dictionaryExtras = { examples: true, synonyms: false, related: true }
+  for (const mode of ['auto', 'dict']) {
+    const request = resolveTranslationRequest('apple', { ...settings, dictionaryExtras }, { mode })
+    assert.deepEqual(request.options.dictionaryExtras, dictionaryExtras)
+  }
+})

@@ -17,6 +17,7 @@ let state = {
   systemPrompt: '',
   dictionaryMode: true,
   dictionaryPrompt: '',
+  dictionaryExtras: { examples: false, synonyms: false, related: false },
   pinned: false,
   hideTrayIcon: false,
   proxy: { enabled: false, url: '' },
@@ -51,6 +52,7 @@ function normalizeSettings(s) {
     systemPrompt: (s && s.systemPrompt) || defaultSettings.systemPrompt || '',
     dictionaryMode: s && s.dictionaryMode !== undefined ? !!s.dictionaryMode : true,
     dictionaryPrompt: (s && s.dictionaryPrompt) || defaultSettings.dictionaryPrompt || '',
+    dictionaryExtras: Object.fromEntries(['examples', 'synonyms', 'related'].map(key => [key, !!s?.dictionaryExtras?.[key]])),
     pinned: !!(s && s.pinned),
     hideTrayIcon: !!(s && s.hideTrayIcon),
     proxy: {
@@ -430,6 +432,12 @@ $('#dictionary-mode').addEventListener('change', (e) => {
   state.dictionaryMode = e.target.checked
   markDirty()
 })
+$$('[data-dictionary-extra]').forEach(input => {
+  input.addEventListener('change', () => {
+    state.dictionaryExtras[input.dataset.dictionaryExtra] = input.checked
+    markDirty()
+  })
+})
 $('#ai-dictionary-prompt').addEventListener('input', (e) => {
   state.dictionaryPrompt = e.target.value
   markDirty()
@@ -753,6 +761,7 @@ function renderAll() {
   $('#proxy-url').value = state.proxy.url
   $('#ai-system-prompt').value = state.systemPrompt
   $('#dictionary-mode').checked = state.dictionaryMode
+  $$('[data-dictionary-extra]').forEach(input => { input.checked = state.dictionaryExtras[input.dataset.dictionaryExtra] })
   $('#ai-dictionary-prompt').value = state.dictionaryPrompt
   renderLanguageRules()
   renderProviderState()

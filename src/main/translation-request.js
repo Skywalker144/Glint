@@ -31,6 +31,7 @@ function resolveTranslationRequest(text, settings, overrides = {}) {
       forceTarget: !!forced && !dict,
       forceSource: !!source,
       dict,
+      dictionaryExtras: settings.dictionaryExtras,
       semanticDirection,
       primaryLanguage: dict ? dictionaryPrimary : primary,
       secondaryLanguage: dict ? dictionarySecondary : secondary,

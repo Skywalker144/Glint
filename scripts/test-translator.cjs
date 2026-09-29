@@ -21,6 +21,7 @@ let win
 let failNext = false
 let copiedText = ''
 const normalOutput = '**普通译文**\n\n- [链接](https://example.com)\n\n`code`'
+const dictionaryOutput = '**词条** /ˈæbstrækt/\nadj. 抽象的\nn. 摘要；梗概'
 const googleRequests = []
 const server = http.createServer(async (req, res) => {
   let body = ''
@@ -35,11 +36,18 @@ const server = http.createServer(async (req, res) => {
   }
   res.writeHead(200, { 'Content-Type': 'text/event-stream' })
   const dict = request.messages[0].content.includes('双语词典')
-  res.write('data: ' + JSON.stringify({ choices: [{ delta: { content: dict ? '**词条**\n\n*n.*\n\n- 简明释义' : normalOutput } }] }) + '\n\n')
+  res.write('data: ' + JSON.stringify({ choices: [{ delta: { content: dict ? dictionaryOutput + (request.messages[0].content.includes('例句：只给一条') ? '\n\n---\n\n例句 An abstract idea. — 一个抽象的想法。' : '') : normalOutput } }] }) + '\n\n')
   const timer = setTimeout(() => res.end('data: [DONE]\n\n'), dict ? 600 : 30)
   res.on('close', () => clearTimeout(timer))
 })
 
+ipcMain.handle('settings:get', () => settings.get())
+ipcMain.handle('settings:defaults', () => settings.DEFAULTS)
+ipcMain.handle('settings:save', (_event, value) => settings.save(value))
+ipcMain.handle('settings:providers', () => require('../src/main/engines/providers').listProviders())
+ipcMain.handle('settings:permissions', () => ({}))
+ipcMain.handle('app:info', () => ({ version: 'test', repo: '' }))
+ipcMain.handle('changelog:get', () => [])
 ipcMain.handle('settings:languages', () => LANGUAGES)
 ipcMain.handle('render-markdown', (_event, text) => renderMarkdown(text))
 ipcMain.on('translate:stream', async (event, payload) => {
@@ -136,6 +144,15 @@ app.whenReady().then(async () => {
   await win.webContents.executeJavaScript("document.querySelector('#input').value = 'apple'; document.querySelector('#input').dispatchEvent(new Event('input')); document.querySelector('#input').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))")
   await until("document.querySelector('#dictionary-mode').getAttribute('aria-pressed') === 'true' && !document.querySelector('#resultbar').hidden")
   assert.equal(payloads.at(-1).mode, 'auto')
+  assert.match(requests.at(-1).messages[0].content, /禁止输出例句/)
+  assert.equal(await win.webContents.executeJavaScript("document.querySelectorAll('#result hr').length"), 0)
+  settings.save({ dictionaryExtras: { examples: true, synonyms: true, related: true } })
+  await click('#dictionary-mode')
+  await until("!document.querySelector('#resultbar').hidden && document.querySelector('#result hr') !== null")
+  await click('#copy')
+  await until("document.querySelector('#copy').textContent === '已复制'")
+  assert.ok(!copiedText.includes('---'))
+  assert.ok(copiedText.includes('例句'))
   for (const theme of ['light', 'dark']) {
     nativeTheme.themeSource = theme
     win.setSize(360, 480)
@@ -164,6 +181,19 @@ app.whenReady().then(async () => {
   assert.equal(googleResult.translated, 'gift')
   await translateStream('東京', () => {}, { mode: 'translate' })
   assert.equal(googleRequests.at(-1).searchParams.get('sl'), 'auto')
+  settings.save({ engine: 'custom', dictionaryExtras: { examples: false, synonyms: false, related: false } })
+  const { DEFAULT_DICTIONARY_PROMPT, LEGACY_DICTIONARY_PROMPTS } = require('../src/main/engines/prompt')
+  assert.equal(settings.migrate({ dictionaryPrompt: LEGACY_DICTIONARY_PROMPTS[0] }).dictionaryPrompt, DEFAULT_DICTIONARY_PROMPT)
+  assert.equal(settings.migrate({ dictionaryPrompt: 'My custom dictionary' }).dictionaryPrompt, 'My custom dictionary')
+  await win.loadFile(path.join(root, 'src/renderer/settings.html'))
+  await until("document.querySelector('#ai-dictionary-prompt').value.includes('n.、adj.')")
+  assert.equal(await win.webContents.executeJavaScript("[...document.querySelectorAll('[data-dictionary-extra]')].every(input => !input.checked)"), true)
+  for (const key of ['examples', 'synonyms', 'related']) await click('[data-dictionary-extra="' + key + '"]')
+  await until("document.querySelector('#save-status').textContent.includes('已自动保存')")
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dataPath, 'settings.json'), 'utf8')).dictionaryExtras, { examples: true, synonyms: true, related: true })
+  await win.reload()
+  await until("[...document.querySelectorAll('[data-dictionary-extra]')].every(input => input.checked)")
+  console.log('PASS: dictionary defaults, prompt migration, extras persistence, divider rendering and copy')
   console.log('Screenshots: ' + dataPath)
   console.log('PASS: bidirectional modes, explicit source, language swap, pure-text copy, abort/history, retry, auto reset, Google source, 360px light/dark layout')
   app.exit(0)

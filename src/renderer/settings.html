@@ -206,7 +206,7 @@
                 <div class="s-section-head">
                   <div>
                     <h2>单词词典</h2>
-                    <p>输入单个词时给出音标 / 释义 / 例句而非直接翻译（仅 AI 引擎）。同样支持 {{primary}} / {{secondary}} 占位符。</p>
+                    <p>输入单个词时给出音标与紧凑释义（仅 AI 引擎）。同样支持 {{primary}} / {{secondary}} 占位符。</p>
                   </div>
                   <button id="ai-dict-reset" class="s-link s-reset" type="button">恢复默认</button>
                 </div>
@@ -214,6 +214,20 @@
                   <label class="s-toggle">
                     <input type="checkbox" id="dictionary-mode" />
                     <span>启用单词词典<small>输入单词、或划词选中单词时自动切换</small></span>
+                  </label>
+                </div>
+                <div class="s-card">
+                  <label class="s-toggle">
+                    <input type="checkbox" data-dictionary-extra="examples" />
+                    <span>例句<small>一条短例句，附译文</small></span>
+                  </label>
+                  <label class="s-toggle">
+                    <input type="checkbox" data-dictionary-extra="synonyms" />
+                    <span>近义词 / 反义词<small>各最多三个，标明词性</small></span>
+                  </label>
+                  <label class="s-toggle">
+                    <input type="checkbox" data-dictionary-extra="related" />
+                    <span>关联词<small>最多三个常用关联词，附简短释义</small></span>
                   </label>
                 </div>
                 <textarea id="ai-dictionary-prompt" rows="6" spellcheck="false" placeholder="词典模式的系统提示词"></textarea>

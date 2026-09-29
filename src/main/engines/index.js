@@ -25,10 +25,7 @@ async function translateWith(engineId, cfg, text, target, options = {}) {
     return { ...result, translated: restoreTranslationInput(result.translated, prepared) }
   }
 
-  const sys = buildSystemPrompt(target, options.systemPrompt, {
-    primaryLanguage: options.primaryLanguage,
-    secondaryLanguage: options.secondaryLanguage,
-  })
+  const sys = buildSystemPrompt(target, options.systemPrompt, options)
   const source = options.source || 'auto'
   const baseURL = resolveBaseURL(p, cfg)
   const user = buildUserContent(prepared.text, target, options)
@@ -74,10 +71,7 @@ async function translateStreamWith(engineId, cfg, text, target, options = {}, on
 
   // 用户手动指定目标语言时，忽略自定义提示词、直接翻成该目标语言。
   const template = options.forceTarget ? DEFAULT_TARGET_PROMPT : options.systemPrompt
-  const sys = buildSystemPrompt(target, template, {
-    primaryLanguage: options.primaryLanguage,
-    secondaryLanguage: options.secondaryLanguage,
-  })
+  const sys = buildSystemPrompt(target, template, options)
   const source = options.source || 'auto'
   const baseURL = resolveBaseURL(p, cfg)
   const user = buildUserContent(prepared.text, target, options)

@@ -75,8 +75,8 @@ test('buildUserContent: 词典模式只发待查词', () => {
 })
 
 test('DEFAULT_DICTIONARY_PROMPT 限定词条上限并禁止猜测发音', () => {
-  assert.ok(DEFAULT_DICTIONARY_PROMPT.includes('最多列两个常用词性'))
-  assert.ok(DEFAULT_DICTIONARY_PROMPT.includes('每个词性最多两个常用义项'))
+  assert.ok(DEFAULT_DICTIONARY_PROMPT.includes('n.、adj.、vt.、vi.'))
+  assert.ok(DEFAULT_DICTIONARY_PROMPT.includes('每个词性最多三个常用义项'))
   assert.ok(DEFAULT_DICTIONARY_PROMPT.includes('不要猜测'))
   assert.ok(DEFAULT_DICTIONARY_PROMPT.includes('不要把普通派生词强行还原'))
 })
@@ -84,4 +84,27 @@ test('DEFAULT_DICTIONARY_PROMPT 限定词条上限并禁止猜测发音', () => 
 test('当前旧默认提示词在迁移列表中', () => {
   assert.ok(LEGACY_SYSTEM_PROMPTS.some((p) => p.includes('请按规则自动判断')))
   assert.ok(LEGACY_DICTIONARY_PROMPTS.some((p) => p.includes('复数 / 时态 / 比较级 / 派生等')))
+})
+
+test('dictionary extras cover every toggle combination and override custom templates', () => {
+  for (let mask = 0; mask < 8; mask++) {
+    const dictionaryExtras = { examples: !!(mask & 1), synonyms: !!(mask & 2), related: !!(mask & 4) }
+    const out = buildSystemPrompt('zh-CN', '自定义 {{primary}} 词典，必须给例句', { dict: true, dictionaryExtras })
+    assert.ok(out.startsWith('自定义 中文'))
+    assert.ok(out.includes(dictionaryExtras.examples ? '例句：只给一条' : '禁止输出例句'))
+    assert.ok(out.includes(dictionaryExtras.synonyms ? '近义词和反义词：各最多三个' : '禁止输出近义词和反义词'))
+    assert.ok(out.includes(dictionaryExtras.related ? '关联词：最多三个' : '禁止输出关联词'))
+    assert.ok(out.includes(mask ? '单独一行的 ---' : '不输出分隔线'))
+  }
+  const out = buildSystemPrompt('en', '自定义翻译', { dictionaryExtras: { examples: true } })
+  assert.equal(out, '自定义翻译')
+  assert.ok(buildSystemPrompt('en', '', { dict: true }).includes('禁止输出例句'))
+})
+
+test('compact dictionary markdown separates supplements without extra definition paragraphs', () => {
+  const { renderMarkdown } = require('../src/main/markdown')
+  const html = renderMarkdown('**abstract** /ˈæbstrækt/\nadj. 抽象的；难以理解的\nn. 摘要；梗概\n\n---\n\n近义 adj. conceptual')
+  assert.equal((html.match(/<p>/g) || []).length, 2)
+  assert.ok(html.includes('<hr>'))
+  assert.ok(html.includes('<br>'))
 })
