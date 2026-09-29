@@ -131,6 +131,7 @@ function buildSystemPrompt(target, template, options = {}) {
   let raw = typeof template === 'string' && template.trim() ? template.trim() : options.dict ? DEFAULT_DICTIONARY_PROMPT : DEFAULT_SYSTEM_PROMPT
   if (options.dict) {
     const extras = options.dictionaryExtras || {}
+    raw += '\n\n词条识别格式：词条首行必须以 **规范词头** 开头，后面可附读音；下一行开始写释义。词头使用词典原形和规范大小写，保留有意义的大小写差异。若输出普通句子译文，不使用此词头格式。'
     raw += '\n\n词典补充内容规则（与前文冲突时以此为准）：\n' + [
       extras.examples ? '例句：只给一条自然、简短的 {{secondary}} 例句，附 {{primary}} 译文，格式为「例句 原句 — 译文」。' : '禁止输出例句。',
       extras.synonyms ? '近义词和反义词：各最多三个，只列可靠且对应具体义项的词，标明词性；格式为「近义 adj. word；n. word」「反义 adj. word」。没有明确对应项时省略，不把相关词当成同义词。' : '禁止输出近义词和反义词。',

@@ -11,6 +11,7 @@ const swapBtn = $('#swap-languages')
 const targetSel = $('#target-lang')
 const resultbar = $('#resultbar')
 const copyBtn = $('#copy')
+const favoriteBtn = $('#favorite')
 const pinBtn = $('#pin')
 const settingsBtn = $('#settings')
 const translateBtn = $('#translate')
@@ -20,6 +21,57 @@ const speakInputBtn = $('#speak-input')
 const speakResultBtn = $('#speak-result')
 const appEl = $('.app')
 const resizer = $('#resizer')
+
+let currentEntry = null
+let savedEntries = []
+let vocabularyReady = false
+let vocabularyRevision = 0
+let favoritePending = false
+
+function renderFavorite() {
+  const saved = currentEntry && savedEntries.find(item => item.id === currentEntry.id)
+  favoriteBtn.hidden = !currentEntry
+  favoriteBtn.disabled = !currentEntry || !vocabularyReady || favoritePending
+  favoriteBtn.setAttribute('aria-pressed', String(!!saved))
+  favoriteBtn.title = saved ? `取消收藏 · 收藏后查询 ${saved.queryCount} 次` : '收藏到生词本'
+  favoriteBtn.setAttribute('aria-label', favoriteBtn.title)
+}
+
+function clearEntry() {
+  currentEntry = null
+  renderFavorite()
+}
+
+window.api.onVocabularyChanged((items) => {
+  vocabularyRevision++
+  savedEntries = items
+  vocabularyReady = true
+  renderFavorite()
+})
+const initialVocabularyRevision = vocabularyRevision
+window.api.getVocabulary().then((items) => {
+  if (vocabularyRevision !== initialVocabularyRevision) return
+  savedEntries = items
+  vocabularyReady = true
+  renderFavorite()
+}).catch((error) => { status.textContent = '读取生词本失败：' + error.message })
+
+favoriteBtn.addEventListener('click', async () => {
+  if (!currentEntry || favoritePending || !vocabularyReady) return
+  const entry = currentEntry
+  favoritePending = true
+  renderFavorite()
+  try {
+    if (savedEntries.some(item => item.id === entry.id)) await window.api.removeVocabulary(entry.id)
+    else await window.api.addVocabulary(entry)
+  } catch (error) {
+    if (currentEntry === entry) status.textContent = '保存生词本失败：' + error.message
+  } finally {
+    favoritePending = false
+    renderFavorite()
+  }
+})
+$('#vocabulary').addEventListener('click', () => window.api.openVocabulary())
 
 let streamToken = 0
 let pinned = false
@@ -42,6 +94,7 @@ new ResizeObserver(() => {
 }).observe(appEl)
 
 input.addEventListener('input', () => {
+  clearEntry()
   stopStreaming()
   requestMode = 'auto'
   setMode('translate')
@@ -187,6 +240,7 @@ function scheduleRender() {
 }
 
 function doTranslate() {
+  clearEntry()
   const text = input.value.trim()
   streamToken++
   window.api.stopStream()
@@ -235,9 +289,11 @@ window.api.onTranslateEvent((m) => {
     rawResult += m.delta
     scheduleRender()
   } else if (m.type === 'done') {
-    status.textContent = ''
+    status.textContent = m.item?.vocabularyError || ''
     streaming = false
     setPhase('idle')
+    currentEntry = m.item?.entry || null
+    renderFavorite()
     rawResult = (m.item && m.item.translated) || rawResult
     lastSource = m.item?.source === 'zh' ? 'zh-CN' : m.item?.source || lastSource
     lastTarget = m.item?.target || lastTarget
@@ -355,6 +411,7 @@ loadLanguages()
 
 // 来自主进程的指令
 window.api.onFocusInput(() => {
+  clearEntry()
   input.value = ''
   requestMode = 'auto'
   setMode('translate')
@@ -379,6 +436,7 @@ window.api.onTranslateText((text) => {
 })
 
 window.api.onShowMessage((msg) => {
+  clearEntry()
   requestMode = 'auto'
   setMode('translate')
   lastSource = 'auto'

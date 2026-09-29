@@ -3,6 +3,8 @@
 const settings = require('./settings')
 const { translateWith, translateStreamWith } = require('./engines')
 const history = require('./history')
+const { dictionaryEntry } = require('./dictionary-entry')
+const { vocabulary } = require('./vocabulary')
 const { pickDirection } = require('./languages')
 const { resolveTranslationRequest } = require('./translation-request')
 
@@ -32,7 +34,13 @@ async function runTranslation(text, run, onDelta, opts = {}) {
   })
   const { translated, source } = await run(engine, config, text, target, { ...options, signal: opts.signal }, onDelta)
   if (opts.signal) opts.signal.throwIfAborted()
-  const item = { original: text, translated, source, target: resultTarget, engine }
+  const entry = dictionaryEntry(translated, options)
+  const item = { original: text, translated, source, target: resultTarget, engine, entry }
+  try {
+    vocabulary.recordLookup(entry)
+  } catch (error) {
+    item.vocabularyError = '生词本计数保存失败：' + error.message
+  }
   history.add(item)
   return item
 }

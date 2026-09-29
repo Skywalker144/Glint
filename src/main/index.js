@@ -23,6 +23,9 @@ const { recognize, prepare: prepareOCR } = require('./ocr')
 const { getSelectedText } = require('./platform')
 const settings = require('./settings')
 const history = require('./history')
+const { registerVocabularyIPC } = require('./vocabulary')
+const { openVocabulary } = require('./vocabulary-window')
+
 const { translateWith, listModels } = require('./engines')
 const { listProviders, getProvider } = require('./engines/providers')
 const { LANGUAGES, pickDirection } = require('./languages')
@@ -31,6 +34,8 @@ const { CHANGELOG } = require('./changelog')
 const { isNewer } = require('./version')
 const tts = require('./tts')
 const updater = require('./updater')
+
+registerVocabularyIPC()
 
 const PRELOAD = path.join(__dirname, '..', 'preload', 'index.js')
 const RENDERER = path.join(__dirname, '..', 'renderer')
@@ -670,6 +675,7 @@ function buildTrayMenu() {
     { label: '划词翻译   ' + accelSymbol(hk.selection), click: onSelectionTranslate },
     { label: '剪贴板翻译 ' + accelSymbol(hk.clipboard), click: onClipboardTranslate },
     { type: 'separator' },
+    { label: '生词本…', click: openVocabulary },
     { label: '设置…', click: openSettings },
     { type: 'separator' },
     {

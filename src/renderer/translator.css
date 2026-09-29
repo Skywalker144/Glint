@@ -318,3 +318,19 @@
 .app.resizing .resizer span {
   opacity: 0.95;
 }
+
+#favorite {
+  color: var(--text);
+  width: 28px;
+  height: 28px;
+}
+#favorite[hidden] {
+  display: none;
+}
+#favorite[aria-pressed="true"] svg {
+  fill: currentColor;
+}
+#favorite:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
