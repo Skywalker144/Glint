@@ -415,6 +415,7 @@ ipcMain.on('translate:stream', async (event, payload) => {
     const item = await translateStream(text, (delta) => send({ type: 'delta', delta }), {
       signal: ac.signal,
       target: payload && payload.target,
+      source: payload && payload.source,
       mode: payload && payload.mode,
       onMeta: (meta) => send({ type: 'meta', ...meta }),
     })

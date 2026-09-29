@@ -63,31 +63,66 @@
   background: var(--surface-hover);
 }
 
-.langtag {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--muted);
+#swap-languages {
+  flex-shrink: 0;
+  font-size: 16px;
+}
+#swap-languages:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.mode-switch {
+  display: flex;
+  flex-shrink: 0;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+}
+.mode-switch button {
+  -webkit-app-region: no-drag;
+  border: 0;
+  border-radius: 6px;
+  padding: 4px 9px;
+  font: inherit;
   font-size: 12px;
   white-space: nowrap;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
 }
-#dictionary-mode {
-  flex-shrink: 0;
+.mode-switch button:hover {
+  color: var(--text);
+}
+.mode-switch button[aria-pressed="true"] {
+  color: var(--text);
+  background: var(--surface-active);
+  font-weight: 600;
+}
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.statusbar:has(.status:empty):not(:has(button:not([hidden]))) {
+  display: none;
+}
+.statusbar .status {
+  flex: 1;
+}
+.statusbar .ghost {
+  margin-left: auto;
   padding: 3px 9px;
   font-size: 12px;
 }
 
-.arrow {
-  color: var(--muted);
-  font-size: 12px;
-}
-
-/* 目标语言下拉：低调的小胶囊，右侧自带 ▾（用字符而非 data: 图片，免动 CSP） */
-.targetwrap {
+.languagewrap {
   position: relative;
   display: inline-flex;
+  min-width: 0;
+  flex: 0 1 86px;
 }
-.targetsel {
+.languagesel {
   -webkit-app-region: no-drag;
   appearance: none;
   -webkit-appearance: none;
@@ -100,12 +135,14 @@
   font-size: 12px;
   padding: 3px 20px 3px 9px;
   cursor: pointer;
+  min-width: 0;
+  width: 100%;
   outline: none;
 }
-.targetsel:hover {
+.languagesel:hover {
   background: var(--surface-hover);
 }
-.targetwrap::after {
+.languagewrap::after {
   content: '▾';
   position: absolute;
   right: 7px;

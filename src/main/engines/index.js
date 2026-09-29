@@ -21,7 +21,7 @@ async function translateWith(engineId, cfg, text, target, options = {}) {
   const prepared = prepareTranslationInput(text)
 
   if (p.kind === 'free') {
-    const result = await translateGoogle(prepared.text, target)
+    const result = await translateGoogle(prepared.text, target, options.forceSource ? options.source : 'auto')
     return { ...result, translated: restoreTranslationInput(result.translated, prepared) }
   }
 
@@ -66,7 +66,7 @@ async function translateStreamWith(engineId, cfg, text, target, options = {}, on
   const prepared = prepareTranslationInput(text)
 
   if (p.kind === 'free') {
-    const result = await translateGoogle(prepared.text, target)
+    const result = await translateGoogle(prepared.text, target, options.forceSource ? options.source : 'auto')
     const translated = restoreTranslationInput(result.translated, prepared)
     if (onDelta && translated) onDelta(translated)
     return { ...result, translated }

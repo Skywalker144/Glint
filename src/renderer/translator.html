@@ -42,19 +42,25 @@
               <path d="M15.5 8.5a5 5 0 0 1 0 7"></path>
             </svg>
           </button>
-          <button id="dictionary-mode" class="ghost" title="切换为普通翻译" aria-label="切换为普通翻译" hidden>词典</button>
-          <span id="langtag" class="langtag">自动</span>
-          <span class="arrow">→</span>
-          <span class="targetwrap" title="翻译目标语言（选「自动」按输入智能判断方向）">
-            <select id="target-lang" class="targetsel"></select>
+          <span class="languagewrap" title="原文语言">
+            <select id="source-lang" class="languagesel" aria-label="原文语言"><option value="">自动</option></select>
+          </span>
+          <button id="swap-languages" class="iconbtn" title="交换语言" aria-label="交换原文与译文语言" disabled>⇄</button>
+          <span class="languagewrap" title="译文语言">
+            <select id="target-lang" class="languagesel" aria-label="译文语言"><option value="">自动</option></select>
           </span>
           <span class="spacer"></span>
-          <button id="stop" class="ghost" hidden>停止</button>
-          <button id="retry" class="ghost" hidden>重试</button>
-          <button id="translate" class="primary">翻译</button>
+          <div class="mode-switch" role="group" aria-label="翻译模式">
+            <button id="dictionary-mode" type="button" aria-pressed="false">词典</button>
+            <button id="translate" type="button" aria-pressed="true">翻译</button>
+          </div>
         </div>
 
-        <div id="status" class="status"></div>
+        <div class="statusbar">
+          <div id="status" class="status"></div>
+          <button id="stop" class="ghost" hidden>停止</button>
+          <button id="retry" class="ghost" hidden>重试</button>
+        </div>
         <div id="result" class="result"></div>
 
         <div id="resultbar" class="resultbar" hidden>
@@ -65,8 +71,7 @@
             </svg>
           </button>
           <span class="spacer"></span>
-          <button id="copy-plain" class="ghost">复制纯文本</button>
-          <button id="copy" class="ghost">复制译文</button>
+          <button id="copy" class="ghost" title="复制纯文本">复制</button>
         </div>
       </div>
 

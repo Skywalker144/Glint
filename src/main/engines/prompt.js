@@ -102,7 +102,8 @@ function buildUserContent(text, target, options = {}) {
       '，译成' + targetName(secondary) + '；否则译成' + targetName(primary) + '。'
     : '目标语言：' + targetName(target) + '。'
 
-  return direction + '\n待翻译文本：\n\n' + text
+  const source = options.source && options.source !== 'auto' ? '原文语言：' + targetName(options.source) + '。\n' : ''
+  return source + direction + '\n待翻译文本：\n\n' + text
 }
 
 function buildSystemPrompt(target, template, options = {}) {

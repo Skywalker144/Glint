@@ -46,3 +46,43 @@ test('disabled dictionary, sentences and free engines use translation', () => {
     assert.equal(resolveTranslationRequest(text, config).options.dict, false)
   }
 })
+
+test('explicit source chooses the other preferred language without semantic detection', () => {
+  const request = resolveTranslationRequest('人工智能', settings, { source: 'zh-CN', mode: 'translate' })
+  assert.equal(request.target, 'en')
+  assert.equal(request.options.source, 'zh-CN')
+  assert.equal(request.options.semanticDirection, false)
+  assert.match(buildUserContent('人工智能', request.target, request.options), /原文语言：中文/)
+})
+
+test('explicit language pair is preserved for every provider', () => {
+  for (const engine of ['openai', 'anthropic', 'google']) {
+    const request = resolveTranslationRequest('gift', { ...settings, engine }, { source: 'de', target: 'en', mode: 'translate' })
+    assert.equal(request.target, 'en')
+    assert.equal(request.options.source, 'de')
+    assert.equal(request.options.forceSource, true)
+    assert.equal(request.options.semanticDirection, false)
+    assert.match(buildUserContent('gift', request.target, request.options), /原文语言：德语/)
+  }
+})
+
+test('explicit dictionary overrides automatic classification and uses selected languages', () => {
+  const request = resolveTranslationRequest('take off', { ...settings, dictionaryMode: false }, { mode: 'dict', source: 'en', target: 'ja' })
+  assert.equal(request.options.dict, true)
+  assert.equal(request.options.forceTarget, false)
+  assert.equal(request.options.systemPrompt, 'Dictionary')
+  assert.equal(request.options.primaryLanguage, 'ja')
+  assert.equal(request.options.secondaryLanguage, 'en')
+})
+
+test('unsupported dictionary is rejected and invalid languages stay automatic', () => {
+  assert.throws(() => resolveTranslationRequest('apple', { ...settings, engine: 'google' }, { mode: 'dict' }), /词典/)
+  const request = resolveTranslationRequest('apple', settings, { source: 'bad', target: 'bad' })
+  assert.equal(request.options.dict, true)
+  assert.equal(request.options.source, 'auto')
+})
+
+test('automatic Google source remains server-detected', () => {
+  const request = resolveTranslationRequest('東京', { ...settings, engine: 'google' })
+  assert.equal(request.options.forceSource, false)
+})
