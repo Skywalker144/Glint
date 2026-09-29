@@ -188,7 +188,7 @@ app.whenReady().then(async () => {
     const layout = await win.webContents.executeJavaScript(`(() => {
       const rect = selector => { const r = document.querySelector(selector).getBoundingClientRect(); return { width: r.width, height: r.height, center: r.x + r.width / 2, left: r.left, right: r.right, bottom: r.bottom } }
       return {
-        source: rect('#source-lang'), target: rect('#target-lang'), swap: rect('#swap-languages'), copy: rect('#copy'), mode: rect('#dictionary-mode'),
+        source: rect('#source-lang'), target: rect('#target-lang'), swap: rect('#swap-languages'), modeSwitch: rect('.mode-switch'),
         input: rect('#input'), result: rect('#result'), app: rect('.app'),
         footerButtons: [...document.querySelectorAll('#resultbar button')].map(button => button.getBoundingClientRect().height),
         corners: [...document.querySelectorAll('.input, .result, .iconbtn, .languagesel, .mode-switch, .mode-switch button, #copy')].map(element => getComputedStyle(element).cornerShape),
@@ -198,9 +198,8 @@ app.whenReady().then(async () => {
     assert.equal(layout.source.width, layout.target.width)
     assert.ok(layout.source.width <= 56)
     assert.ok(Math.abs(layout.swap.center - (layout.source.center + layout.target.center) / 2) < 1)
-    assert.equal(layout.copy.width, layout.mode.width)
-    assert.equal(layout.source.height, layout.mode.height)
-    assert.equal(layout.target.height, layout.mode.height)
+    assert.equal(layout.source.height, layout.modeSwitch.height)
+    assert.equal(layout.target.height, layout.modeSwitch.height)
     assert.ok(layout.footerButtons.every(height => height === 24), 'Footer controls must share a compact, usable hit area')
     assert.ok(layout.app.bottom - layout.result.bottom <= 35, 'Result footer and surrounding whitespace must fit within 35px')
     assert.equal(layout.input.left, layout.result.left)
