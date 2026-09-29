@@ -12,6 +12,8 @@
 .input {
   resize: none;
   height: 84px;
+  flex-shrink: 0;
+  overflow-y: auto;
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
@@ -21,11 +23,6 @@
   font: inherit;
   outline: none;
   user-select: text;
-  transition: height 0.15s ease;
-}
-/* 有结果时输入框收窄，把空间让给译文 */
-.app.has-result .input {
-  height: 46px;
 }
 
 /* 流式生成时结尾的闪烁光标 */

@@ -92,6 +92,10 @@ app.whenReady().then(async () => {
     webPreferences: { preload: path.join(root, 'src/preload/index.js'), contextIsolation: true, nodeIntegration: false },
   })
   await win.loadFile(path.join(root, 'src/renderer/translator.html'))
+  await win.webContents.executeJavaScript(`
+    window.inputHeights = [document.querySelector('#input').getBoundingClientRect().height]
+    new ResizeObserver(entries => window.inputHeights.push(entries[0].target.getBoundingClientRect().height)).observe(document.querySelector('#input'))
+  `)
   win.webContents.send('translate-text', '人工智能')
   await until("document.querySelector('#dictionary-mode').getAttribute('aria-pressed') === 'true' && document.querySelector('#result').textContent.includes('词条')")
   const oldToken = payloads.at(-1).token
@@ -169,6 +173,11 @@ app.whenReady().then(async () => {
   }
   win.webContents.send('focus-input')
   await until("document.querySelector('#input').value === '' && document.querySelector('#swap-languages').disabled")
+  await win.webContents.executeJavaScript("document.querySelector('#input').value = 'Long original text\\n'.repeat(30); document.querySelector('#input').dispatchEvent(new Event('input'))")
+  await win.webContents.executeJavaScript("new Promise(resolve => setTimeout(resolve, 200))")
+  const heights = await win.webContents.executeJavaScript('window.inputHeights')
+  assert.ok(heights.every(height => Math.abs(height - heights[0]) < 1), 'Input height changed across translation phases: ' + heights.join(', '))
+  assert.equal(await win.webContents.executeJavaScript("document.querySelector('#input').scrollHeight > document.querySelector('#input').clientHeight"), true)
   settings.save({ engine: 'google' })
   await protocol.handle('https', (request) => {
     googleRequests.push(new URL(request.url))
