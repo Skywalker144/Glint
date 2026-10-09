@@ -3,7 +3,7 @@
 const path = require('node:path')
 const { spawn } = require('node:child_process')
 const { createInterface } = require('node:readline')
-const { BrowserWindow, ipcMain, screen } = require('electron')
+const { app, BrowserWindow, ipcMain, screen } = require('electron')
 const { resolveNativeHelper } = require('./native-helper')
 const { SelectionPopupState } = require('./selection-popup-state')
 
@@ -28,6 +28,10 @@ class SelectionPopup {
     this.onActivate = event => {
       if (this.window && event.sender === this.window.webContents) this.state.activate()
     }
+    this.onWindowFocus = (_event, window) => {
+      if (window !== this.window) this.dismiss()
+    }
+    app.on('browser-window-focus', this.onWindowFocus)
     ipcMain.on('selection-popup:translate', this.onActivate)
   }
 
@@ -55,7 +59,7 @@ class SelectionPopup {
     if (!this.window) {
       this.window = new BrowserWindow({
         width: 40, height: 40, type: 'panel', show: false, frame: false, transparent: true,
-        resizable: false, focusable: false, skipTaskbar: true,
+        resizable: false, focusable: false, acceptFirstMouse: true, skipTaskbar: true,
         minimizable: false, maximizable: false, fullscreenable: false,
         hasShadow: false, alwaysOnTop: true, roundedCorners: false,
         webPreferences: {
@@ -98,6 +102,7 @@ class SelectionPopup {
   dispose() {
     this.setEnabled(false)
     ipcMain.removeListener('selection-popup:translate', this.onActivate)
+    app.removeListener('browser-window-focus', this.onWindowFocus)
     this.window?.destroy()
     this.window = null
     this.windowReady = null

@@ -155,7 +155,12 @@ final class SelectionMonitor {
         }) { monitors.append(monitor) }
         activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
-        ) { [weak self] _ in self?.dismiss(resetGesture: false) }
+        ) { [weak self] notification in
+            guard let self,
+                  let activated = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                  activated.processIdentifier != self.parentPID else { return }
+            self.dismiss(resetGesture: false)
+        }
         refreshPermission()
         permissionTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
             self?.refreshPermission()
