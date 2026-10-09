@@ -540,6 +540,11 @@ ipcMain.handle('app:info', () => ({ version: app.getVersion(), repo: REPO_URL })
 ipcMain.handle('changelog:get', () => CHANGELOG)
 ipcMain.handle('settings:permissions', () => ({
   platform: process.platform,
+  selectionPopup: {
+    enabled: !!settings.get().selectionPopup,
+    running: !!selectionPopup?.monitor,
+    accessibility: selectionPopup?.nativeStatus?.accessibility ?? null,
+  },
   accessibility:
     process.platform === 'darwin'
       ? systemPreferences.isTrustedAccessibilityClient(false)

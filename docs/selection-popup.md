@@ -7,3 +7,5 @@
 - [状态回归](../test/selection-popup.test.js)：`node --test test/selection-popup.test.js`
 - [Electron 验证](../scripts/check-selection-popup.cjs)：`npx electron scripts/check-selection-popup.cjs`；加 `--interactive` 可验证外部应用选区。
 - [macOS 原生工具打包](../scripts/build-native.sh)：`npm run build:native`
+- [App 与原生工具的完整本地签名](../scripts/sign-macos.cjs)
+- [签名身份与资源封装回归](../test/macos-signing.test.js)：`node --test test/macos-signing.test.js`

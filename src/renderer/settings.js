@@ -515,6 +515,7 @@ function renderPermissions(p) {
     setBadge('#perm-screen', '无需配置', 'ok')
     setBadge('#perm-ocr', 'Tesseract', 'ok')
     $('#perm-ocr-desc').textContent = '当前平台使用 Tesseract OCR。'
+    setBadge('#perm-selection', '仅 macOS', 'warn')
     $('#open-accessibility').disabled = true
     $('#open-screen').disabled = true
     return
@@ -527,6 +528,19 @@ function renderPermissions(p) {
   $('#perm-ocr-desc').textContent = 'macOS 使用系统 Vision OCR。'
   $('#open-accessibility').disabled = false
   $('#open-screen').disabled = false
+  const selection = p.selectionPopup
+  if (!selection?.enabled) {
+    setBadge('#perm-selection', '已关闭', '')
+    $('#perm-selection-desc').textContent = '可在「通用」中开启。'
+  } else if (!selection.running || selection.accessibility === null) {
+    setBadge('#perm-selection', selection.running ? '准备中' : '未启动', 'warn')
+    $('#perm-selection-desc').textContent = '若持续未启动，请重启应用。'
+  } else {
+    setBadge('#perm-selection', selection.accessibility ? '可用' : '权限异常', permissionTone(selection.accessibility))
+    $('#perm-selection-desc').textContent = selection.accessibility
+      ? '选中文字后显示翻译入口。'
+      : '请在系统辅助功能设置中重新授权当前版本，再重启应用。'
+  }
 }
 
 async function refreshPermissions() {
@@ -543,6 +557,7 @@ async function refreshPermissions() {
 $('#open-accessibility').addEventListener('click', () => window.api.openPermissionSettings('accessibility'))
 $('#open-screen').addEventListener('click', () => window.api.openPermissionSettings('screen'))
 $('#refresh-permissions').addEventListener('click', refreshPermissions)
+$('#refresh-selection').addEventListener('click', refreshPermissions)
 
 /* ---------------- 历史 ---------------- */
 

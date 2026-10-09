@@ -20,6 +20,7 @@ final class SelectionMonitor {
     private var keyMonitor: Any?
     private var activationObserver: NSObjectProtocol?
     private var permissionTimer: Timer?
+    private var trusted: Bool?
 
     init(parentPID: pid_t) {
         self.parentPID = parentPID
@@ -118,7 +119,8 @@ final class SelectionMonitor {
     }
 
     private func refreshPermission() {
-        if AXIsProcessTrusted() {
+        let currentTrust = AXIsProcessTrusted()
+        if currentTrust {
             if keyMonitor == nil {
                 keyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] _ in
                     self?.dismiss()
@@ -128,6 +130,10 @@ final class SelectionMonitor {
             if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
             keyMonitor = nil
             dismiss()
+        }
+        if trusted != currentTrust {
+            trusted = currentTrust
+            emit(MonitorEvent(type: "ready", accessibility: currentTrust))
         }
     }
 
@@ -145,7 +151,6 @@ final class SelectionMonitor {
             self?.refreshPermission()
             if kill(self?.parentPID ?? 0, 0) != 0 { NSApplication.shared.terminate(nil) }
         }
-        emit(MonitorEvent(type: "ready", accessibility: AXIsProcessTrusted()))
     }
 }
 

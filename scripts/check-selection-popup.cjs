@@ -15,13 +15,17 @@ const errors = []
 let popup
 let settingsWin
 let platform = 'darwin'
+let helperAccessibility = false
 
 ipcMain.handle('settings:get', () => settings.get())
 ipcMain.handle('settings:defaults', () => settings.DEFAULTS)
 ipcMain.handle('settings:save', (_e, value) => ({ settings: settings.save(value), hotkeyErrors: [] }))
 ipcMain.handle('settings:providers', () => require('../src/main/engines/providers').listProviders())
 ipcMain.handle('settings:languages', () => require('../src/main/languages').LANGUAGES)
-ipcMain.handle('settings:permissions', () => ({ platform, accessibility: true, screen: 'granted' }))
+ipcMain.handle('settings:permissions', () => ({
+  platform, accessibility: true, screen: 'granted',
+  selectionPopup: { enabled: settings.get().selectionPopup, running: true, accessibility: helperAccessibility },
+}))
 ipcMain.handle('changelog:get', () => [])
 ipcMain.handle('app:info', () => ({ version: 'test', repo: '' }))
 ipcMain.on('settings:resize-height', (_e, height) => settingsWin?.setSize(640, Math.min(height, 800)))
@@ -92,10 +96,17 @@ app.whenReady().then(async () => {
   await settingsWin.loadFile(path.join(root, 'src/renderer/settings.html'))
   await until(() => settingsWin.webContents.executeJavaScript("document.querySelector('#provider').options.length > 0 && !document.querySelector('#selection-popup-setting').hidden"))
   assert.equal(await settingsWin.webContents.executeJavaScript("document.querySelector('#selection-popup').checked"), true)
+  await until(() => settingsWin.webContents.executeJavaScript("document.querySelector('#perm-selection').textContent === '权限异常'"))
+  assert.equal(await settingsWin.webContents.executeJavaScript("document.querySelector('#perm-accessibility').textContent"), '已授权')
+  helperAccessibility = true
+  await settingsWin.webContents.executeJavaScript("document.querySelector('#refresh-selection').click()")
+  await until(() => settingsWin.webContents.executeJavaScript("document.querySelector('#perm-selection').textContent === '可用'"))
   await settingsWin.webContents.executeJavaScript("document.querySelector('#selection-popup').click()")
   await until(() => settings.get().selectionPopup === false)
   assert.deepEqual(settings.get().hotkeys, settings.DEFAULTS.hotkeys)
   assert.equal(settings.get().engine, 'google')
+  await settingsWin.webContents.executeJavaScript("document.querySelector('#refresh-selection').click()")
+  await until(() => settingsWin.webContents.executeJavaScript("document.querySelector('#perm-selection').textContent === '已关闭'"))
   platform = 'win32'
   await settingsWin.webContents.executeJavaScript("document.querySelector('#refresh-permissions').click()")
   await until(() => settingsWin.webContents.executeJavaScript("getComputedStyle(document.querySelector('#selection-popup-setting')).display === 'none'"))
