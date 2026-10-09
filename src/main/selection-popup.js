@@ -54,7 +54,7 @@ class SelectionPopup {
     if (!binary || generation !== this.generation) return
     if (!this.window) {
       this.window = new BrowserWindow({
-        width: 40, height: 40, show: false, frame: false, transparent: true,
+        width: 40, height: 40, type: 'panel', show: false, frame: false, transparent: true,
         resizable: false, focusable: false, skipTaskbar: true,
         minimizable: false, maximizable: false, fullscreenable: false,
         hasShadow: false, alwaysOnTop: true, roundedCorners: false,

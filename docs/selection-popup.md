@@ -1,6 +1,6 @@
 # 划词图标开发索引
 
-- [macOS 系统选区监听](../src/main/native/macselection.swift)
+- [macOS 系统选区监听与 Text Marker 选区读取](../src/main/native/macselection.swift)
 - [图标窗口与监听生命周期](../src/main/selection-popup.js)
 - [划词缓存、点击与显示器边界](../src/main/selection-popup-state.js)
 - [设置默认值](../src/main/settings.js)

@@ -10,10 +10,12 @@ const dataPath = fs.mkdtempSync(path.join(root, '.cache/selection-test-'))
 app.setPath('userData', dataPath)
 const { SelectionPopup } = require('../src/main/selection-popup')
 const settings = require('../src/main/settings')
+require('../src/main/vocabulary').registerVocabularyIPC()
 const translations = []
 const errors = []
 let popup
 let settingsWin
+let translatorWin
 let platform = 'darwin'
 let helperAccessibility = false
 
@@ -46,15 +48,22 @@ app.whenReady().then(async () => {
     return
   }
   const originalClipboard = clipboard.readText()
+  translatorWin = new BrowserWindow({
+    width: 420, height: 360, show: false,
+    webPreferences: { preload: path.join(root, 'src/preload/index.js'), contextIsolation: true, nodeIntegration: false },
+  })
+  await translatorWin.loadFile(path.join(root, 'src/renderer/translator.html'))
   popup = new SelectionPopup({
     translate: text => {
       translations.push(text)
+      translatorWin.show()
+      translatorWin.webContents.send('translate-text', text)
       if (process.argv.includes('--interactive')) {
         fs.writeFileSync(path.join(dataPath, 'translations.json'), JSON.stringify(translations))
         console.log('translated selection:', text)
       }
     },
-    isBlocked: () => false,
+    isBlocked: () => !!BrowserWindow.getFocusedWindow(),
   })
   popup.setEnabled(true)
   await until(() => popup.nativeStatus)
@@ -76,8 +85,11 @@ app.whenReady().then(async () => {
   await popup.window.webContents.executeJavaScript("document.querySelector('#translate-selection').click()")
   await until(() => translations.length === 1)
   assert.deepEqual(translations, ['cached selection'])
+  await until(() => translatorWin.webContents.executeJavaScript("document.querySelector('#input').value === 'cached selection'"))
+  assert.equal(translatorWin.isVisible(), true)
   assert.equal(popup.window.isVisible(), false)
   assert.equal(clipboard.readText(), originalClipboard)
+  translatorWin.hide()
   popup.state.handle({ type: 'selection', text: 'dismiss me', x: 200, y: 200 })
   popup.state.handle({ type: 'dismiss' })
   assert.equal(popup.window.isVisible(), false)
@@ -129,6 +141,7 @@ app.whenReady().then(async () => {
     console.log('Interactive selection monitor active for five minutes')
     setTimeout(() => app.quit(), 300000)
   } else {
+    translatorWin.destroy()
     app.quit()
   }
 }).catch(error => {

@@ -65,6 +65,16 @@ final class SelectionMonitor {
                    !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     return text
                 }
+                if let range = attribute(element, "AXSelectedTextMarkerRange") {
+                    var value: CFTypeRef?
+                    if AXUIElementCopyParameterizedAttributeValue(
+                        element, "AXStringForTextMarkerRange" as CFString, range, &value
+                    ) == .success,
+                       let text = value as? String,
+                       !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        return text
+                    }
+                }
                 current = elementAttribute(element, kAXParentAttribute)
             }
         }
