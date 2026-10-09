@@ -21,6 +21,7 @@ const {
 const { translate, translateStream } = require('./translate')
 const { recognize, prepare: prepareOCR } = require('./ocr')
 const { getSelectedText } = require('./platform')
+const { SelectionPopup } = require('./selection-popup')
 const settings = require('./settings')
 const history = require('./history')
 const { registerVocabularyIPC } = require('./vocabulary')
@@ -49,6 +50,7 @@ const SETTINGS_H = 460 // 初始高度；之后由渲染层按当前栏内容自
 const REPO_URL = 'https://github.com/Skywalker144/Glint'
 
 let translatorWin = null
+let selectionPopup = null
 let captureWin = null
 let settingsWin = null
 let tray = null
@@ -169,6 +171,7 @@ function isPositionVisible(x, y, w) {
 }
 
 function showTranslator() {
+  selectionPopup?.dismiss()
   if (!translatorWin || translatorWin.isDestroyed()) createTranslatorWindow()
   // 未钉住：每次跟随光标。钉住：保持上次摆放的位置；仅首次（还没摆过）放到光标附近。
   if (!settings.get().pinned || !translatorPositioned) {
@@ -216,6 +219,7 @@ function onClipboardTranslate() {
 /* ------------------------------------------------------------------ */
 
 async function onSelectionTranslate() {
+  selectionPopup?.dismiss()
   if (
     process.platform === 'darwin' &&
     !systemPreferences.isTrustedAccessibilityClient(false)
@@ -244,6 +248,7 @@ async function onSelectionTranslate() {
 /* ------------------------------------------------------------------ */
 
 async function onScreenshotTranslate() {
+  selectionPopup?.dismiss()
   if (
     process.platform === 'darwin' &&
     ['denied', 'restricted'].includes(systemPreferences.getMediaAccessStatus('screen'))
@@ -365,6 +370,7 @@ function createSettingsWindow() {
 }
 
 function openSettings() {
+  selectionPopup?.dismiss()
   if (!settingsWin || settingsWin.isDestroyed()) createSettingsWindow()
   const area = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea
   settingsWin.setPosition(
@@ -565,6 +571,7 @@ ipcMain.handle('settings:save', (_e, partial) => {
   applyTrayVisibility()
   applyLoginItem()
   applyProxy()
+  selectionPopup?.setEnabled(s.selectionPopup)
   sendToTranslator('pin:state', !!s.pinned) // 同步主窗口图钉
   return { settings: s, hotkeyErrors }
 })
@@ -905,6 +912,14 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     if (process.platform === 'darwin') app.dock.hide()
     createTranslatorWindow()
+    selectionPopup = new SelectionPopup({
+      translate: text => {
+        showTranslator()
+        sendToTranslator('translate-text', text)
+      },
+      isBlocked: () => isQuitting || !!captureWin || !!BrowserWindow.getFocusedWindow(),
+    })
+    selectionPopup.setEnabled(settings.get().selectionPopup)
     applyTrayVisibility()
     registerHotkeys()
     prepareOCR() // 后台预编译 Vision OCR 二进制（仅 Mac）
@@ -914,5 +929,9 @@ if (!app.requestSingleInstanceLock()) {
   })
 
   app.on('window-all-closed', () => {})
+  app.on('before-quit', () => {
+    isQuitting = true
+    selectionPopup?.dispose()
+  })
   app.on('will-quit', () => globalShortcut.unregisterAll())
 }

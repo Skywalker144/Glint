@@ -10,7 +10,8 @@
     "postinstall": "node scripts/copy-vendor.js",
     "build:icon": "electron scripts/make-icon.js",
     "build:macocr": "bash scripts/build-macocr.sh",
-    "dist:mac": "npm run build:macocr && electron-builder --mac",
+    "build:native": "bash scripts/build-native.sh",
+    "dist:mac": "npm run build:native && electron-builder --mac",
     "dist:win": "electron-builder --win",
     "test:ui": "electron scripts/check-translator.cjs && electron scripts/check-vocabulary.cjs"
   },
@@ -48,6 +49,10 @@
         {
           "from": "resources/macocr",
           "to": "macocr"
+        },
+        {
+          "from": "resources/macselection",
+          "to": "macselection"
         }
       ]
     },

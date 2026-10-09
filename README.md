@@ -14,6 +14,7 @@
 
 - 翻译方向自动判断：中文 → 英文，其他语言 → 中文。
 - 常驻菜单栏（图标为「译」），不占 Dock。右键菜单可手动触发功能或退出。
+- [macOS 划词图标](docs/selection-popup.md)：选中文字并松开鼠标后，旁边显示「译」图标，点击打开翻译面板。需要辅助功能权限及目标应用支持系统选区读取；可在「设置 → 通用」关闭。
 
 ## 运行
 
@@ -41,7 +42,7 @@ npm version patch        # 升版本号并打 tag
 git push --follow-tags   # 推送触发 CI
 ```
 
-本地单平台打包：`npm run dist:mac` / `npm run dist:win`（Mac 包需要 `swiftc` 预编译 Vision OCR）。
+本地单平台打包：`npm run dist:mac` / `npm run dist:win`（Mac 包需要 `swiftc` 预编译原生工具）。
 
 ## macOS 首次使用要授权（重要）
 
@@ -101,7 +102,7 @@ src/
 
 ## 之后可以加的
 
-- 划词/截图结果用贴近鼠标的小气泡展示
+- 截图结果用贴近鼠标的小气泡展示
 - 生词本复习计划与导入导出
 - 把 API Key 存进系统钥匙串（目前明文存在 settings.json）
 - Windows 托盘图标 & 取词适配、打包成安装包

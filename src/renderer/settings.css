@@ -288,6 +288,10 @@
   gap: 14px;
   cursor: pointer;
 }
+
+.s-toggle[hidden] {
+  display: none;
+}
 .s-toggle > span {
   order: 1;
   display: flex;

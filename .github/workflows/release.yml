@@ -20,7 +20,7 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-            build: npm run build:macocr && npx electron-builder --mac --publish always
+            build: npm run build:native && npx electron-builder --mac --publish always
           - os: windows-latest
             build: npx electron-builder --win --publish always
     runs-on: ${{ matrix.os }}

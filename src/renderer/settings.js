@@ -12,6 +12,7 @@ let historyItems = []
 let state = {
   engine: 'google',
   launchAtLogin: false,
+  selectionPopup: true,
   primaryLanguage: 'zh-CN',
   secondaryLanguage: 'en',
   systemPrompt: '',
@@ -47,6 +48,7 @@ function normalizeSettings(s) {
   return {
     engine: (s && s.engine) || 'google',
     launchAtLogin: !!(s && s.launchAtLogin),
+    selectionPopup: s?.selectionPopup !== false,
     primaryLanguage: (s && s.primaryLanguage) || 'zh-CN',
     secondaryLanguage: (s && s.secondaryLanguage) || 'en',
     systemPrompt: (s && s.systemPrompt) || defaultSettings.systemPrompt || '',
@@ -170,6 +172,11 @@ $('#launch-at-login').addEventListener('change', (e) => {
 
 $('#pin-window').addEventListener('change', (e) => {
   state.pinned = e.target.checked
+  markDirty()
+})
+
+$('#selection-popup').addEventListener('change', (e) => {
+  state.selectionPopup = e.target.checked
   markDirty()
 })
 
@@ -502,6 +509,7 @@ function permissionTone(ok) {
 }
 
 function renderPermissions(p) {
+  $('#selection-popup-setting').hidden = p?.platform !== 'darwin'
   if (!p || p.platform !== 'darwin') {
     setBadge('#perm-accessibility', '无需配置', 'ok')
     setBadge('#perm-screen', '无需配置', 'ok')
@@ -755,6 +763,7 @@ async function loadChangelog() {
 function renderAll() {
   $$('.recorder').forEach(renderHotkey)
   $('#launch-at-login').checked = state.launchAtLogin
+  $('#selection-popup').checked = state.selectionPopup
   $('#pin-window').checked = state.pinned
   $('#hide-tray-icon').checked = state.hideTrayIcon
   $('#proxy-enabled').checked = state.proxy.enabled
