@@ -922,7 +922,10 @@ if (!app.requestSingleInstanceLock()) {
         showTranslator()
         sendToTranslator('translate-text', text)
       },
-      isBlocked: () => isQuitting || !!captureWin || !!BrowserWindow.getFocusedWindow(),
+      isBlocked: (activating = false) => {
+        const focusedWindow = BrowserWindow.getFocusedWindow()
+        return isQuitting || !!captureWin || (!!focusedWindow && !(activating && focusedWindow === translatorWin))
+      },
     })
     selectionPopup.setEnabled(settings.get().selectionPopup)
     applyTrayVisibility()

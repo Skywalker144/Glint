@@ -431,7 +431,7 @@ window.api.onFocusInput(() => {
 window.api.onTranslateText((text) => {
   requestMode = 'auto'
   input.value = text
-  input.focus()
+  input.blur()
   doTranslate()
 })
 

@@ -27,7 +27,7 @@ class SelectionPopupState {
 
   handle(event) {
     if (!this.enabled) return
-    if (event.type === 'pointer') {
+    if (event.type === 'pointer' || event.type === 'focus') {
       const b = this.bounds
       if (b && event.x >= b.x && event.x < b.x + b.width && event.y >= b.y && event.y < b.y + b.height) return
       this.dismiss()
@@ -52,7 +52,7 @@ class SelectionPopupState {
   activate() {
     const text = this.text
     this.dismiss()
-    if (this.enabled && text && !this.view.isBlocked()) this.view.translate(text)
+    if (this.enabled && text && !this.view.isBlocked(true)) this.view.translate(text)
   }
 }
 

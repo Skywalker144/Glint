@@ -1,6 +1,6 @@
 'use strict'
 
-const { app, BrowserWindow, ipcMain, clipboard, nativeTheme, systemPreferences } = require('electron')
+const { app, BrowserWindow, ipcMain, clipboard, nativeTheme, systemPreferences, screen } = require('electron')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -24,6 +24,17 @@ ipcMain.handle('settings:defaults', () => settings.DEFAULTS)
 ipcMain.handle('settings:save', (_e, value) => ({ settings: settings.save(value), hotkeyErrors: [] }))
 ipcMain.handle('settings:providers', () => require('../src/main/engines/providers').listProviders())
 ipcMain.handle('settings:languages', () => require('../src/main/languages').LANGUAGES)
+ipcMain.handle('render-markdown', (_event, text) => require('../src/main/markdown').renderMarkdown(text))
+ipcMain.on('translate:stream', (event, payload) => {
+  event.sender.send('translate:event', {
+    type: 'done', token: payload.token,
+    item: { original: payload.text, translated: '译文：' + payload.text, source: 'en', target: 'zh-CN' },
+  })
+})
+ipcMain.on('pin:set', (_event, value) => {
+  settings.save({ pinned: !!value })
+  translatorWin.webContents.send('pin:state', !!value)
+})
 ipcMain.handle('settings:permissions', () => ({
   platform, accessibility: true, screen: 'granted',
   selectionPopup: { enabled: settings.get().selectionPopup, running: true, accessibility: helperAccessibility },
@@ -63,7 +74,10 @@ app.whenReady().then(async () => {
         console.log('translated selection:', text)
       }
     },
-    isBlocked: () => !!BrowserWindow.getFocusedWindow(),
+    isBlocked: (activating = false) => {
+      const focusedWindow = BrowserWindow.getFocusedWindow()
+      return !!focusedWindow && !(activating && focusedWindow === translatorWin)
+    },
   })
   popup.setEnabled(true)
   await until(() => popup.nativeStatus)
@@ -90,6 +104,32 @@ app.whenReady().then(async () => {
   assert.equal(translatorWin.isVisible(), true)
   assert.equal(popup.window.isVisible(), false)
   assert.equal(clipboard.readText(), originalClipboard)
+  await translatorWin.webContents.executeJavaScript("document.querySelector('#pin').click()")
+  await until(() => settings.get().pinned)
+  const pinnedBounds = translatorWin.getBounds()
+  for (const text of ['second selection', 'third selection']) {
+    translatorWin.blur()
+    await until(() => !translatorWin.isFocused())
+    popup.state.handle({ type: 'selection', text, x: 200, y: 200 })
+    assert.equal(popup.window.isVisible(), true)
+    const cursor = screen.getCursorScreenPoint
+    screen.getCursorScreenPoint = () => ({ x: 232, y: 232 })
+    try {
+      translatorWin.show()
+      await until(() => translatorWin.isFocused())
+      assert.equal(popup.state.text, text, 'Restoring the pinned translator focus during an icon click must preserve the selection')
+      popup.window.webContents.sendInputEvent({ type: 'mouseDown', x: 20, y: 20, button: 'left', clickCount: 1 })
+      popup.window.webContents.sendInputEvent({ type: 'mouseUp', x: 20, y: 20, button: 'left', clickCount: 1 })
+      await until(() => translatorWin.webContents.executeJavaScript(`document.querySelector('#input').value === ${JSON.stringify(text)} && document.querySelector('#result').textContent.includes(${JSON.stringify(text)})`))
+      assert.equal(await translatorWin.webContents.executeJavaScript("document.activeElement === document.querySelector('#input')"), false)
+      assert.deepEqual(translatorWin.getBounds(), pinnedBounds)
+      assert.equal(settings.get().pinned, true)
+      assert.equal(popup.window.isVisible(), false)
+    } finally {
+      screen.getCursorScreenPoint = cursor
+    }
+  }
+  assert.deepEqual(translations, ['cached selection', 'second selection', 'third selection'])
   translatorWin.hide()
   popup.state.handle({ type: 'selection', text: 'another Glint window', x: 200, y: 200 })
   translatorWin.show()

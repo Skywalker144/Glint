@@ -88,6 +88,44 @@ test('opening another Glint window before activation prevents a cached translati
   assert.equal(f.state.text, '')
 })
 
+test('window focus during an icon click preserves the selection for activation', () => {
+  const f = fixture()
+  f.state.setEnabled(true)
+  f.state.handle({ type: 'selection', text: 'new selection', x: 100, y: 100 })
+  const point = { x: 132, y: 132 }
+  f.state.handle({ type: 'focus', ...point })
+  f.state.activate()
+  assert.deepEqual(f.translated, ['new selection'])
+})
+
+test('activation checks allow the translator to regain focus after caching a selection', () => {
+  const f = fixture()
+  let translatorFocused = false
+  f.state.view.isBlocked = activating => translatorFocused && !activating
+  f.state.setEnabled(true)
+  f.state.handle({ type: 'selection', text: 'first selection', x: 100, y: 100 })
+  f.state.activate()
+  translatorFocused = false
+  f.state.handle({ type: 'selection', text: 'second selection', x: 100, y: 100 })
+  translatorFocused = true
+  f.state.handle({ type: 'focus', x: 132, y: 132 })
+  f.state.activate()
+  f.state.activate()
+  assert.deepEqual(f.translated, ['first selection', 'second selection'])
+  f.state.handle({ type: 'selection', text: 'inside Glint', x: 100, y: 100 })
+  f.state.activate()
+  assert.deepEqual(f.translated, ['first selection', 'second selection'])
+})
+
+test('window focus away from the icon discards the selection', () => {
+  const f = fixture()
+  f.state.setEnabled(true)
+  f.state.handle({ type: 'selection', text: 'stale selection', x: 100, y: 100 })
+  f.state.handle({ type: 'focus', x: 0, y: 0 })
+  f.state.activate()
+  assert.deepEqual(f.translated, [])
+})
+
 test('icon stays inside the current display including negative screen coordinates', () => {
   assert.deepEqual(popupBounds({ x: 100, y: 100 }, { x: 0, y: 0, width: 1440, height: 900 }),
     { x: 112, y: 112, width: 40, height: 40 })

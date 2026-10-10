@@ -29,7 +29,7 @@ class SelectionPopup {
       if (this.window && event.sender === this.window.webContents) this.state.activate()
     }
     this.onWindowFocus = (_event, window) => {
-      if (window !== this.window) this.dismiss()
+      if (window !== this.window) this.state.handle({ type: 'focus', ...screen.getCursorScreenPoint() })
     }
     app.on('browser-window-focus', this.onWindowFocus)
     ipcMain.on('selection-popup:translate', this.onActivate)
