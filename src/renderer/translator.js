@@ -256,7 +256,7 @@ function doTranslate() {
     setPhase('idle')
     return
   }
-  status.textContent = requestMode === 'dict' ? '查词中…' : '翻译中…'
+  status.textContent = ''
   streaming = true
   setPhase('streaming')
   window.api.translateStream(text, streamToken, { source: forcedSource, target: forcedTarget, mode: requestMode })

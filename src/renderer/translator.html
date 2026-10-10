@@ -57,6 +57,7 @@
             <select id="target-lang" class="languagesel" aria-label="译文语言"><option value="">自动</option></select>
           </span>
           <span class="spacer"></span>
+          <button id="stop" class="ghost" hidden>停止</button>
           <div class="mode-switch" role="group" aria-label="翻译模式">
             <button id="dictionary-mode" type="button" aria-pressed="false">词典</button>
             <button id="translate" type="button" aria-pressed="true">翻译</button>
@@ -65,7 +66,6 @@
 
         <div class="statusbar">
           <div id="status" class="status"></div>
-          <button id="stop" class="ghost" hidden>停止</button>
           <button id="retry" class="ghost" hidden>重试</button>
         </div>
         <div class="result-section">

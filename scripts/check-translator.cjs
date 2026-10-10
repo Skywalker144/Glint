@@ -104,14 +104,32 @@ app.whenReady().then(async () => {
   })()`)
   const oneLine = await inputMetrics()
   assert.ok(Math.abs(oneLine.height - oneLine.line - oneLine.inset) < 1, 'Empty input must show one line')
+  win.setSize(360, 480)
   win.webContents.send('translate-text', '人工智能')
   await until("document.querySelector('#dictionary-mode').getAttribute('aria-pressed') === 'true' && document.querySelector('#result').textContent.includes('词条')")
+  const streamingTop = await win.webContents.executeJavaScript("document.querySelector('#result').getBoundingClientRect().top")
+  const streamingControlsFit = await win.webContents.executeJavaScript(`(() => {
+    const toolbar = document.querySelector('.toolbar').getBoundingClientRect()
+    return [...document.querySelectorAll('.toolbar button:not([hidden]), .toolbar select')].every(element => {
+      const rect = element.getBoundingClientRect()
+      return rect.left >= toolbar.left && rect.right <= toolbar.right + 1 && rect.width >= 20
+    })
+  })()`)
+  assert.ok(streamingControlsFit, 'Streaming toolbar must fit at 360px')
+  await until("!document.querySelector('#resultbar').hidden && document.querySelector('.stream-caret') === null")
+  assert.equal(await win.webContents.executeJavaScript("document.querySelector('#result').getBoundingClientRect().top"), streamingTop, 'Result must keep its position when streaming finishes')
+  await click('#dictionary-mode')
+  await until("document.querySelector('.stream-caret') !== null && !document.querySelector('#stop').hidden")
+  assert.equal(await win.webContents.executeJavaScript("document.querySelector('#result').getBoundingClientRect().top"), streamingTop, 'Result must keep its position when streaming restarts')
+  await click('#stop')
+  await until("!document.querySelector('#resultbar').hidden && document.querySelector('.stream-caret') === null")
+  assert.equal(await win.webContents.executeJavaScript("document.querySelector('#result').getBoundingClientRect().top"), streamingTop, 'Result must keep its position when streaming is stopped')
   const oldToken = payloads.at(-1).token
   await click('#translate')
   await until("document.querySelector('#result').textContent.includes('普通译文') && !document.querySelector('#resultbar').hidden")
   assert.equal(payloads.at(-1).mode, 'translate')
   assert.ok(!requests.at(-1).messages[0].content.includes('双语词典'))
-  assert.equal(history.list().length, 1)
+  assert.equal(history.list().length, 2)
   assert.equal(history.list()[0].translated, normalOutput)
   win.webContents.send('translate:event', { token: oldToken, type: 'delta', delta: 'STALE' })
   await until("!document.querySelector('#result').textContent.includes('STALE')")
@@ -179,7 +197,7 @@ app.whenReady().then(async () => {
     await win.webContents.executeJavaScript("new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
     const fits = await win.webContents.executeJavaScript(`(() => {
       const toolbar = document.querySelector('.toolbar').getBoundingClientRect()
-      return [...document.querySelectorAll('.toolbar button, .toolbar select')].every(element => {
+      return [...document.querySelectorAll('.toolbar button:not([hidden]), .toolbar select')].every(element => {
         const rect = element.getBoundingClientRect()
         return rect.left >= toolbar.left && rect.right <= toolbar.right + 1 && rect.width >= 20
       })
@@ -257,7 +275,7 @@ app.whenReady().then(async () => {
   await until("[...document.querySelectorAll('[data-dictionary-extra]')].every(input => input.checked)")
   console.log('PASS: dictionary defaults, prompt migration, extras persistence, divider rendering and copy')
   console.log('Screenshots: ' + dataPath)
-  console.log('PASS: one/two-line input, stable streaming height, compact controls, mixed-language swap, bidirectional modes, explicit source, pure-text copy, abort/history, retry, auto reset, Google source, 360px light/dark layout')
+  console.log('PASS: one/two-line input, stable result position on completion/restart/stop, compact controls, mixed-language swap, bidirectional modes, explicit source, pure-text copy, abort/history, retry, auto reset, Google source, 360px light/dark layout')
   app.exit(0)
 }).catch((error) => {
   console.error(error)

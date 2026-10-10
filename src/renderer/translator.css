@@ -100,6 +100,7 @@
   background: var(--surface);
 }
 .mode-switch button,
+.toolbar .ghost,
 .statusbar .ghost,
 #copy {
   -webkit-app-region: no-drag;
@@ -119,6 +120,7 @@
   height: 22px;
 }
 .mode-switch button:hover,
+.toolbar .ghost:hover,
 .statusbar .ghost:hover,
 #copy:hover {
   color: var(--text);
@@ -140,6 +142,7 @@
 .statusbar .status {
   flex: 1;
 }
+.toolbar .ghost,
 .statusbar .ghost {
   margin-left: auto;
   height: var(--control-height);
