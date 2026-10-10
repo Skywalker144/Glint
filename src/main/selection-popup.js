@@ -35,16 +35,18 @@ class SelectionPopup {
     ipcMain.on('selection-popup:translate', this.onActivate)
   }
 
-  setEnabled(value) {
+  setEnabled(value, options = this.state.options) {
+    const previousDelay = this.state.options.delayMs
+    this.state.setOptions(options)
     const enabled = process.platform === 'darwin' && !!value
-    if (enabled === this.enabled) return
+    if (enabled === this.enabled && (!enabled || previousDelay === this.state.options.delayMs)) return
     this.enabled = enabled
     this.nativeStatus = null
     this.state.setEnabled(enabled)
     const generation = ++this.generation
+    this.monitor?.kill()
+    this.monitor = null
     if (!enabled) {
-      this.monitor?.kill()
-      this.monitor = null
       return
     }
     this.start(generation).catch(error => {
@@ -72,7 +74,7 @@ class SelectionPopup {
     }
     await this.windowReady
     if (generation !== this.generation) return
-    const monitor = spawn(binary, [String(process.pid)], { stdio: ['ignore', 'pipe', 'pipe'] })
+    const monitor = spawn(binary, [String(process.pid), String(this.state.options.delayMs)], { stdio: ['ignore', 'pipe', 'pipe'] })
     this.monitor = monitor
     const lines = createInterface({ input: monitor.stdout })
     lines.on('line', line => {

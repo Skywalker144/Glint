@@ -576,7 +576,7 @@ ipcMain.handle('settings:save', (_e, partial) => {
   applyTrayVisibility()
   applyLoginItem()
   applyProxy()
-  selectionPopup?.setEnabled(s.selectionPopup)
+  selectionPopup?.setEnabled(s.selectionPopup, s.selectionPopupOptions)
   sendToTranslator('pin:state', !!s.pinned) // 同步主窗口图钉
   return { settings: s, hotkeyErrors }
 })
@@ -927,7 +927,7 @@ if (!app.requestSingleInstanceLock()) {
         return isQuitting || !!captureWin || (!!focusedWindow && !(activating && focusedWindow === translatorWin))
       },
     })
-    selectionPopup.setEnabled(settings.get().selectionPopup)
+    selectionPopup.setEnabled(settings.get().selectionPopup, settings.get().selectionPopupOptions)
     applyTrayVisibility()
     registerHotkeys()
     prepareOCR() // 后台预编译 Vision OCR 二进制（仅 Mac）

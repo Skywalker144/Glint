@@ -70,6 +70,9 @@
 .s-panel[hidden] {
   display: none;
 }
+.s-section[hidden] {
+  display: none;
+}
 
 .s-pagehead {
   display: flex;
@@ -191,6 +194,11 @@
 #ai-system-prompt:focus,
 #ai-dictionary-prompt:focus {
   border-color: var(--muted);
+}
+.s-field input:disabled,
+.s-field select:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 .s-field select {
   cursor: pointer;

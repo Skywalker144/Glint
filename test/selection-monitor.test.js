@@ -17,7 +17,7 @@ test('native activation observer preserves popup clicks and dismisses external a
 let application = NSApplication.shared
 application.setActivationPolicy(.prohibited)
 let owner = NSRunningApplication.current
-let monitor = SelectionMonitor(parentPID: owner.processIdentifier)
+let monitor = SelectionMonitor(parentPID: owner.processIdentifier, delayMilliseconds: 120)
 monitor.start()
 FileHandle.standardOutput.write(Data("OWNER\\n".utf8))
 NSWorkspace.shared.notificationCenter.post(name: NSWorkspace.didActivateApplicationNotification, object: nil, userInfo: [NSWorkspace.applicationUserInfoKey: owner])

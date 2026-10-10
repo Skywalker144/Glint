@@ -141,3 +141,43 @@ test('icon stays inside the current display including negative screen coordinate
     }
   }
 })
+
+test('configured position and distance place the icon on each side of the release point', () => {
+  const point = { x: 400, y: 250 }
+  const area = { x: 0, y: 0, width: 1440, height: 900 }
+  for (const [position, x, y] of [
+    ['bottom-right', 420, 270], ['bottom-left', 340, 270],
+    ['top-right', 420, 190], ['top-left', 340, 190],
+  ]) {
+    assert.deepEqual(popupBounds(point, area, { position, distance: 20 }), { x, y, width: 40, height: 40 })
+  }
+  assert.deepEqual(popupBounds(point, area, { position: 'top-left', distance: 0 }),
+    { x: 360, y: 210, width: 40, height: 40 })
+})
+
+test('each preferred position flips away from display edges before clamping', () => {
+  const area = { x: -500, y: -400, width: 500, height: 400 }
+  for (const position of ['bottom-right', 'bottom-left', 'top-right', 'top-left']) {
+    for (const point of [{ x: -495, y: -395 }, { x: -5, y: -5 }]) {
+      const b = popupBounds(point, area, { position, distance: 100 })
+      assert.ok(b.x >= area.x && b.y >= area.y)
+      assert.ok(b.x + b.width <= 0 && b.y + b.height <= 0)
+      assert.ok(point.x < b.x || point.x >= b.x + b.width)
+      assert.ok(point.y < b.y || point.y >= b.y + b.height)
+    }
+  }
+})
+
+test('changing options dismisses cached selection and applies placement to the next selection', () => {
+  const f = fixture()
+  f.state.setEnabled(true)
+  f.state.handle({ type: 'selection', text: 'old', x: 400, y: 250 })
+  f.state.setOptions({ position: 'top-left', distance: 30, delayMs: 500 })
+  f.state.activate()
+  assert.deepEqual(f.translated, [])
+  f.state.handle({ type: 'selection', text: 'new', x: 400, y: 250 })
+  assert.deepEqual(f.shown.at(-1), { x: 330, y: 180, width: 40, height: 40 })
+  f.state.setOptions({ position: 'top-left', distance: 30, delayMs: 500 })
+  f.state.activate()
+  assert.deepEqual(f.translated, ['new'])
+})

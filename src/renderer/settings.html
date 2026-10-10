@@ -64,15 +64,45 @@
                   <input type="checkbox" id="pin-window" />
                   <span>钉住主窗口<small>翻译窗口常驻，切到别的应用也不消失（也可在窗口右上角点图钉）</small></span>
                 </label>
-                <label class="s-toggle" id="selection-popup-setting" hidden>
-                  <input type="checkbox" id="selection-popup" />
-                  <span>自动显示划词翻译图标<small>macOS 选中文字后显示「译」，点击翻译；需要辅助功能权限</small></span>
-                </label>
                 <label class="s-toggle">
                   <input type="checkbox" id="hide-tray-icon" />
                   <span>隐藏菜单栏图标<small>隐藏后仅靠快捷键操作；设置入口移到翻译窗左上角的齿轮（按 ⌥Q 调出）</small></span>
                 </label>
               </div>
+            </div>
+
+            <div class="s-section" id="selection-popup-setting" hidden>
+              <div class="s-section-head">
+                <div>
+                  <h2>划词翻译</h2>
+                  <p>选中文字后显示「译」，点击翻译；需要辅助功能权限。</p>
+                </div>
+              </div>
+              <div class="s-card">
+                <label class="s-toggle">
+                  <input type="checkbox" id="selection-popup" />
+                  <span>自动显示划词翻译图标</span>
+                </label>
+                <div class="s-field">
+                  <label for="selection-popup-position">显示方位</label>
+                  <div class="s-inline"><select id="selection-popup-position"></select></div>
+                </div>
+                <div class="s-field">
+                  <label for="selection-popup-distance">显示距离</label>
+                  <div class="s-inline">
+                    <input id="selection-popup-distance" type="number" min="0" step="1" required />
+                    <span class="s-tip">像素</span>
+                  </div>
+                </div>
+                <div class="s-field">
+                  <label for="selection-popup-delay">出现延迟</label>
+                  <div class="s-inline">
+                    <input id="selection-popup-delay" type="number" min="0" step="1" required />
+                    <span class="s-tip">毫秒</span>
+                  </div>
+                </div>
+              </div>
+              <p class="s-tip">方位和距离以松开鼠标的位置为基准，靠近屏幕边缘时自动避让。延迟越小出现越快，实际速度取决于目标应用。</p>
             </div>
 
             <div class="s-section">
@@ -363,6 +393,7 @@
 
     </div>
 
+    <script src="../shared/selection-popup-options.js"></script>
     <script src="settings.js"></script>
   </body>
 </html>

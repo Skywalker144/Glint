@@ -21,7 +21,11 @@ let helperAccessibility = false
 
 ipcMain.handle('settings:get', () => settings.get())
 ipcMain.handle('settings:defaults', () => settings.DEFAULTS)
-ipcMain.handle('settings:save', (_e, value) => ({ settings: settings.save(value), hotkeyErrors: [] }))
+ipcMain.handle('settings:save', (_e, value) => {
+  const saved = settings.save(value)
+  popup?.setEnabled(saved.selectionPopup, saved.selectionPopupOptions)
+  return { settings: saved, hotkeyErrors: [] }
+})
 ipcMain.handle('settings:providers', () => require('../src/main/engines/providers').listProviders())
 ipcMain.handle('settings:languages', () => require('../src/main/languages').LANGUAGES)
 ipcMain.handle('render-markdown', (_event, text) => require('../src/main/markdown').renderMarkdown(text))
@@ -82,6 +86,8 @@ app.whenReady().then(async () => {
   popup.setEnabled(true)
   await until(() => popup.nativeStatus)
   const ready = popup.nativeStatus
+  popup.monitor.stdout.pause()
+  popup.window.webContents.setBackgroundThrottling(false)
   assert.equal(popup.window.isFocusable(), false)
   popup.window.webContents.on('console-message', details => {
     if (details.level === 'error') errors.push(details.message)
@@ -149,16 +155,73 @@ app.whenReady().then(async () => {
 
   settingsWin = new BrowserWindow({
     width: 640, height: 800, show: false,
-    webPreferences: { preload: path.join(root, 'src/preload/index.js'), contextIsolation: true, nodeIntegration: false },
+    webPreferences: { preload: path.join(root, 'src/preload/index.js'), contextIsolation: true, nodeIntegration: false, backgroundThrottling: false },
   })
   await settingsWin.loadFile(path.join(root, 'src/renderer/settings.html'))
   await until(() => settingsWin.webContents.executeJavaScript("document.querySelector('#provider').options.length > 0 && !document.querySelector('#selection-popup-setting').hidden"))
   assert.equal(await settingsWin.webContents.executeJavaScript("document.querySelector('#selection-popup').checked"), true)
+  assert.deepEqual(await settingsWin.webContents.executeJavaScript(`({
+    position: document.querySelector('#selection-popup-position').value,
+    distance: Number(document.querySelector('#selection-popup-distance').value),
+    delayMs: Number(document.querySelector('#selection-popup-delay').value),
+  })`), settings.DEFAULTS.selectionPopupOptions)
+  for (const [selector, value] of [
+    ['#selection-popup-position', 'top-left'], ['#selection-popup-distance', '24'], ['#selection-popup-delay', '600'],
+  ]) {
+    await settingsWin.webContents.executeJavaScript(`
+      document.querySelector('${selector}').value = '${value}'
+      document.querySelector('${selector}').dispatchEvent(new Event('change'))
+    `)
+  }
+  await until(() => settings.get().selectionPopupOptions.delayMs === 600 && popup.nativeStatus)
+  assert.deepEqual(settings.get().selectionPopupOptions, { position: 'top-left', distance: 24, delayMs: 600 })
+  assert.equal(popup.monitor.spawnargs.at(-1), '600')
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dataPath, 'settings.json'), 'utf8')).selectionPopupOptions,
+    settings.get().selectionPopupOptions)
+  await settingsWin.reload()
+  await until(() => settingsWin.webContents.executeJavaScript("document.querySelector('#selection-popup-delay').value === '600'"))
+  assert.equal(await settingsWin.webContents.executeJavaScript("document.querySelector('#selection-popup-position').value"), 'top-left')
+  assert.equal(await settingsWin.webContents.executeJavaScript("document.querySelector('#selection-popup-distance').value"), '24')
+  for (const theme of ['light', 'dark']) {
+    nativeTheme.themeSource = theme
+    await settingsWin.webContents.executeJavaScript("document.querySelector('#selection-popup-setting').scrollIntoView(); new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
+    fs.writeFileSync(path.join(dataPath, 'settings-' + theme + '.png'), (await settingsWin.webContents.capturePage()).toPNG())
+  }
+  await settingsWin.webContents.executeJavaScript(`{
+    const distance = document.querySelector('#selection-popup-distance')
+    distance.value = '0'
+    distance.dispatchEvent(new Event('input'))
+  }`)
+  await until(() => settings.get().selectionPopupOptions.distance === 0)
+  await settingsWin.webContents.executeJavaScript(`{
+    const distance = document.querySelector('#selection-popup-distance')
+    distance.value = '101'
+    distance.dispatchEvent(new Event('change'))
+  }`)
+  assert.equal(await settingsWin.webContents.executeJavaScript("document.querySelector('#selection-popup-distance').value"), '0')
+  await settingsWin.webContents.executeJavaScript(`{
+    const distance = document.querySelector('#selection-popup-distance')
+    distance.value = '24'
+    distance.dispatchEvent(new Event('input'))
+  }`)
+  await until(() => settings.get().selectionPopupOptions.distance === 24)
+  settingsWin.hide()
+  popup.state.handle({ type: 'selection', text: 'configured placement', x: 200, y: 200 })
+  assert.deepEqual(popup.window.getBounds(), { x: 136, y: 136, width: 40, height: 40 })
+  popup.dismiss()
   await until(() => settingsWin.webContents.executeJavaScript("document.querySelector('#perm-selection').textContent === '权限异常'"))
   assert.equal(await settingsWin.webContents.executeJavaScript("document.querySelector('#perm-accessibility').textContent"), '已授权')
   helperAccessibility = true
   await settingsWin.webContents.executeJavaScript("document.querySelector('#refresh-selection').click()")
   await until(() => settingsWin.webContents.executeJavaScript("document.querySelector('#perm-selection').textContent === '可用'"))
+  await settingsWin.webContents.executeJavaScript("document.querySelector('#selection-popup').click()")
+  await until(() => settings.get().selectionPopup === false)
+  assert.equal(popup.monitor, null)
+  assert.equal(await settingsWin.webContents.executeJavaScript("document.querySelector('#selection-popup-distance').disabled && document.querySelector('#selection-popup-delay').disabled && document.querySelector('#selection-popup-position').disabled"), true)
+  await settingsWin.webContents.executeJavaScript("document.querySelector('#selection-popup').click()")
+  await until(() => settings.get().selectionPopup === true && popup.nativeStatus)
+  assert.equal(popup.monitor.spawnargs.at(-1), '600')
+  assert.equal(await settingsWin.webContents.executeJavaScript("document.querySelector('#selection-popup-delay').disabled"), false)
   await settingsWin.webContents.executeJavaScript("document.querySelector('#selection-popup').click()")
   await until(() => settings.get().selectionPopup === false)
   assert.deepEqual(settings.get().hotkeys, settings.DEFAULTS.hotkeys)
@@ -175,6 +238,9 @@ app.whenReady().then(async () => {
   console.log(JSON.stringify({ ok: true, accessibility: ready.accessibility,
     electronAccessibility: systemPreferences.isTrustedAccessibilityClient(false), artifacts: dataPath }))
   if (process.argv.includes('--interactive')) {
+    settings.save({ selectionPopup: true })
+    popup.setEnabled(true, settings.get().selectionPopupOptions)
+    await until(() => popup.nativeStatus)
     translations.length = 0
     popup.monitor.stdout.on('data', data => {
       fs.appendFileSync(path.join(dataPath, 'native-events.jsonl'), data)

@@ -13,6 +13,7 @@ let state = {
   engine: 'google',
   launchAtLogin: false,
   selectionPopup: true,
+  selectionPopupOptions: normalizeSelectionPopupOptions(),
   primaryLanguage: 'zh-CN',
   secondaryLanguage: 'en',
   systemPrompt: '',
@@ -49,6 +50,7 @@ function normalizeSettings(s) {
     engine: (s && s.engine) || 'google',
     launchAtLogin: !!(s && s.launchAtLogin),
     selectionPopup: s?.selectionPopup !== false,
+    selectionPopupOptions: normalizeSelectionPopupOptions(s?.selectionPopupOptions),
     primaryLanguage: (s && s.primaryLanguage) || 'zh-CN',
     secondaryLanguage: (s && s.secondaryLanguage) || 'en',
     systemPrompt: (s && s.systemPrompt) || defaultSettings.systemPrompt || '',
@@ -177,8 +179,46 @@ $('#pin-window').addEventListener('change', (e) => {
 
 $('#selection-popup').addEventListener('change', (e) => {
   state.selectionPopup = e.target.checked
+  renderSelectionPopupOptions()
   markDirty()
 })
+
+for (const position of SELECTION_POPUP_POSITIONS) {
+  const option = document.createElement('option')
+  option.value = position.value
+  option.textContent = position.label
+  $('#selection-popup-position').appendChild(option)
+}
+
+$('#selection-popup-position').addEventListener('change', (e) => {
+  state.selectionPopupOptions.position = e.target.value
+  markDirty()
+})
+
+for (const [key, selector] of [['distance', '#selection-popup-distance'], ['delayMs', '#selection-popup-delay']]) {
+  const input = $(selector)
+  input.max = SELECTION_POPUP_LIMITS[key]
+  for (const type of ['input', 'change']) {
+    input.addEventListener(type, () => {
+      if (!input.checkValidity()) {
+        if (type === 'change') input.value = state.selectionPopupOptions[key]
+        return
+      }
+      state.selectionPopupOptions[key] = input.valueAsNumber
+      markDirty()
+    })
+  }
+}
+
+function renderSelectionPopupOptions() {
+  $('#selection-popup').checked = state.selectionPopup
+  $('#selection-popup-position').value = state.selectionPopupOptions.position
+  $('#selection-popup-distance').value = state.selectionPopupOptions.distance
+  $('#selection-popup-delay').value = state.selectionPopupOptions.delayMs
+  for (const input of $$('#selection-popup-setting .s-field input, #selection-popup-setting select')) {
+    input.disabled = !state.selectionPopup
+  }
+}
 
 $('#hide-tray-icon').addEventListener('change', (e) => {
   state.hideTrayIcon = e.target.checked
@@ -778,7 +818,7 @@ async function loadChangelog() {
 function renderAll() {
   $$('.recorder').forEach(renderHotkey)
   $('#launch-at-login').checked = state.launchAtLogin
-  $('#selection-popup').checked = state.selectionPopup
+  renderSelectionPopupOptions()
   $('#pin-window').checked = state.pinned
   $('#hide-tray-icon').checked = state.hideTrayIcon
   $('#proxy-enabled').checked = state.proxy.enabled

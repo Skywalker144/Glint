@@ -11,6 +11,7 @@ struct MonitorEvent: Encodable {
 
 final class SelectionMonitor {
     private let parentPID: pid_t
+    private let selectionDelay: TimeInterval
     private let system = AXUIElementCreateSystemWide()
     private let reader = DispatchQueue(label: "com.glint.selection-reader")
     private var revision = 0
@@ -22,8 +23,9 @@ final class SelectionMonitor {
     private var permissionTimer: Timer?
     private var trusted: Bool?
 
-    init(parentPID: pid_t) {
+    init(parentPID: pid_t, delayMilliseconds: Double) {
         self.parentPID = parentPID
+        self.selectionDelay = delayMilliseconds / 1000
         AXUIElementSetMessagingTimeout(system, 0.15)
     }
 
@@ -111,7 +113,7 @@ final class SelectionMonitor {
                   pid != parentPID, pid != getpid() else { return }
             let requestRevision = revision
             self.startPoint = nil
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + selectionDelay) { [weak self] in
                 guard let self, self.revision == requestRevision else { return }
                 self.reader.async { [weak self] in
                     guard let self else { return }
@@ -171,9 +173,11 @@ final class SelectionMonitor {
 
 let application = NSApplication.shared
 application.setActivationPolicy(.prohibited)
-guard let argument = CommandLine.arguments.dropFirst().first, let parentPID = Int32(argument), parentPID > 0 else {
+guard CommandLine.arguments.count == 3,
+      let parentPID = Int32(CommandLine.arguments[1]), parentPID > 0,
+      let delayMilliseconds = Double(CommandLine.arguments[2]), delayMilliseconds.isFinite, delayMilliseconds >= 0 else {
     exit(1)
 }
-let monitor = SelectionMonitor(parentPID: parentPID)
+let monitor = SelectionMonitor(parentPID: parentPID, delayMilliseconds: delayMilliseconds)
 monitor.start()
 application.run()
