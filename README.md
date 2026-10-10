@@ -35,12 +35,9 @@ npm start
 
 ## 发布新版本（开发者）
 
-打 `v*` 标签即触发 GitHub Actions 在 Mac / Windows 各自打包并发布到 Release：
+发布构建入口见 [GitHub Actions 工作流](.github/workflows/release.yml)。先同步 `package.json`、`package-lock.json` 与 [应用内更新日志](src/main/changelog.js)，完成验证并提交到 `main`，再推送对应的 `v*` 标签。
 
-```bash
-npm version patch        # 升版本号并打 tag
-git push --follow-tags   # 推送触发 CI
-```
+工作流在 Mac / Windows 上依次打包并上传到同一份 Release 草稿。确认两平台构建成功、下载资源齐全后，填写与应用内更新日志一致的发布说明并正式发布。
 
 本地单平台打包：`npm run dist:mac` / `npm run dist:win`（Mac 包需要 `swiftc` 预编译原生工具）。
 
