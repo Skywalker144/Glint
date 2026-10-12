@@ -21,6 +21,7 @@ let active
 let win
 let failNext = false
 let copiedText = ''
+let vocabularyOpens = 0
 const normalOutput = '**普通译文**\n\n- [链接](https://example.com)\n\n`code`'
 const dictionaryOutput = '**词条** /ˈæbstrækt/\nadj. 抽象的\nn. 摘要；梗概'
 const googleRequests = []
@@ -68,6 +69,7 @@ ipcMain.on('translate:stream', async (event, payload) => {
 })
 ipcMain.on('translate:stop', () => active?.abort())
 ipcMain.on('copy-text', (_event, text) => { copiedText = text })
+ipcMain.on('vocabulary:open', () => { vocabularyOpens++ })
 
 async function until(expression) {
   const deadline = Date.now() + 5000
@@ -104,12 +106,15 @@ app.whenReady().then(async () => {
   })()`)
   const oneLine = await inputMetrics()
   assert.ok(Math.abs(oneLine.height - oneLine.line - oneLine.inset) < 1, 'Empty input must show one line')
-  win.webContents.send('focus-input')
-  await until("document.activeElement === document.querySelector('#input')")
+  win.show()
+  win.focus()
+  await until('document.hasFocus()')
   win.setSize(360, 480)
   win.webContents.send('translate-text', '人工智能')
   await until("document.querySelector('#dictionary-mode').getAttribute('aria-pressed') === 'true' && document.querySelector('#result').textContent.includes('词条')")
   assert.equal(await win.webContents.executeJavaScript("document.activeElement === document.querySelector('#input')"), false, 'Selected text must not leave the source input focused')
+  assert.equal(await win.webContents.executeJavaScript("document.activeElement === document.querySelector('.app')"), true, 'The first selection must focus the translation container')
+  assert.equal(await win.webContents.executeJavaScript("getComputedStyle(document.activeElement).outlineStyle"), 'none', 'The initial selection focus must not draw a focus ring')
   const streamingTop = await win.webContents.executeJavaScript("document.querySelector('#result').getBoundingClientRect().top")
   const streamingControlsFit = await win.webContents.executeJavaScript(`(() => {
     const toolbar = document.querySelector('.toolbar').getBoundingClientRect()
@@ -280,6 +285,36 @@ app.whenReady().then(async () => {
   await win.webContents.executeJavaScript("new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
   assert.equal(await win.webContents.executeJavaScript("document.querySelector('#result').textContent.includes('STALE SELECTION')"), false)
   assert.equal(await win.webContents.executeJavaScript("document.activeElement === document.querySelector('#input')"), false)
+  for (const selector of ['#vocabulary', '#settings', '#input']) {
+    const text = 'reopened selection from ' + selector
+    await win.webContents.executeJavaScript(`document.querySelector(${JSON.stringify(selector)}).focus()`)
+    win.hide()
+    win.show()
+    win.focus()
+    await until('document.hasFocus()')
+    win.webContents.send('translate-text', text)
+    await until(`document.querySelector('#input').value === ${JSON.stringify(text)} && !document.querySelector('#resultbar').hidden`)
+    assert.equal(await win.webContents.executeJavaScript("document.activeElement === document.querySelector('.app')"), true, 'A new selection must replace the previous control focus: ' + selector)
+    assert.equal(await win.webContents.executeJavaScript("document.querySelector('button:focus-visible, textarea:focus-visible, select:focus-visible') === null && getComputedStyle(document.activeElement).outlineStyle === 'none'"), true)
+  }
+  win.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' })
+  win.webContents.sendInputEvent({ type: 'char', keyCode: '\r' })
+  win.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' })
+  await win.webContents.executeJavaScript('new Promise(resolve => setTimeout(resolve, 50))')
+  assert.equal(vocabularyOpens, 0, 'Enter after a selection must not open vocabulary')
+  win.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Tab' })
+  win.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Tab' })
+  await until("document.activeElement === document.querySelector('#vocabulary')")
+  assert.equal(await win.webContents.executeJavaScript("document.activeElement.matches(':focus-visible') && getComputedStyle(document.activeElement).outlineStyle === 'solid'"), true, 'Tab navigation must retain the visible button focus ring')
+  win.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' })
+  win.webContents.sendInputEvent({ type: 'char', keyCode: '\r' })
+  win.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' })
+  await win.webContents.executeJavaScript('new Promise(resolve => setTimeout(resolve, 50))')
+  assert.equal(vocabularyOpens, 1, 'Keyboard navigation must still open vocabulary')
+  win.webContents.send('show-message', 'No selected text')
+  await until("document.querySelector('#status').textContent === 'No selected text'")
+  assert.equal(await win.webContents.executeJavaScript("document.activeElement === document.querySelector('#input') && document.querySelector('#input').selectionStart === 0 && document.querySelector('#input').selectionEnd === document.querySelector('#input').value.length"), true, 'Selection errors must still focus and select the source input')
+  console.log('PASS: initial and repeated selection focus, no unintended Enter action, Tab focus ring, keyboard vocabulary activation and selection error input focus')
   await win.loadFile(path.join(root, 'src/renderer/settings.html'))
   await until("document.querySelector('#ai-dictionary-prompt').value.includes('n.、adj.')")
   assert.equal(await win.webContents.executeJavaScript("[...document.querySelectorAll('[data-dictionary-extra]')].every(input => !input.checked)"), true)

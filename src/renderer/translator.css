@@ -326,6 +326,9 @@
 .app {
   position: relative;
 }
+.app:focus-visible {
+  outline: none;
+}
 .titlebar {
   gap: 6px;
   padding: 3px var(--panel-inset);
