@@ -6,7 +6,7 @@ macOS 14 及以上的原生翻译工具。SwiftUI + AppKit 界面，常驻菜单
 
 ## 开发与运行
 
-需要 macOS、Swift 6.4 工具链，以及对应的 Xcode 或 Command Line Tools。首次构建联网获取锁定在 `Package.resolved` 中的依赖。无需 Node、Electron 或 WebView。
+需要 macOS，以及能构建 `Package.swift` 和锁定依赖的 Xcode 或 Swift 工具链。发布使用 [Release 工作流](.github/workflows/release.yml)运行环境自带的 Xcode。首次构建联网获取锁定在 `Package.resolved` 中的依赖。无需 Node、Electron 或 WebView。
 
 ```bash
 bash scripts/build.sh debug
@@ -23,7 +23,7 @@ bash scripts/package.sh
 
 生成 Apple Silicon / Intel 通用 `.app`、`.dmg` 和 `-mac.zip`，保存在 `dist/`。应用使用本地 ad-hoc 签名；尚未配置 Developer ID 与公证。版本及最低系统版本以 [Info.plist](build/Info.plist) 为准。
 
-公开发布入口是 [Release 工作流](.github/workflows/release.yml)：更新 Info.plist 与[应用内更新日志](Sources/GlintCore/Resources/changelog.json)，完成验证后提交，再推送匹配的 `v*` 标签。工作流生成 Release 草稿，审核后由维护者发布。
+公开发布入口是 [Release 工作流](.github/workflows/release.yml)：更新 Info.plist 与[应用内更新日志](Sources/GlintCore/Resources/changelog.json)，完成验证后提交，再推送匹配的 `v*` 标签。工作流生成 Release 草稿，审核后由维护者发布。构建失败时，可从默认分支手动运行该工作流，输入原标签重新构建，无需移动标签。
 
 ## 数据
 

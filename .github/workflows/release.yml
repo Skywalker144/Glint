@@ -3,19 +3,29 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to build
+        required: true
+        type: string
 permissions:
   contents: write
 jobs:
   build:
     runs-on: macos-26
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
-      - uses: swift-actions/setup-swift@v2
         with:
-          swift-version: "6.4"
+          ref: ${{ env.RELEASE_TAG }}
+      - run: |
+          xcodebuild -version
+          swift --version
       - run: |
           version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' build/Info.plist)
-          test "$GITHUB_REF_NAME" = "v$version"
+          test "$RELEASE_TAG" = "v$version"
       - run: bash scripts/swift.sh test --disable-xctest
       - run: bash scripts/package.sh
       - run: |
@@ -27,6 +37,6 @@ jobs:
           entry = next(item for item in entries if item['version'] == version)
           print('\n'.join('- ' + item for item in entry['items']))
           PY
-          gh release create "$GITHUB_REF_NAME" dist/Glint-*.dmg dist/Glint-*-mac.zip dist/SHA256SUMS --draft --title "Glint $GITHUB_REF_NAME" --notes-file .cache/release-notes.md
+          gh release create "$RELEASE_TAG" dist/Glint-*.dmg dist/Glint-*-mac.zip dist/SHA256SUMS --verify-tag --draft --title "Glint $RELEASE_TAG" --notes-file .cache/release-notes.md
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
