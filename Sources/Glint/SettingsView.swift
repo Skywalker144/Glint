@@ -3,9 +3,49 @@ import AppKit
 import ApplicationServices
 import GlintCore
 
+enum SettingsPage: String, CaseIterable, Identifiable {
+    case general, translate, ai, hotkeys, permissions, history, about
+
+    var id: Self { self }
+    var title: String {
+        switch self {
+        case .general: "通用"
+        case .translate: "翻译"
+        case .ai: "提示词"
+        case .hotkeys: "快捷键"
+        case .permissions: "权限"
+        case .history: "历史"
+        case .about: "关于"
+        }
+    }
+    var symbol: String {
+        switch self {
+        case .general: "slider.horizontal.3"
+        case .translate: "globe"
+        case .ai: "sparkles"
+        case .hotkeys: "keyboard"
+        case .permissions: "lock.shield"
+        case .history: "clock.arrow.circlepath"
+        case .about: "info.circle"
+        }
+    }
+    var detail: String {
+        switch self {
+        case .general: "让 Glint 按你的习惯工作。"
+        case .translate: "配置翻译服务与语言方向。"
+        case .ai: "调整 AI 翻译与单词词典的输出。"
+        case .hotkeys: "点击录制组合键，按 Esc 或 Delete 清空。"
+        case .permissions: "管理截图与划词翻译需要的系统权限。"
+        case .history: "搜索和回看最近 100 条翻译。"
+        case .about: "闪译 · Glint"
+        }
+    }
+}
+
 struct SettingsView: View {
+    static let size = CGSize(width: 720, height: 600)
     @Bindable var model: AppModel
-    @ViewState<String> var tab = "general"
+    @ViewState<SettingsPage> var tab = .general
     @ViewState<String> private var historySearch = ""
     @ViewState<Bool> private var clearConfirmation = false
     @ViewState<String> private var networkStatus = ""
@@ -14,46 +54,75 @@ struct SettingsView: View {
     @ViewState<Bool> private var busy = false
     @ViewState<Bool> private var accessibility = AXIsProcessTrusted()
     @ViewState<Bool> private var screen = CGPreflightScreenCaptureAccess()
-    private let tabs = [("general", "通用", "slider.horizontal.3"), ("translate", "翻译", "globe"), ("ai", "提示词", "sparkles"), ("hotkeys", "快捷键", "keyboard"), ("permissions", "权限", "lock"), ("history", "历史", "clock"), ("about", "关于", "info.circle")]
+    private let popupPositions = [(id: "bottom-right", title: "右下"), (id: "bottom-left", title: "左下"), (id: "top-right", title: "右上"), (id: "top-left", title: "左上")]
     private var provider: Provider { Provider.find(model.settings.engine) ?? Catalog.providers[0] }
     private var config: ProviderConfig { model.settings.providers[provider.id] ?? .init() }
-    private var contentHeight: CGFloat { ["general":520, "translate":490, "ai":520, "hotkeys":320, "permissions":330, "history":480, "about":520][tab] ?? 480 }
+    private var filteredHistory: [HistoryItem] { model.history.filter { historySearch.isEmpty || ($0.original + $0.translated).localizedCaseInsensitiveContains(historySearch) } }
     var body: some View {
         WindowCard {
-            VStack(spacing: 0) {
-                HStack(spacing: 10) {
-                    Text("设置").font(.system(size: 15, weight: .bold))
-                    Text(model.saveMessage).font(.system(size: 11)).foregroundStyle(Theme.muted).lineLimit(1)
-                    WindowDragArea().frame(height: 22).frame(maxWidth: .infinity)
-                    IconButton(symbol: "xmark", label: "关闭设置", action: model.closeSettings)
-                }.padding(.horizontal, 14).padding(.vertical, 8)
-                HStack(alignment: .top, spacing: 0) {
-                    VStack(spacing: 2) {
-                        ForEach(tabs, id: \.0) { item in
-                            Button { tab = item.0 } label: {
-                                HStack(spacing: 9) { Image(systemName: item.2).frame(width: 15); Text(item.1); Spacer(minLength: 0) }
-                                    .padding(.horizontal, 10).padding(.vertical, 8).background(tab == item.0 ? Theme.surface : .clear, in: RoundedRectangle(cornerRadius: 10))
-                            }.buttonStyle(.plain).font(.system(size: 13, weight: tab == item.0 ? .semibold : .regular))
+            HStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: 20) {
+                    HStack(spacing: 10) {
+                        Text("译").font(.system(size: 20, weight: .semibold))
+                            .frame(width: 36, height: 36).background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Glint").font(.system(size: 14, weight: .semibold))
+                            Text("设置").font(.system(size: 11)).foregroundStyle(Theme.muted)
                         }
-                        Spacer(minLength: 0)
-                    }.padding(8).frame(width: 128)
-                    Divider()
+                    }.padding(.horizontal, 8).padding(.top, 10)
+                        .background(WindowDragArea())
+                    VStack(spacing: 4) {
+                        ForEach(SettingsPage.allCases) { page in
+                            Button { tab = page } label: {
+                                HStack(spacing: 10) {
+                                    Image(systemName: page.symbol).font(.system(size: 13)).frame(width: 18)
+                                    Text(page.title)
+                                    Spacer(minLength: 0)
+                                }
+                                .font(.system(size: 12, weight: tab == page ? .semibold : .regular))
+                                .foregroundStyle(tab == page ? Theme.text : Theme.muted)
+                                .padding(.horizontal, 12).frame(height: 34)
+                                .background(tab == page ? Theme.card : .clear, in: RoundedRectangle(cornerRadius: 8))
+                                .contentShape(RoundedRectangle(cornerRadius: 8))
+                            }.buttonStyle(.plain).accessibilityAddTraits(tab == page ? .isSelected : [])
+                        }
+                    }
+                    Spacer(minLength: 0)
+                    Text("Glint \(AppVersion.current)").font(.system(size: 10)).foregroundStyle(Theme.muted)
+                        .padding(.horizontal, 12).padding(.bottom, 6)
+                }.padding(12).frame(width: 152).background(Theme.sidebar)
+                Rectangle().fill(Theme.border).frame(width: 1)
+                VStack(spacing: 0) {
+                    HStack(alignment: .top, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(tab.title).font(.system(size: 20, weight: .semibold))
+                            Text(tab.detail).font(.system(size: 12)).foregroundStyle(Theme.muted)
+                        }.frame(maxWidth: .infinity, alignment: .leading)
+                        IconButton(symbol: "xmark", label: "关闭设置", action: model.closeSettings)
+                    }.padding(24).background(WindowDragArea())
+                    Rectangle().fill(Theme.border.opacity(0.6)).frame(height: 1)
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 16) {
+                        VStack(alignment: .leading, spacing: 18) {
                             switch tab {
-                            case "general": general
-                            case "translate": translation
-                            case "ai": prompts
-                            case "hotkeys": hotkeys
-                            case "permissions": permissions
-                            case "history": history
-                            default: about
+                            case .general: general
+                            case .translate: translation
+                            case .ai: prompts
+                            case .hotkeys: hotkeys
+                            case .permissions: permissions
+                            case .history: history
+                            case .about: about
                             }
-                        }.padding(.horizontal, 20).padding(.top, 16).padding(.bottom, 18).frame(maxWidth: .infinity, alignment: .leading)
-                    }.frame(maxWidth: .infinity)
-                }.frame(height: contentHeight)
-            }
-        }.onChange(of: tab, initial: true) { _, _ in model.resizeSettings(contentHeight + 42) }
+                        }.padding(24).frame(maxWidth: .infinity, alignment: .leading)
+                    }.frame(maxWidth: .infinity, maxHeight: .infinity).id(tab)
+                    HStack(spacing: 6) {
+                        Image(systemName: model.saveMessage.isEmpty || model.saveMessage == "已自动保存" ? "checkmark.circle" : "info.circle").font(.system(size: 10))
+                        Text(model.saveMessage.isEmpty ? "更改自动保存" : model.saveMessage).textSelection(.enabled)
+                        Spacer(minLength: 0)
+                    }.font(.system(size: 11)).foregroundStyle(Theme.muted).padding(.horizontal, 24).padding(.vertical, 10)
+                }.background(Theme.settingsBackground)
+            }.frame(height: Self.size.height)
+                .buttonStyle(SettingsButtonStyle()).textFieldStyle(SettingsTextFieldStyle())
+        }.onAppear { model.resizeSettings(Self.size.height) }
             .onExitCommand(perform: model.closeSettings)
             .onReceive(Timer.publish(every: 2, on: .main, in: .common).autoconnect()) { _ in accessibility = AXIsProcessTrusted(); screen = CGPreflightScreenCaptureAccess() }
             .alert("确定要清空所有翻译历史吗？", isPresented: $clearConfirmation) {
@@ -61,36 +130,40 @@ struct SettingsView: View {
                 Button("清空", role: .destructive, action: model.clearHistory)
             }
     }
-    func heading(_ title: String, _ detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 3) { Text(title).font(.system(size: 19, weight: .bold)); Text(detail).font(.system(size: 12)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true) }
-    }
     func section(_ title: String, _ detail: String = "") -> some View {
-        VStack(alignment: .leading, spacing: 3) { Text(title).font(.system(size: 14, weight: .semibold)); if !detail.isEmpty { Text(detail).font(.system(size: 12)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true) } }
+        VStack(alignment: .leading, spacing: 5) { Text(title).font(.system(size: 12, weight: .semibold)); if !detail.isEmpty { Text(detail).font(.system(size: 11)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true) } }
     }
     var general: some View {
         Group {
-            heading("通用", "控制应用启动和基础行为。")
             SettingsCard {
-                GlintToggle(title: "开机时自动启动", detail: "登录后在后台静默启动，菜单栏待命", isOn: model.binding(\.launchAtLogin))
+                GlintToggle(title: "开机时自动启动", detail: "登录后在菜单栏待命", symbol: "power", isOn: model.binding(\.launchAtLogin))
                 Divider()
-                GlintToggle(title: "钉住主窗口", detail: "翻译窗口常驻，切到别的应用也不消失", isOn: model.binding(\.pinned))
+                GlintToggle(title: "钉住主窗口", detail: "切换应用时保持翻译窗口显示", symbol: "pin", isOn: model.binding(\.pinned))
                 Divider()
-                GlintToggle(title: "隐藏菜单栏图标", detail: "隐藏后可按输入翻译快捷键，再点击齿轮打开设置", isOn: model.binding(\.hideTrayIcon))
+                GlintToggle(title: "隐藏菜单栏图标", detail: "可用快捷键打开翻译窗口，再进入设置", symbol: "menubar.rectangle", isOn: model.binding(\.hideTrayIcon))
             }
             section("划词翻译", "选中文字后显示「译」，点击翻译；需要辅助功能权限。")
             SettingsCard {
                 GlintToggle(title: "自动显示划词翻译图标", isOn: model.binding(\.selectionPopup))
                 Divider()
-                HStack { Text("显示方位"); Spacer(); Picker("显示方位", selection: model.binding(\.selectionPopupOptions.position)) { Text("右下").tag("bottom-right"); Text("左下").tag("bottom-left"); Text("右上").tag("top-right"); Text("左上").tag("top-left") }.labelsHidden().frame(width: 160) }
-                HStack { Text("显示距离"); Spacer(); TextField("", value: model.binding(\.selectionPopupOptions.distance), format: .number).frame(width: 100); Text("像素").foregroundStyle(Theme.muted) }
-                HStack { Text("出现延迟"); Spacer(); TextField("", value: model.binding(\.selectionPopupOptions.delayMs), format: .number).frame(width: 100); Text("毫秒").foregroundStyle(Theme.muted) }
-            }.textFieldStyle(.roundedBorder)
+                SettingsRow(title: "显示方位") {
+                    ChoiceMenu(title: "显示方位", value: popupPositions.first { $0.id == model.settings.selectionPopupOptions.position }?.title ?? popupPositions[0].title, selection: model.binding(\.selectionPopupOptions.position)) {
+                        ForEach(popupPositions, id: \.id) { Text($0.title).tag($0.id) }
+                    }.frame(width: 160)
+                }
+                SettingsRow(title: "显示距离") {
+                    HStack { TextField("距离", value: model.binding(\.selectionPopupOptions.distance), format: .number).frame(width: 100).accessibilityLabel("显示距离"); Text("像素").font(.system(size: 11)).foregroundStyle(Theme.muted).frame(width: 26) }
+                }
+                SettingsRow(title: "出现延迟") {
+                    HStack { TextField("延迟", value: model.binding(\.selectionPopupOptions.delayMs), format: .number).frame(width: 100).accessibilityLabel("出现延迟"); Text("毫秒").font(.system(size: 11)).foregroundStyle(Theme.muted).frame(width: 26) }
+                }
+            }
             Text("方位和距离以松开鼠标的位置为基准，靠近屏幕边缘时自动避让。").font(.system(size: 12)).foregroundStyle(Theme.muted)
             section("网络代理", "让翻译、朗读和更新请求走本地代理。")
             SettingsCard {
                 GlintToggle(title: "使用代理", detail: "关闭时直连", isOn: model.binding(\.proxy.enabled))
                 Divider()
-                HStack { Text("代理地址"); TextField("127.0.0.1:7890", text: model.binding(\.proxy.url)); Button("测试", action: testProxy).disabled(busy) }.textFieldStyle(.roundedBorder)
+                HStack(spacing: 10) { Text("代理地址"); TextField("127.0.0.1:7890", text: model.binding(\.proxy.url)).accessibilityLabel("代理地址"); Button("测试", action: testProxy).disabled(busy) }
                 if !networkStatus.isEmpty { Text(networkStatus).font(.system(size: 12)).foregroundStyle(Theme.muted) }
             }
         }
@@ -100,45 +173,48 @@ struct SettingsView: View {
     }
     var translation: some View {
         Group {
-            heading("翻译", "选择翻译服务并就地完成配置，查看语言方向。")
             SettingsCard {
-                HStack {
-                    Text("翻译服务商")
-                    Picker("翻译服务商", selection: model.binding(\.engine)) { ForEach(Catalog.providers) { Text($0.label).tag($0.id) } }.labelsHidden()
+                SettingsRow(title: "翻译服务商") {
+                    ChoiceMenu(title: "翻译服务商", value: provider.label, selection: model.binding(\.engine)) { ForEach(Catalog.providers) { Text($0.label).tag($0.id) } }.frame(width: 230)
                 }
                 if provider.isAI {
                     Divider()
-                    if provider.id == "custom" { HStack { Text("Base URL").frame(width: 66, alignment: .leading); TextField("https://...", text: providerBinding(\.baseURL)) } }
-                    HStack { Text("API Key").frame(width: 66, alignment: .leading); SecureField(provider.keyHint ?? "sk-...", text: providerBinding(\.apiKey)) }
-                    if let link = provider.keyURL, let url = URL(string: link) { Link("获取 Key ↗", destination: url).font(.system(size: 12)) }
+                    if provider.id == "custom" { HStack { Text("Base URL").frame(width: 66, alignment: .leading); TextField("https://...", text: providerBinding(\.baseURL)).accessibilityLabel("Base URL") } }
+                    HStack { Text("API Key").frame(width: 66, alignment: .leading); SecureField(provider.keyHint ?? "sk-...", text: providerBinding(\.apiKey)).accessibilityLabel("API Key") }
+                    if let link = provider.keyURL, let url = URL(string: link) { Link("获取 Key ↗", destination: url).buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(Theme.muted).frame(maxWidth: .infinity, alignment: .trailing) }
                     HStack {
                         Text("模型").frame(width: 66, alignment: .leading)
-                        ModelComboBox(value: providerBinding(\.model), items: models.isEmpty ? provider.models ?? [] : models).frame(height: 26)
+                        ModelPicker(value: providerBinding(\.model), items: models.isEmpty ? provider.models ?? [] : models)
                         Button("加载模型", action: loadModels).disabled(busy)
                     }
                 } else { Text("免费 Google 翻译开箱即用，无需 API Key 或模型，也不使用系统提示词。").font(.system(size: 12)).foregroundStyle(Theme.muted) }
-            }.textFieldStyle(.roundedBorder)
+            }
             if provider.isAI {
                 HStack { Button("测试翻译", action: testEngine).disabled(busy); Text(engineStatus).font(.system(size: 12)).foregroundStyle(Theme.muted).textSelection(.enabled) }
             }
             section("语言方向", "输入是主语言时翻到副语言；其它语言统一翻到主语言。")
             SettingsCard {
-                Picker("主语言", selection: model.binding(\.primaryLanguage)) { ForEach(Catalog.languages) { Text($0.label).tag($0.code) } }
+                SettingsRow(title: "主语言") {
+                    ChoiceMenu(title: "主语言", value: Language.label(model.settings.primaryLanguage), selection: model.binding(\.primaryLanguage)) { ForEach(Catalog.languages) { Text($0.label).tag($0.code) } }.frame(width: 230)
+                }
                 Divider()
-                Picker("副语言", selection: model.binding(\.secondaryLanguage)) { ForEach(Catalog.languages) { Text($0.label).tag($0.code) } }
+                SettingsRow(title: "副语言") {
+                    ChoiceMenu(title: "副语言", value: Language.label(model.settings.secondaryLanguage), selection: model.binding(\.secondaryLanguage)) { ForEach(Catalog.languages) { Text($0.label).tag($0.code) } }.frame(width: 230)
+                }
             }
-            HStack { Text(Language.label(model.settings.primaryLanguage) + "输入"); Spacer(); Text("翻译成" + Language.label(model.settings.secondaryLanguage)) }.padding(10).background(Theme.surface, in: RoundedRectangle(cornerRadius: 10))
-            HStack { Text("其它语言输入"); Spacer(); Text("翻译成" + Language.label(model.settings.primaryLanguage)) }.padding(10).background(Theme.surface, in: RoundedRectangle(cornerRadius: 10))
+            VStack(spacing: 10) {
+                HStack { Text(Language.label(model.settings.primaryLanguage) + "输入"); Spacer(); Image(systemName: "arrow.right"); Text(Language.label(model.settings.secondaryLanguage)) }
+                HStack { Text("其它语言输入"); Spacer(); Image(systemName: "arrow.right"); Text(Language.label(model.settings.primaryLanguage)) }
+            }.font(.system(size: 11)).foregroundStyle(Theme.muted).padding(12).background(Theme.surface, in: RoundedRectangle(cornerRadius: 9))
         }.onChange(of: model.settings.engine) { _, _ in models = []; engineStatus = "" }
     }
     var prompts: some View {
         Group {
-            heading("提示词", "约束 AI 翻译的输出风格与单词词典行为。")
             if !provider.isAI {
                 Text("当前选择的是免费 Google 翻译，不使用系统提示词与词典；切换到 AI 服务商后可在此配置。").padding(12).background(Theme.surface, in: RoundedRectangle(cornerRadius: 10))
             } else {
                 HStack { section("系统提示词", "可用占位符：{{primary}}、{{secondary}}、{{target}}。"); Spacer(); Button("恢复默认") { model.changeSettings { $0.systemPrompt = Catalog.defaultSystemPrompt } }.font(.system(size: 12)) }
-                TextEditor(text: model.binding(\.systemPrompt)).font(.system(size: 13)).frame(height: 146).padding(6).background(Theme.surface).clipShape(RoundedRectangle(cornerRadius: 10))
+                PromptEditor(title: "系统提示词", text: model.binding(\.systemPrompt))
                 HStack { section("单词词典", "输入单个词时给出音标与紧凑释义。"); Spacer(); Button("恢复默认") { model.changeSettings { $0.dictionaryPrompt = Catalog.defaultDictionaryPrompt } }.font(.system(size: 12)) }
                 SettingsCard {
                     GlintToggle(title: "启用单词词典", detail: "输入单词、或划词选中单词时自动切换", isOn: model.binding(\.dictionaryMode))
@@ -147,16 +223,15 @@ struct SettingsView: View {
                     GlintToggle(title: "近义词 / 反义词", detail: "各最多三个，标明词性", isOn: model.binding(\.dictionaryExtras.synonyms))
                     GlintToggle(title: "关联词", detail: "最多三个常用关联词，附简短释义", isOn: model.binding(\.dictionaryExtras.related))
                 }
-                TextEditor(text: model.binding(\.dictionaryPrompt)).font(.system(size: 13)).frame(height: 146).padding(6).background(Theme.surface).clipShape(RoundedRectangle(cornerRadius: 10))
+                PromptEditor(title: "词典提示词", text: model.binding(\.dictionaryPrompt))
             }
         }
     }
     var hotkeys: some View {
         Group {
-            heading("快捷键", "点击输入框后按下新的组合键。Esc / Delete 清空。")
             SettingsCard {
                 ForEach([("input","输入翻译"),("screenshot","截图翻译"),("selection","划词翻译"),("clipboard","剪贴板翻译")], id: \.0) { key, label in
-                    HStack { Text(label).frame(width: 80, alignment: .leading); HotkeyRecorder(value: Binding(get: { model.settings.hotkeys[key] ?? "" }, set: { value in model.changeSettings { $0.hotkeys[key] = value } })).frame(height: 30) }
+                    SettingsRow(title: label) { HotkeyRecorder(value: Binding(get: { model.settings.hotkeys[key] ?? "" }, set: { value in model.changeSettings { $0.hotkeys[key] = value } })).frame(width: 230, height: 30) }
                     if key != "clipboard" { Divider() }
                 }
             }
@@ -164,11 +239,10 @@ struct SettingsView: View {
     }
     var permissions: some View {
         Group {
-            heading("权限", "检查截图翻译和划词翻译依赖的系统权限。")
             SettingsCard {
                 HStack {
                     section("辅助功能", "用于读取当前选中的文字。")
-                    Spacer(); Text(accessibility ? "已授权" : "未授权").font(.system(size: 12))
+                    Spacer(); PermissionBadge(granted: accessibility)
                     Button("打开设置") {
                         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
                         _ = AXIsProcessTrustedWithOptions(options)
@@ -178,7 +252,7 @@ struct SettingsView: View {
                 Divider()
                 HStack {
                     section("屏幕录制", "用于截图翻译时获取屏幕画面。")
-                    Spacer(); Text(screen ? "已授权" : "未授权").font(.system(size: 12))
+                    Spacer(); PermissionBadge(granted: screen)
                     Button("打开设置") { Self.openPermission("ScreenCapture") }
                 }
             }
@@ -189,14 +263,18 @@ struct SettingsView: View {
     }
     var history: some View {
         Group {
-            heading("历史", "查看最近 100 条翻译记录。")
             HStack {
-                TextField("搜索原文或译文", text: $historySearch).textFieldStyle(.roundedBorder)
+                TextField("搜索原文或译文", text: $historySearch)
                 Button("刷新") { model.history = model.store.history }
                 Button("清空") { clearConfirmation = true }.disabled(model.history.isEmpty)
             }
-            if model.history.isEmpty { Text("暂无翻译历史").foregroundStyle(Theme.muted) }
-            ForEach(model.history.filter { historySearch.isEmpty || ($0.original + $0.translated).localizedCaseInsensitiveContains(historySearch) }) { item in
+            if filteredHistory.isEmpty {
+                VStack(spacing: 10) {
+                    Image(systemName: historySearch.isEmpty ? "clock.arrow.circlepath" : "magnifyingglass").font(.system(size: 26, weight: .light))
+                    Text(historySearch.isEmpty ? "暂无翻译历史" : "没有匹配的记录").font(.system(size: 12))
+                }.foregroundStyle(Theme.muted).frame(maxWidth: .infinity).padding(.vertical, 60)
+            }
+            ForEach(filteredHistory) { item in
                 VStack(alignment: .leading, spacing: 6) {
                     Text(item.original).font(.system(size: 12)).foregroundStyle(Theme.muted).lineLimit(1)
                     Text(item.translated).lineLimit(2)
@@ -216,7 +294,11 @@ struct SettingsView: View {
     }
     var about: some View {
         Group {
-            heading("闪译 · Glint", "划词 / 截图 / 输入翻译")
+            HStack(spacing: 14) {
+                Text("译").font(.system(size: 30, weight: .semibold)).frame(width: 62, height: 62)
+                    .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.border, lineWidth: 1))
+                VStack(alignment: .leading, spacing: 6) { Text("闪译 · Glint").font(.system(size: 17, weight: .semibold)); Text("划词 / 截图 / 输入翻译").font(.system(size: 12)).foregroundStyle(Theme.muted) }
+            }
             SettingsCard {
                 HStack { Text("版本"); Spacer(); Text("v" + AppVersion.current) }
                 Link("GitHub 仓库 ↗", destination: URL(string: AppVersion.repository)!)
@@ -277,27 +359,5 @@ struct SettingsView: View {
                 engineStatus = "✓ " + result.translated
             } catch { engineStatus = HTTPClient.friendly(error, engine: settings.engine) }
         }
-    }
-}
-
-struct ModelComboBox: NSViewRepresentable {
-    @Binding var value: String
-    let items: [String]
-    func makeCoordinator() -> Coordinator { Coordinator(self) }
-    func makeNSView(context: Context) -> NSComboBox {
-        let combo = NSComboBox(); combo.isEditable = true; combo.completes = true; combo.delegate = context.coordinator
-        combo.font = .systemFont(ofSize: 13); combo.placeholderString = "模型名"; combo.setAccessibilityLabel("模型")
-        return combo
-    }
-    func updateNSView(_ combo: NSComboBox, context: Context) {
-        context.coordinator.parent = self
-        if combo.objectValues.compactMap({ $0 as? String }) != items { combo.removeAllItems(); combo.addItems(withObjectValues: items) }
-        if combo.stringValue != value { combo.stringValue = value }
-    }
-    final class Coordinator: NSObject, NSComboBoxDelegate {
-        var parent: ModelComboBox
-        init(_ parent: ModelComboBox) { self.parent = parent }
-        func controlTextDidChange(_ notification: Notification) { if let combo = notification.object as? NSComboBox { parent.value = combo.stringValue } }
-        func comboBoxSelectionDidChange(_ notification: Notification) { if let combo = notification.object as? NSComboBox, let selected = combo.objectValueOfSelectedItem as? String { parent.value = selected } }
     }
 }

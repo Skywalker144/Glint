@@ -166,7 +166,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func openSettings() {
         selection.dismiss()
         if settingsWindow == nil {
-            settingsWindow = GlintWindowController(title: "设置 · Glint", size: CGSize(width: 640, height: 562), root: SettingsView(model: model))
+            settingsWindow = GlintWindowController(title: "设置 · Glint", size: SettingsView.size, root: SettingsView(model: model))
             settingsWindow?.onFocusChanged = { [weak self] focused in
                 guard let self else { return }
                 self.recording = focused

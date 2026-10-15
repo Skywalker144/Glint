@@ -9,7 +9,7 @@
 - [服务商与流式翻译](../Sources/GlintCore/TranslationEngine.swift)、[网络、代理及错误](../Sources/GlintCore/HTTPClient.swift)
 - [语言、服务商、提示词和更新日志目录](../Sources/GlintCore/Resources/)
 - [设置与词条数据类型](../Sources/GlintCore/Models.swift)、[持久化及旧数据导入](../Sources/GlintCore/LocalStore.swift)
-- [七个设置面板](../Sources/Glint/SettingsView.swift)、[生词本](../Sources/Glint/VocabularyView.swift)
+- [七个设置面板与窗口尺寸](../Sources/Glint/SettingsView.swift)、[共用菜单、输入框、按钮与编辑器](../Sources/Glint/Controls.swift)、[生词本](../Sources/Glint/VocabularyView.swift)
 - [原生 Markdown、表格与公式](../Sources/Glint/NativeMarkdown.swift)、[在线及系统朗读](../Sources/Glint/SpeechService.swift)
 - [截图选区、Retina 裁剪及 Vision OCR](../Sources/Glint/CaptureService.swift)
 - [全局快捷键与录制](../Sources/Glint/Hotkeys.swift)、[划词索引](selection-popup.md)
@@ -32,6 +32,6 @@ bash scripts/build.sh debug
 dist/Glint.app/Contents/MacOS/Glint --data-directory "$PWD/.cache/ui-data" --verify-ui "$PWD/.cache/ui"
 ```
 
-[诊断入口](../Sources/Glint/AppDiagnostics.swift)仅编入 Debug。它使用独立数据生成三个窗口宽度、深浅主题、富文本、全部设置页和生词本截图。`--data-directory` 禁用全局快捷键、划词监听、登录启动设置变更和自动检查更新，适合隔离交互验证。
+[诊断入口](../Sources/Glint/AppDiagnostics.swift)仅编入 Debug。它使用独立数据生成三个窗口宽度、翻译页与全部设置页的深浅主题、富文本和生词本截图。`--data-directory` 禁用全局快捷键、划词监听、登录启动设置变更和自动检查更新，适合隔离交互验证。
 
 真实系统验收还需覆盖：外部应用选区与浮动「译」点击、屏幕录制授权后的截图拖拽、全屏与多显示器、登录启动、在线服务商密钥和代理，以及两个签名发布版本之间的更新。系统权限和真实服务商响应不能由本机模拟服务代替。

@@ -67,44 +67,14 @@ struct TranslatorView: View {
     @ViewBuilder func languageMenu(source isSource: Bool) -> some View {
         let selected = isSource ? model.overrides.source : model.overrides.target
         let detected = isSource ? model.source : model.target
-        CompactLanguagePicker(selection: selected) { value in
+        let label = Catalog.languages.first { $0.code == selected }.map { $0.shortLabel ?? $0.label } ?? "自动"
+        ChoiceMenu(title: isSource ? "原文语言" : "译文语言", value: label, selection: Binding(get: { selected }, set: { value in
             if isSource { model.overrides.source = value } else { model.overrides.target = value }
             model.translate()
-        }.frame(width: 54, height: 26).help((isSource ? "原文语言：" : "译文语言：") + Language.label(selected.isEmpty ? detected : selected))
-    }
-}
-
-struct CompactLanguagePicker: NSViewRepresentable {
-    let selection: String
-    let changed: (String) -> Void
-    final class Control: NSPopUpButton {
-        var changed: (String) -> Void = { _ in }
-        override var intrinsicContentSize: NSSize { NSSize(width: 54, height: 26) }
-        override func draw(_ dirtyRect: NSRect) {
-            let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: 6, yRadius: 6)
-            NSColor.adaptive(0xf4f4f5, 0x2a2a2d).setFill(); path.fill()
-            NSColor.adaptive(0xe4e4e7, 0x38383c).setStroke(); path.lineWidth = 1; path.stroke()
-            let code = selectedItem?.representedObject as? String ?? ""
-            let text = Catalog.languages.first { $0.code == code }.map { $0.shortLabel ?? $0.label } ?? "自动"
-            let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 12), .foregroundColor: NSColor.adaptive(0x1a1a1a, 0xf2f2f5)]
-            let size = text.size(withAttributes: attrs)
-            text.draw(at: CGPoint(x: (bounds.width - size.width) / 2, y: (bounds.height - size.height) / 2), withAttributes: attrs)
-        }
-        @objc func selectLanguage() { changed(selectedItem?.representedObject as? String ?? ""); needsDisplay = true }
-    }
-    func makeNSView(context: Context) -> Control {
-        let control = Control(frame: .zero, pullsDown: false)
-        control.addItem(withTitle: "自动"); control.lastItem?.representedObject = ""
-        control.menu?.addItem(.separator())
-        for language in Catalog.languages { control.addItem(withTitle: language.label); control.lastItem?.representedObject = language.code }
-        control.target = control; control.action = #selector(Control.selectLanguage)
-        control.setAccessibilityLabel("选择语言")
-        return control
-    }
-    func sizeThatFits(_ proposal: ProposedViewSize, nsView: Control, context: Context) -> CGSize? { CGSize(width: 54, height: 26) }
-    func updateNSView(_ view: Control, context: Context) {
-        view.changed = changed
-        view.select(view.itemArray.first { ($0.representedObject as? String) == selection })
-        view.needsDisplay = true
+        }), compact: true) {
+            Text("自动").tag("")
+            Divider()
+            ForEach(Catalog.languages) { Text($0.label).tag($0.code) }
+        }.help((isSource ? "原文语言：" : "译文语言：") + Language.label(selected.isEmpty ? detected : selected))
     }
 }

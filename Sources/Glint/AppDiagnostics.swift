@@ -31,14 +31,18 @@ enum AppDiagnostics {
             delegate.translator.window.setContentSize(CGSize(width: 420, height: 400))
             try await Task.sleep(for: .milliseconds(350))
             try snapshot(delegate.translator.window, at: output.appendingPathComponent("rich-text.png"))
-            for tab in ["general", "translate", "ai", "hotkeys", "permissions", "history", "about"] {
-                let controller = GlintWindowController(title: "设置", size: CGSize(width: 640, height: 562), root: SettingsView(model: model, tab: tab))
-                model.resizeSettings = { controller.fitHeight($0) }
-                controller.show()
-                try await Task.sleep(for: .milliseconds(300))
-                try snapshot(controller.window, at: output.appendingPathComponent("settings-\(tab).png"))
-                controller.hide()
+            for dark in [false, true] {
+                NSApp.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                for tab in SettingsPage.allCases {
+                    let controller = GlintWindowController(title: "设置", size: SettingsView.size, root: SettingsView(model: model, tab: tab))
+                    model.resizeSettings = { controller.fitHeight($0) }
+                    controller.show()
+                    try await Task.sleep(for: .milliseconds(300))
+                    try snapshot(controller.window, at: output.appendingPathComponent("settings-\(tab.rawValue)-\(dark ? "dark" : "light").png"))
+                    controller.hide()
+                }
             }
+            NSApp.appearance = NSAppearance(named: .aqua)
             delegate.openVocabulary()
             try await Task.sleep(for: .milliseconds(300))
             try snapshot(delegate.vocabularyWindow!.window, at: output.appendingPathComponent("vocabulary.png"))

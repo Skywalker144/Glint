@@ -84,21 +84,38 @@ struct HotkeyRecorder: NSViewRepresentable {
         var onRecord: (String) -> Void = { _ in }
         var value = ""
         override var acceptsFirstResponder: Bool { true }
-        override func mouseDown(with event: NSEvent) { window?.makeFirstResponder(self); title = "请按下新的组合键…" }
+        @objc func beginRecording() { window?.makeFirstResponder(self) }
+        override func becomeFirstResponder() -> Bool {
+            title = "请按下新的组合键…"; needsDisplay = true
+            return super.becomeFirstResponder()
+        }
+        override func draw(_ dirtyRect: NSRect) {
+            let focused = window?.firstResponder === self
+            let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: 7, yRadius: 7)
+            NSColor(Theme.surface).setFill(); path.fill()
+            (focused ? NSColor(Theme.text).withAlphaComponent(0.55) : NSColor(Theme.border)).setStroke()
+            path.lineWidth = 1; path.stroke()
+            let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.monospacedSystemFont(ofSize: 12, weight: .medium), .foregroundColor: value.isEmpty || focused ? NSColor(Theme.muted) : NSColor(Theme.text)]
+            let size = title.size(withAttributes: attributes)
+            title.draw(at: CGPoint(x: (bounds.width - size.width) / 2, y: (bounds.height - size.height) / 2), withAttributes: attributes)
+        }
         override func keyDown(with event: NSEvent) {
             if [UInt16(53), 51, 117].contains(event.keyCode) { onRecord(""); window?.makeFirstResponder(nil); return }
             guard let accelerator = Hotkey.accelerator(event) else { NSSound.beep(); return }
             onRecord(accelerator); window?.makeFirstResponder(nil)
         }
-        override func resignFirstResponder() -> Bool { title = value.isEmpty ? "点击后按下组合键" : Hotkey.display(value); return super.resignFirstResponder() }
+        override func resignFirstResponder() -> Bool { title = value.isEmpty ? "点击录制快捷键" : Hotkey.display(value); needsDisplay = true; return super.resignFirstResponder() }
     }
     func makeNSView(context: Context) -> Recorder {
-        let button = Recorder(); button.bezelStyle = .rounded; button.alignment = .left
+        let button = Recorder(); button.isBordered = false; button.focusRingType = .none; button.alignment = .center
+        button.target = button; button.action = #selector(Recorder.beginRecording)
         button.font = .systemFont(ofSize: 13); button.setAccessibilityLabel("录制快捷键")
         return button
     }
     func updateNSView(_ view: Recorder, context: Context) {
-        view.value = value; view.title = value.isEmpty ? "点击后按下组合键" : Hotkey.display(value)
+        view.value = value
+        if view.window?.firstResponder !== view { view.title = value.isEmpty ? "点击录制快捷键" : Hotkey.display(value) }
+        view.needsDisplay = true
         view.onRecord = { value = $0 }
     }
 }
