@@ -1,106 +1,32 @@
 # 闪译 · Glint
 
-一个轻量的跨平台（Mac / Windows）翻译小工具，对标 Bob / TTime。黑白单色界面、跟随系统深浅、G2 圆角。快捷键、翻译引擎都可在「设置」里自定义。
+macOS 14 及以上的原生翻译工具。SwiftUI + AppKit 界面，常驻菜单栏，支持输入、截图、划词和剪贴板翻译，保留紧凑黑白浮窗、词典、生词本、历史、朗读与七个设置面板。
 
-## 三个全局快捷键
+快捷键可在设置中录制；默认值、语言及服务商目录以[源码资源](docs/README.md)为准。截图使用 ScreenCaptureKit 与离线 Vision OCR；跨应用划词需要辅助功能权限。两项权限可从「设置 → 权限」打开系统授权页。
 
-| 快捷键 | 功能 | 说明 |
-| --- | --- | --- |
-| `Option+Q` | 输入翻译 | 弹出窗口，输入/粘贴文字，回车翻译 |
-| `Option+W` | 截图翻译 | 框选屏幕区域 → OCR 识别 → 翻译 |
-| `Option+E` | 划词翻译 | 选中任意文字 → 自动取词 → 翻译 |
+## 开发与运行
 
-> Windows 上 `Option` 即 `Alt`，快捷键通用。
-
-- 翻译方向自动判断：中文 → 英文，其他语言 → 中文。
-- 常驻菜单栏（图标为「译」），不占 Dock。右键菜单可手动触发功能或退出。
-- [macOS 划词图标](docs/selection-popup.md)：选中文字并松开鼠标后，旁边显示「译」图标，点击打开翻译面板。需要辅助功能权限及目标应用支持系统选区读取；可在「设置 → 通用 → 划词翻译」设置启用、方位、距离和出现延迟。
-
-## 运行
+需要 macOS、Swift 6.4 工具链，以及对应的 Xcode 或 Command Line Tools。首次构建联网获取锁定在 `Package.resolved` 中的依赖。无需 Node、Electron 或 WebView。
 
 ```bash
-npm install   # 首次
-npm start
+bash scripts/build.sh debug
+open dist/Glint.app
 ```
 
-## 下载（普通用户）
+用 Xcode 打开 `Package.swift` 可编辑与调试；验证系统集成时运行脚本生成的 `.app`，保持应用标识与资源完整。
 
-到 [Releases](https://github.com/Skywalker144/Glint/releases) 下载：Mac 用 `.dmg`，Windows 用 `.exe`。
+## 打包
 
-> Mac 包使用本地签名，未做 Developer ID 签名 / 公证：
-> - **Mac**：若提示「已损坏，无法打开」，在终端运行 `xattr -cr /Applications/Glint.app` 去掉下载隔离即可（一次性；"右键打开"对"已损坏"无效）。
-> - **Windows**：若弹 SmartScreen，点「更多信息 → 仍要运行」。
->
-> 想下载即开、无任何警告，需要 Apple 开发者账号（$99/年）做**公证**。
-
-## 发布新版本（开发者）
-
-发布构建入口见 [GitHub Actions 工作流](.github/workflows/release.yml)。先同步 `package.json`、`package-lock.json` 与 [应用内更新日志](src/main/changelog.js)，完成验证并提交到 `main`，再推送对应的 `v*` 标签。
-
-工作流在 Mac / Windows 上依次打包并上传到同一份 Release 草稿。确认两平台构建成功、下载资源齐全后，填写与应用内更新日志一致的发布说明并正式发布。
-
-本地单平台打包：`npm run dist:mac` / `npm run dist:win`（Mac 包需要 `swiftc` 预编译原生工具）。
-
-## macOS 首次使用要授权（重要）
-
-开发模式下，系统会把权限记在 **Electron** 这个程序名下：
-
-1. **屏幕录制**（截图翻译需要）：系统设置 → 隐私与安全性 → 屏幕录制 → 勾选 **Electron**，然后**重启 App**。
-2. **辅助功能**（划词翻译需要）：系统设置 → 隐私与安全性 → 辅助功能 → 勾选 **Electron**。
-
-第一次用截图 / 划词时若没反应，基本都是还没授权。授权后重新 `npm start` 即可。
-
-> 截图 OCR：**Mac 用系统 Vision 框架**（离线、免费、中文很准），首次启动会用 `swiftc` 自动编译一个小程序并缓存（约 10s，仅一次）。非 Mac 平台回退 `tesseract.js`（首次联网下载中英文识别数据约 10–15MB）。
-
-## 设置（托盘「译」→ 设置…）
-
-左侧分栏：**快捷键 / 翻译引擎 / 关于**。
-
-- **快捷键**：点录制框按下组合键即可，保存时校验冲突与可注册性。
-- **翻译引擎**：下拉选服务商（免费 Google / OpenAI / DeepSeek / Anthropic / Gemini / OpenRouter / 自定义）。选 AI 后填 API Key、加载模型并选择，可「测试翻译」验证；每家各存各的 Key/模型，切换不丢。自定义可填任意 OpenAI 兼容的 Base URL（Groq / xAI / 本地 Ollama 等）。
-
-## 生词本
-
-查词结果底栏的五角星用于收藏或取消收藏；从翻译窗口顶部的书本按钮或托盘「生词本…」进入。生词本支持搜索、查看已保存释义，以及按收藏时间或查询次数排序。
-
-开发入口与验证命令见 [开发索引](docs/README.md)，应用图标的源文件与统一导出见 [图标索引](docs/icons.md)。
-
-## 技术栈
-
-- **Electron**：跨平台桌面外壳、全局快捷键、托盘、剪贴板。
-- **OCR**：Mac 用系统 **Vision**（`src/main/native/macocr.swift`，swiftc 编译）；其他平台用 **tesseract.js**。
-- **翻译引擎**：免费 Google，或 OpenAI / DeepSeek / Anthropic / Gemini / OpenRouter / 自定义（OpenAI 兼容）等 AI，设置里切换。
-
-## 代码结构
-
-```
-src/
-  main/
-    index.js          主进程：窗口、托盘、快捷键、截图取词、设置
-    translate.js      判断翻译方向 + 调用引擎
-    engines/
-      index.js        调度器 translateWith / listModels
-      providers.js    服务商注册表（加新服务商改这里）
-      openai-compat.js OpenAI/DeepSeek/Gemini/OpenRouter/自定义 通用引擎
-      anthropic.js    Anthropic Messages API
-      google.js       免费 Google 翻译
-    ocr.js            OCR：Mac Vision，其他平台 tesseract.js
-    native/macocr.swift  Vision OCR 命令行程序
-    settings.js       设置持久化（userData/settings.json）
-    platform.js       平台相关：划词取词（要加 Windows 支持改这里）
-  preload/
-    index.js          安全地把能力暴露给界面
-  renderer/
-    theme.css         共享主题（配色变量 + 通用组件）
-    translator.*      主翻译窗口（输入 + 结果）
-    settings.*        设置窗口
-    capture.*         截图选区遮罩
+```bash
+bash scripts/package.sh
 ```
 
-## 之后可以加的
+生成 Apple Silicon / Intel 通用 `.app`、`.dmg` 和 `-mac.zip`，保存在 `dist/`。应用使用本地 ad-hoc 签名；尚未配置 Developer ID 与公证。版本及最低系统版本以 [Info.plist](build/Info.plist) 为准。
 
-- 截图结果用贴近鼠标的小气泡展示
-- 生词本复习计划与导入导出
-- 把 API Key 存进系统钥匙串（目前明文存在 settings.json）
-- Windows 托盘图标 & 取词适配、打包成安装包
-```
+公开发布入口是 [Release 工作流](.github/workflows/release.yml)：更新 Info.plist 与[应用内更新日志](Sources/GlintCore/Resources/changelog.json)，完成验证后提交，再推送匹配的 `v*` 标签。工作流生成 Release 草稿，审核后由维护者发布。
+
+## 数据
+
+原生版首次启动会导入旧 Glint 的设置、历史和生词本，保留原文件并另存备份。原生版使用独立目录 `~/Library/Application Support/com.skywalker144.glint`，导入与持久化实现见 [LocalStore](Sources/GlintCore/LocalStore.swift)。API Key 沿用本地设置存储。
+
+[开发索引](docs/README.md)包含实现入口、验证命令和系统集成验收范围。

@@ -1,20 +1,37 @@
 # 开发索引
 
-- [运行与打包](../README.md)
-- [手动源语言、翻译方向与模式的统一解析](../src/main/translation-request.js)
-- [翻译执行、流式元信息与历史记录](../src/main/translate.js)
-- [翻译面板圆角、紧凑顶栏与模式切换、边缘拖拽热区](../src/renderer/translator.css)
-- [语言选择、交换、模式切换与纯文本复制交互](../src/renderer/translator.js)
-- [模式与提示词回归测试](../test/translation-request.test.js)：`node --test test/translation-request.test.js test/prompt.test.js test/languages.test.js`
-- [Electron 交互验证](../scripts/check-translator.cjs)：`npx electron scripts/check-translator.cjs`，覆盖流式完成、重启和停止时的译文位置及窄窗口布局；使用隔离的 `.cache` 数据目录及本地模拟流式接口。
-- [词典格式与可选补充内容提示词](../src/main/engines/prompt.js)
-- [词典内容偏好与持久化默认值](../src/main/settings.js)
-- [共享文字系统分析与混合语言判断](../src/shared/language-scripts.js)
-- [规范词头与词条身份](../src/main/dictionary-entry.js)
-- [生词本格式迁移、备份、持久化与收藏后查询计数](../src/main/vocabulary-store.js)
-- [生词本窗口与入口](../src/main/vocabulary-window.js)
-- [生词本搜索、排序与离线词条详情](../src/renderer/vocabulary.js)
-- [生词本数据回归](../test/vocabulary.test.js)：`node --test test/vocabulary.test.js`
-- [生词本 Electron 交互验证](../scripts/check-vocabulary.cjs)：`npx electron scripts/check-vocabulary.cjs`，使用隔离的 `.cache` 数据目录及本地模拟流式接口。
-- [自动发布工作流](../.github/workflows/release.yml)
-- [应用内更新日志](../src/main/changelog.js)
+- [运行、打包与数据](../README.md)
+- [窗口、菜单栏、系统入口与登录启动](../Sources/Glint/GlintApp.swift)
+- [浮窗生命周期、自动高度与焦点](../Sources/Glint/WindowController.swift)
+- [翻译面板及语言控件](../Sources/Glint/TranslatorView.swift)、[主题与宽度拖拽](../Sources/Glint/Theme.swift)、[输入法与键盘](../Sources/Glint/NativeInput.swift)
+- [翻译状态、取消、收藏及历史写入口](../Sources/Glint/AppModel.swift)
+- [语言与文字系统规则](../Sources/GlintCore/Language.swift)、[模式与方向解析](../Sources/GlintCore/TranslationRequest.swift)
+- [服务商与流式翻译](../Sources/GlintCore/TranslationEngine.swift)、[网络、代理及错误](../Sources/GlintCore/HTTPClient.swift)
+- [语言、服务商、提示词和更新日志目录](../Sources/GlintCore/Resources/)
+- [设置与词条数据类型](../Sources/GlintCore/Models.swift)、[持久化及旧数据导入](../Sources/GlintCore/LocalStore.swift)
+- [七个设置面板](../Sources/Glint/SettingsView.swift)、[生词本](../Sources/Glint/VocabularyView.swift)
+- [原生 Markdown、表格与公式](../Sources/Glint/NativeMarkdown.swift)、[在线及系统朗读](../Sources/Glint/SpeechService.swift)
+- [截图选区、Retina 裁剪及 Vision OCR](../Sources/Glint/CaptureService.swift)
+- [全局快捷键与录制](../Sources/Glint/Hotkeys.swift)、[划词索引](selection-popup.md)
+- [更新下载、校验与安装](../Sources/Glint/UpdateService.swift)、[构建](../scripts/build.sh)、[分发包](../scripts/package.sh)、[Release 工作流](../.github/workflows/release.yml)
+- [图标](icons.md)
+- [原迁移路线评估](migration-feasibility.md)
+
+## 验证
+
+按改动范围选择测试，使用 `--filter` 限定套件：
+
+```bash
+bash scripts/swift.sh test --disable-xctest --filter 'TranslationRulesTests|StorageTests|NetworkTests|StreamingTests|NativeTests'
+```
+
+[核心测试](../Tests/GlintCoreTests/)包含由旧版生成的 420 组方向／模式／提示词行为样本、迁移与原文件保护，以及本机 HTTP 服务的真实分段 SSE、Unicode、取消和错误测试。[原生测试](../Tests/GlintTests/)覆盖文字渲染、公式、真实 Vision OCR、快捷键和多屏坐标。设置 `GLINT_LIVE_NETWORK=1` 可另外测试真实 Google 翻译和在线朗读音频。测试需要访问本机网络与系统 OCR 服务；样本和数据均存于 `.cache/`。
+
+```bash
+bash scripts/build.sh debug
+dist/Glint.app/Contents/MacOS/Glint --data-directory "$PWD/.cache/ui-data" --verify-ui "$PWD/.cache/ui"
+```
+
+[诊断入口](../Sources/Glint/AppDiagnostics.swift)仅编入 Debug。它使用独立数据生成三个窗口宽度、深浅主题、富文本、全部设置页和生词本截图。`--data-directory` 禁用全局快捷键、划词监听、登录启动设置变更和自动检查更新，适合隔离交互验证。
+
+真实系统验收还需覆盖：外部应用选区与浮动「译」点击、屏幕录制授权后的截图拖拽、全屏与多显示器、登录启动、在线服务商密钥和代理，以及两个签名发布版本之间的更新。系统权限和真实服务商响应不能由本机模拟服务代替。

@@ -1,0 +1,55 @@
+[
+  {
+    "code": "zh-CN",
+    "label": "中文",
+    "promptName": "中文"
+  },
+  {
+    "code": "en",
+    "label": "英语",
+    "promptName": "英文"
+  },
+  {
+    "code": "ja",
+    "label": "日语",
+    "promptName": "日语"
+  },
+  {
+    "code": "ko",
+    "label": "韩语",
+    "promptName": "韩语"
+  },
+  {
+    "code": "fr",
+    "label": "法语",
+    "promptName": "法语"
+  },
+  {
+    "code": "de",
+    "label": "德语",
+    "promptName": "德语"
+  },
+  {
+    "code": "es",
+    "shortLabel": "西语",
+    "label": "西班牙语",
+    "promptName": "西班牙语"
+  },
+  {
+    "code": "ru",
+    "label": "俄语",
+    "promptName": "俄语"
+  },
+  {
+    "code": "it",
+    "shortLabel": "意语",
+    "label": "意大利语",
+    "promptName": "意大利语"
+  },
+  {
+    "code": "pt",
+    "shortLabel": "葡语",
+    "label": "葡萄牙语",
+    "promptName": "葡萄牙语"
+  }
+]

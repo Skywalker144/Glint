@@ -1,6 +1,6 @@
-# 应用图标
+# 图标索引
 
-- [图标设计源](../scripts/icon.html)
-- [统一导出](../scripts/make-icon.js)：`npm run build:icon`，一次生成 PNG、macOS ICNS 和 Windows ICO。
-- [几何与资源回归](../scripts/check-icon.cjs)：`npx electron scripts/check-icon.cjs`。
-- [平台打包引用](../package.json)
+- [应用图标母版 PNG](../build/icon.png)
+- [macOS 图标](../build/icon.icns)：`bash scripts/icons.sh` 从母版生成。
+- [菜单栏模板图标](../Sources/Glint/Resources/)
+- [应用元数据](../build/Info.plist)、[资源打包](../scripts/build.sh)
