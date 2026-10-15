@@ -11,6 +11,7 @@ final class AppModel {
     var vocabulary: [VocabularyEntry]
     var input = ""
     var output = ""
+    private(set) var resultRevision = UUID()
     var status = ""
     var saveMessage = ""
     var streaming = false
@@ -76,7 +77,7 @@ final class AppModel {
         stop()
         if let mode { overrides.mode = mode }
         let text = input.trimmed
-        status = ""; output = ""; failed = false; currentEntry = nil
+        status = ""; output = ""; failed = false; currentEntry = nil; resultRevision = UUID()
         guard !text.isEmpty else { return }
         let token = UUID(); revision = token
         do {

@@ -16,6 +16,7 @@ enum Theme {
     static let background = Color(nsColor: .adaptive(0xffffff, 0x1c1c1e))
     static let surface = Color(nsColor: .adaptive(0xf4f4f5, 0x2a2a2d))
     static let hover = Color(nsColor: .adaptive(0xeaeaec, 0x34343a))
+    static let pressed = Color(nsColor: .adaptive(0xdcdce0, 0x45454c))
     static let text = Color(nsColor: .adaptive(0x1a1a1a, 0xf2f2f5))
     static let muted = Color(nsColor: .adaptive(0x8a8a8e, 0x98989f))
     static let border = Color(nsColor: .adaptive(0xe4e4e7, 0x38383c))
@@ -26,12 +27,22 @@ enum Theme {
 
 struct GlintButtonStyle: ButtonStyle {
     var selected = false
+    var horizontalPadding: CGFloat = 7
+    var verticalPadding: CGFloat = 4
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ViewState<Bool> private var hovering = false
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .foregroundStyle(selected ? Theme.text : Theme.muted)
-            .padding(.horizontal, 7).padding(.vertical, 4)
-            .background(selected || configuration.isPressed ? Theme.hover : .clear, in: RoundedRectangle(cornerRadius: 6))
-            .contentShape(Rectangle())
+            .foregroundStyle(selected || hovering || configuration.isPressed ? Theme.text : Theme.muted)
+            .padding(.horizontal, horizontalPadding).padding(.vertical, verticalPadding)
+            .background(enabled && configuration.isPressed ? Theme.pressed : selected || (enabled && hovering) ? Theme.hover : .clear, in: RoundedRectangle(cornerRadius: 6))
+            .contentShape(RoundedRectangle(cornerRadius: 6))
+            .scaleEffect(enabled && configuration.isPressed && !reduceMotion ? 0.96 : 1)
+            .opacity(enabled ? 1 : 0.35)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.1), value: configuration.isPressed)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: hovering)
+            .onHover { hovering = $0 }
     }
 }
 
@@ -40,16 +51,13 @@ struct IconButton: View {
     let label: String
     var selected = false
     var action: () -> Void
-    @ViewState<Bool> private var hovering = false
     var body: some View {
-        Button(action: action) { Image(systemName: symbol).font(.system(size: 13, weight: .regular)).frame(width: 24, height: 24).foregroundStyle(selected || hovering ? Theme.text : Theme.muted).background(selected || hovering ? Theme.hover : .clear, in: RoundedRectangle(cornerRadius: 6)) }
-            .buttonStyle(.plain).onHover { hovering = $0 }.help(label).accessibilityLabel(label)
+        Button(action: action) {
+            Image(systemName: symbol).font(.system(size: 13, weight: .regular)).frame(width: 24, height: 24)
+        }
+        .buttonStyle(GlintButtonStyle(selected: selected, horizontalPadding: 0, verticalPadding: 0))
+        .help(label).accessibilityLabel(label)
     }
-}
-
-struct HeightPreference: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
 }
 
 struct WindowCard<Content: View>: View {

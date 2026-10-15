@@ -20,6 +20,8 @@ final class GlintWindowController: NSObject, NSWindowDelegate {
     var onFocusChanged: (Bool) -> Void = { _ in }
     let translator: Bool
     private var changingFrame = false
+    private var pendingHeight: CGFloat?
+    private var heightUpdateScheduled = false
     init<Content: View>(title: String, size: CGSize, translator: Bool = false, resizable: Bool = false, root: Content) {
         self.translator = translator
         var mask: NSWindow.StyleMask = [.borderless]
@@ -51,11 +53,15 @@ final class GlintWindowController: NSObject, NSWindowDelegate {
     }
     func hide() { window.orderOut(nil); onFocusChanged(false) }
     func fitHeight(_ value: CGFloat) {
-        let area = window.screen?.visibleFrame ?? ScreenCoordinates.screen(at: NSEvent.mouseLocation).visibleFrame
-        let height = min(translator ? 600 : 720, area.height - 20, max(translator ? 100 : 360, ceil(value)))
-        guard abs(window.frame.height - height) > 0.5 else { return }
+        pendingHeight = value
+        guard !heightUpdateScheduled else { return }
+        heightUpdateScheduled = true
         DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
+            guard let self, let value = self.pendingHeight else { return }
+            self.heightUpdateScheduled = false; self.pendingHeight = nil
+            let area = self.window.screen?.visibleFrame ?? ScreenCoordinates.screen(at: NSEvent.mouseLocation).visibleFrame
+            let height = min(self.translator ? 600 : 720, area.height - 20, max(self.translator ? 100 : 360, ceil(value)))
+            guard abs(self.window.frame.height - height) > 0.5 else { return }
             self.changingFrame = true
             var frame = self.window.frame
             frame.origin.y = max(area.minY, frame.maxY - height); frame.size.height = height

@@ -137,7 +137,22 @@ enum NativeMarkdown {
 }
 
 final class RichTextView: NSTextView {
-    var renderedWidth: CGFloat = 0
+    private var renderedText = ""
+    private var renderedFontSize: CGFloat = 0
+    private var renderedAppearance: NSAppearance.Name?
+    private var renderedWidth: CGFloat = 0
+    func render(_ text: String, fontSize: CGFloat, width: CGFloat) {
+        let appearance = effectiveAppearance.bestMatch(from: [.aqua, .darkAqua])
+        guard text != renderedText || fontSize != renderedFontSize || abs(width - renderedWidth) > 0.5 || appearance != renderedAppearance else { return }
+        let selection = selectedRanges
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            textStorage?.setAttributedString(NativeMarkdown.render(text, fontSize: fontSize, width: width))
+        }
+        renderedText = text; renderedFontSize = fontSize; renderedWidth = width; renderedAppearance = appearance
+        let length = (string as NSString).length
+        let validSelection = selection.filter { $0.rangeValue.location != NSNotFound && NSMaxRange($0.rangeValue) <= length }
+        selectedRanges = validSelection.isEmpty ? [NSValue(range: NSRange(location: 0, length: 0))] : validSelection
+    }
 }
 
 struct RichText: NSViewRepresentable {
@@ -155,15 +170,11 @@ struct RichText: NSViewRepresentable {
         return view
     }
     func updateNSView(_ view: RichTextView, context: Context) {
-        view.renderedWidth = max(100, view.bounds.width)
-        view.textStorage?.setAttributedString(NativeMarkdown.render(text, fontSize: fontSize, width: view.renderedWidth))
+        view.render(text, fontSize: fontSize, width: max(100, view.bounds.width))
     }
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: RichTextView, context: Context) -> CGSize? {
         let width = max(100, proposal.width ?? 400)
-        if abs(nsView.renderedWidth - width) > 0.5 {
-            nsView.renderedWidth = width
-            nsView.textStorage?.setAttributedString(NativeMarkdown.render(text, fontSize: fontSize, width: width))
-        }
+        nsView.render(text, fontSize: fontSize, width: width)
         nsView.textContainer?.containerSize = NSSize(width: width, height: .greatestFiniteMagnitude)
         guard let manager = nsView.layoutManager, let container = nsView.textContainer else { return nil }
         manager.ensureLayout(for: container)
