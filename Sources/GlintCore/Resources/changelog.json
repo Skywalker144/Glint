@@ -1,6 +1,6 @@
 [
   {
-    "version": "0.3.0",
+    "version": "0.3.1",
     "date": "2026-10-15",
     "items": [
       "使用 SwiftUI + AppKit 重构为原生 macOS 应用，支持 macOS 14 及以上，提供 Apple Silicon / Intel 通用安装包；此版本不提供 Windows 安装包",

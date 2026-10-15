@@ -36,7 +36,7 @@ mkdir -p "$staging/Contents/Resources/Licenses"
 for package in SwiftMath swift-markdown swift-cmark; do
     source="$PWD/.build/checkouts/$package"
     [[ -d "$source" ]] || source="$PWD/.build/arm64/checkouts/$package"
-    for license in "$source"/LICENSE*; do
+    for license in "$source"/LICENSE* "$source"/COPYING*; do
         [[ -f "$license" ]] && cp "$license" "$staging/Contents/Resources/Licenses/$package-$(basename "$license")"
     done
 done
