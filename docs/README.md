@@ -3,7 +3,7 @@
 - [系统要求、运行、打包与旧版数据导入](../README.md)
 - [窗口、菜单栏、系统入口与登录启动](../Sources/Glint/GlintApp.swift)
 - [浮窗生命周期、自动高度与焦点](../Sources/Glint/WindowController.swift)
-- [翻译面板及语言控件](../Sources/Glint/TranslatorView.swift)、[主题、统一间距与宽度拖拽](../Sources/Glint/Theme.swift)、[输入法与键盘](../Sources/Glint/NativeInput.swift)
+- [翻译面板及语言控件](../Sources/Glint/TranslatorView.swift)、[主题、布局间距与宽度拖拽](../Sources/Glint/Theme.swift)、[输入法与键盘](../Sources/Glint/NativeInput.swift)
 - [译文滚动、流式跟随与操作栏](../Sources/Glint/TranslationResult.swift)、[布局、宽度拖动与阅读位置回归](../Tests/GlintTests/TranslatorLayoutTests.swift)
 - [翻译状态、取消、收藏及历史写入口](../Sources/Glint/AppModel.swift)
 - [语言与文字系统规则](../Sources/GlintCore/Language.swift)、[模式与方向解析](../Sources/GlintCore/TranslationRequest.swift)

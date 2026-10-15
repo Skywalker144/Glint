@@ -27,6 +27,8 @@ enum Theme {
 
 enum TranslatorLayout {
     static let inset: CGFloat = 10
+    static let resultInset: CGFloat = 15
+    static let resultFooterSpacing: CGFloat = 6
     static let bottomInset: CGFloat = 6
     static let footerHeight: CGFloat = 28
 }

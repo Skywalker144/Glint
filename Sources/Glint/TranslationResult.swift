@@ -146,15 +146,16 @@ struct TranslationResult: View {
     @ViewState<Bool> private var showsLatest = false
     @ViewState<Int> private var jumpRevision = 0
     var body: some View {
-        VStack(spacing: TranslatorLayout.inset) {
+        VStack(spacing: TranslatorLayout.resultFooterSpacing) {
             NativeTranslationResult(text: model.output, revision: model.resultRevision, streaming: model.streaming, jumpRevision: jumpRevision, height: $height, showsLatest: $showsLatest)
-                .frame(height: min(height, max(TranslationScrollView.minimumHeight, maximumHeight - TranslatorLayout.inset - TranslatorLayout.footerHeight)))
+                .frame(height: min(height, max(TranslationScrollView.minimumHeight, maximumHeight - TranslatorLayout.resultFooterSpacing - TranslatorLayout.footerHeight)))
                 .overlay(alignment: .topLeading) {
                     if model.streaming && model.output.isEmpty {
                         Text("正在翻译…").font(.system(size: 12)).foregroundStyle(Theme.muted)
                             .frame(height: TranslationScrollView.minimumHeight, alignment: .leading).allowsHitTesting(false)
                     }
                 }
+                .padding(.horizontal, TranslatorLayout.resultInset - TranslatorLayout.inset)
             HStack(spacing: 6) {
                 IconButton(symbol: "speaker.wave.2", label: "朗读译文", selected: model.speech.channel == "result", action: model.speakOutput)
                     .disabled(model.streaming || model.output.isEmpty)
