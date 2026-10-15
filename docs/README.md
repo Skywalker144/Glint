@@ -10,7 +10,7 @@
 - [服务商与流式翻译](../Sources/GlintCore/TranslationEngine.swift)、[网络、代理及错误](../Sources/GlintCore/HTTPClient.swift)
 - [语言、服务商、提示词和更新日志目录](../Sources/GlintCore/Resources/)
 - [设置与词条数据类型](../Sources/GlintCore/Models.swift)、[持久化及旧数据导入](../Sources/GlintCore/LocalStore.swift)
-- [七个设置面板与窗口尺寸](../Sources/Glint/SettingsView.swift)、[共用菜单、输入框、按钮与编辑器](../Sources/Glint/Controls.swift)、[生词本](../Sources/Glint/VocabularyView.swift)
+- [七个设置面板与窗口尺寸](../Sources/Glint/SettingsView.swift)、[设置表面、导航与开关](../Sources/Glint/SettingsStyle.swift)、[共用菜单、输入框、按钮与编辑器](../Sources/Glint/Controls.swift)、[生词本](../Sources/Glint/VocabularyView.swift)
 - [原生 Markdown、表格与公式](../Sources/Glint/NativeMarkdown.swift)、[在线及系统朗读](../Sources/Glint/SpeechService.swift)
 - [截图选区、Retina 裁剪及 Vision OCR](../Sources/Glint/CaptureService.swift)
 - [全局快捷键与录制](../Sources/Glint/Hotkeys.swift)、[划词索引](selection-popup.md)
@@ -18,6 +18,8 @@
 - [个人签名、私钥备份、CI 配置与跨版本验收](signing.md)
 - [图标](icons.md)
 - [原迁移路线评估](migration-feasibility.md)
+
+设置视觉参考 [affectUI Clean](https://github.com/flohoeller/affectui)，由原生 SwiftUI 实现；颜色、表面和交互样式以 [SettingsStyle.swift](../Sources/Glint/SettingsStyle.swift) 与 [Controls.swift](../Sources/Glint/Controls.swift) 为准。
 
 ## 验证
 

@@ -21,8 +21,6 @@ enum Theme {
     static let muted = Color(nsColor: .adaptive(0x8a8a8e, 0x98989f))
     static let border = Color(nsColor: .adaptive(0xe4e4e7, 0x38383c))
     static let card = Color(nsColor: .adaptive(0xffffff, 0x232326))
-    static let sidebar = Color(nsColor: .adaptive(0xf2f2f4, 0x18181a))
-    static let settingsBackground = Color(nsColor: .adaptive(0xf9f9fa, 0x1c1c1e))
 }
 
 enum TranslatorLayout {
@@ -84,37 +82,6 @@ struct WindowDragArea: NSViewRepresentable {
     }
     func makeNSView(context: Context) -> DragView { DragView() }
     func updateNSView(_ nsView: DragView, context: Context) {}
-}
-
-struct SettingsCard<Content: View>: View {
-    @ViewBuilder var content: Content
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) { content }
-            .padding(16).frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.border.opacity(0.8), lineWidth: 1))
-    }
-}
-
-struct GlintToggle: View {
-    let title: String
-    var detail = ""
-    var symbol: String? = nil
-    @Binding var isOn: Bool
-    var body: some View {
-        HStack(spacing: 12) {
-            if let symbol {
-                Image(systemName: symbol).font(.system(size: 13)).foregroundStyle(Theme.muted)
-                    .frame(width: 28, height: 28).background(Theme.surface, in: RoundedRectangle(cornerRadius: 7)).accessibilityHidden(true)
-            }
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.system(size: 13))
-                if !detail.isEmpty { Text(detail).font(.system(size: 11)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true) }
-            }
-            Spacer(minLength: 8)
-            Toggle(title, isOn: $isOn).labelsHidden().toggleStyle(.switch).tint(Theme.text).controlSize(.small)
-        }.frame(minHeight: 30)
-    }
 }
 
 struct WindowWidthHandle: NSViewRepresentable {

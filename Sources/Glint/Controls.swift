@@ -4,26 +4,35 @@ struct ControlSurface: ViewModifier {
     var active = false
     var hovering = false
     var radius: CGFloat = 7
+    var compact = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ViewState<Bool> private var hovered = false
 
     func body(content: Content) -> some View {
         content
-            .background(hovering || hovered ? Theme.hover : Theme.surface, in: RoundedRectangle(cornerRadius: radius))
-            .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(active ? Theme.text.opacity(0.55) : Theme.border, lineWidth: 1))
+            .background(hovering || hovered ? (compact ? Theme.hover : SettingsPalette.hover) : (compact ? Theme.surface : SettingsPalette.control), in: RoundedRectangle(cornerRadius: radius))
+            .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(active ? SettingsPalette.focus.opacity(0.6) : (compact ? Theme.border : SettingsPalette.border), lineWidth: compact ? 1 : 0.5))
+            .shadow(color: active ? SettingsPalette.focus.opacity(0.12) : .clear, radius: 3)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: hovered)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: active)
             .onHover { hovered = $0 }
     }
 }
 
 struct SettingsButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var enabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 12, weight: .medium))
-            .foregroundStyle(Theme.text)
-            .padding(.horizontal, 11)
-            .frame(height: 30)
+            .foregroundStyle(configuration.role == .destructive ? Color(nsColor: .systemRed) : Theme.text)
+            .padding(.horizontal, 12)
+            .frame(height: 32)
             .modifier(ControlSurface(hovering: configuration.isPressed))
+            .shadow(color: SettingsPalette.shadow, radius: 1, y: 1)
+            .scaleEffect(enabled && configuration.isPressed && !reduceMotion ? 0.97 : 1)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
             .opacity(enabled ? 1 : 0.4)
             .contentShape(RoundedRectangle(cornerRadius: 7))
     }
@@ -44,7 +53,7 @@ struct FieldSurface: ViewModifier {
             .focused($focused)
             .font(.system(size: 12))
             .padding(.horizontal, 10)
-            .frame(height: 30)
+            .frame(height: 32)
             .modifier(ControlSurface(active: focused))
             .opacity(enabled ? 1 : 0.4)
     }
@@ -70,8 +79,8 @@ struct ChoiceMenu<Value: Hashable, Options: View>: View {
             .font(.system(size: 12, weight: compact ? .regular : .medium))
             .foregroundStyle(Theme.text)
             .padding(.horizontal, compact ? 7 : 10)
-            .frame(height: compact ? 24 : 30)
-            .modifier(ControlSurface(radius: compact ? 6 : 7))
+            .frame(height: compact ? 24 : 32)
+            .modifier(ControlSurface(radius: compact ? 6 : 7, compact: compact))
         }
         .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden)
         .fixedSize(horizontal: compact, vertical: true)
@@ -95,12 +104,12 @@ struct ModelPicker: View {
                 }
             } label: {
                 Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(Theme.muted).frame(width: 28, height: 30)
+                    .foregroundStyle(Theme.muted).frame(width: 28, height: 32)
             }
             .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden)
             .disabled(items.isEmpty).accessibilityLabel("选择模型")
         }
-        .font(.system(size: 12)).frame(height: 30)
+        .font(.system(size: 12)).frame(height: 32)
         .modifier(ControlSurface(active: focused))
     }
 }
@@ -127,7 +136,7 @@ struct SettingsRow<Accessory: View>: View {
             Text(title)
             Spacer(minLength: 12)
             accessory
-        }.frame(minHeight: 30)
+        }.frame(minHeight: 36)
     }
 }
 
