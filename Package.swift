@@ -15,7 +15,7 @@ let package = Package(
         .executableTarget(name: "Glint", dependencies: [
             "GlintCore", .product(name: "Markdown", package: "swift-markdown"),
             .product(name: "SwiftMath", package: "SwiftMath")
-        ], resources: [.process("Resources")]),
+        ]),
         .testTarget(name: "GlintCoreTests", dependencies: ["GlintCore", .product(name: "Testing", package: "swift-testing")], exclude: ["stream_server.py"], resources: [.process("Fixtures")]),
         .testTarget(name: "GlintTests", dependencies: ["Glint", .product(name: "Testing", package: "swift-testing")])
     ],

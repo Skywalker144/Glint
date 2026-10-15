@@ -7,6 +7,22 @@ import GlintCore
 
 @MainActor
 struct NativeTests {
+    @Test func testMenuBarIconAtDisplayScales() throws {
+        let image = MenuBarIcon.image
+        #expect(image.isTemplate)
+        #expect(image.size == NSSize(width: 18, height: 18))
+        for scale in [1, 2, 3] {
+            let pixels = 18 * scale
+            var rect = NSRect(x: 0, y: 0, width: pixels, height: pixels)
+            let rendered = try #require(image.cgImage(forProposedRect: &rect, context: nil, hints: nil))
+            #expect(rendered.width == pixels)
+            #expect(rendered.height == pixels)
+            let bitmap = NSBitmapImageRep(cgImage: rendered)
+            #expect((0..<pixels).contains { x in
+                (0..<pixels).contains { y in (bitmap.colorAt(x: x, y: y)?.alphaComponent ?? 0) > 0.5 }
+            })
+        }
+    }
     @Test func testHotkeyAliasesAndKeys() {
         #expect(Hotkey.parse("Alt+Q") == Hotkey.parse("Option+Q"))
         #expect(Hotkey.parse("CommandOrControl+Return") == Hotkey.parse("Command+Return"))

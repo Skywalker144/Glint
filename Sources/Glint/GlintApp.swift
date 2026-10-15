@@ -189,9 +189,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if statusItem == nil {
             statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-            if let url = Bundle.module.url(forResource: "trayTemplate", withExtension: "png"), let image = NSImage(contentsOf: url) {
-                image.isTemplate = true; image.size = NSSize(width: 18, height: 18); statusItem?.button?.image = image
-            } else { statusItem?.button?.title = "译" }
+            statusItem?.button?.image = MenuBarIcon.image
             statusItem?.button?.toolTip = "闪译 · Glint"
         }
         let menu = NSMenu()
