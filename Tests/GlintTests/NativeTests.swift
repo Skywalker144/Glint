@@ -13,8 +13,11 @@ struct NativeTests {
         #expect(image.size == NSSize(width: 18, height: 18))
         for scale in [1, 2, 3] {
             let pixels = 18 * scale
-            var rect = NSRect(x: 0, y: 0, width: pixels, height: pixels)
-            let rendered = try #require(image.cgImage(forProposedRect: &rect, context: nil, hints: nil))
+            let target = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: pixels, pixelsHigh: pixels, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+            target.size = image.size
+            let context = try #require(NSGraphicsContext(bitmapImageRep: target))
+            var rect = NSRect(origin: .zero, size: image.size)
+            let rendered = try #require(image.cgImage(forProposedRect: &rect, context: context, hints: nil))
             #expect(rendered.width == pixels)
             #expect(rendered.height == pixels)
             let bitmap = NSBitmapImageRep(cgImage: rendered)
