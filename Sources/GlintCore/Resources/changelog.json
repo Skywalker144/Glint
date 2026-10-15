@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.3.3",
+    "date": "2026-10-15",
+    "items": [
+      "仅提供 Apple Silicon（arm64）安装包，不再支持 Intel Mac"
+    ]
+  },
+  {
     "version": "0.3.2",
     "date": "2026-10-15",
     "items": [
