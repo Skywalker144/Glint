@@ -8,6 +8,9 @@ mkdir -p "$fixture/scripts" "$fixture/build"
 cp scripts/signing.sh "$fixture/scripts/"
 cp build/Info.plist "$fixture/build/"
 bash "$fixture/scripts/signing.sh" create
+printf 'int main(void) { return 0; }\n' > "$fixture/main.c"
+xcrun clang "$fixture/main.c" -o "$fixture/Glint"
+bash "$fixture/scripts/signing.sh" sign "$fixture/Glint"
 cp "$fixture/build/signing.pem" "$fixture/original.pem"
 cp "$fixture/.signing/identity.p12" "$fixture/original.p12"
 cp "$fixture/.signing/password" "$fixture/original.password"
@@ -29,8 +32,6 @@ cmp "$fixture/original.password" "$fixture/.signing/password"
 cp "$fixture/original.pem" "$fixture/build/signing.pem"
 security delete-keychain "$fixture/.signing/Glint.keychain-db"
 bash "$fixture/scripts/signing.sh" import
-printf 'int main(void) { return 0; }\n' > "$fixture/main.c"
-xcrun clang "$fixture/main.c" -o "$fixture/Glint"
 bash "$fixture/scripts/signing.sh" sign "$fixture/Glint"
 bash "$fixture/scripts/signing.sh" verify "$fixture/Glint"
 echo 'Signing creation, restoration, identity pinning and signing checks passed.'

@@ -58,6 +58,11 @@ CONFIG
         security unlock-keychain -p "$password" "$keychain"
         security import "$directory/identity.p12" -P "$password" -t cert -f pkcs12 -k "$keychain" -T /usr/bin/codesign >/dev/null
         security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain" >/dev/null
+        keychains=()
+        while IFS= read -r existing; do
+            if [[ "$existing" != "$keychain" ]]; then keychains+=("$existing"); fi
+        done < <(security list-keychains -d user | sed -E 's/^ *"(.*)" *$/\1/')
+        security list-keychains -d user -s "$keychain" "${keychains[@]}"
         echo "Signing identity installed. Back up .signing/identity.p12 and .signing/password together."
         ;;
     sign|verify)
@@ -72,7 +77,10 @@ CONFIG
                 exit 1
             fi
             security unlock-keychain -p "$(cat "$directory/password")" "$keychain"
-            codesign --force --sign "$identity" --keychain "$keychain" --timestamp=none --identifier "$identifier" "$2"
+            if ! codesign --force --sign "$identity" --keychain "$keychain" --timestamp=none --identifier "$identifier" "$2"; then
+                security find-identity -p codesigning "$keychain"
+                exit 1
+            fi
         fi
         codesign --verify --deep --strict -R "=identifier \"$identifier\" and certificate leaf = H\"$identity\"" "$2"
         ;;

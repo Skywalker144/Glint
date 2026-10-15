@@ -37,4 +37,6 @@ bash scripts/signing.sh verify dist/Glint.app
 
 [签名测试](../Tests/GlintTests/UpdateSignatureTests.swift)使用真实编译与签名验证不同二进制之间的身份延续，并拒绝改签、无签名和被篡改的更新。[更新校验](../Sources/Glint/UpdateSignature.swift)以当前版本的 designated requirement 检查下载包和安装副本。
 
+[云端签名检查](../.github/workflows/signing.yml)使用临时证书独立验证创建与恢复流程，无需发布私钥。
+
 从 ad-hoc 版本首次切换到此身份时，需要移除旧的辅助功能条目，添加并授权新签名的 Glint。真实系统验收需先授权一个签名版本，再通过应用内更新安装下一签名版本，确认划词翻译可直接使用、辅助功能状态保持已授权。构建与签名测试不能替代这一步。

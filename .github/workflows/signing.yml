@@ -1,0 +1,24 @@
+name: Signing checks
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/signing.yml
+      - scripts/signing.sh
+      - scripts/test-signing.sh
+      - build/signing.pem
+  pull_request:
+    paths:
+      - .github/workflows/signing.yml
+      - scripts/signing.sh
+      - scripts/test-signing.sh
+      - build/signing.pem
+permissions:
+  contents: read
+jobs:
+  signing:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/test-signing.sh
