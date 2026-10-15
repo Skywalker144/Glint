@@ -1,6 +1,6 @@
 # 开发索引
 
-- [运行、打包与数据](../README.md)
+- [系统要求、运行、打包与旧版数据导入](../README.md)
 - [窗口、菜单栏、系统入口与登录启动](../Sources/Glint/GlintApp.swift)
 - [浮窗生命周期、自动高度与焦点](../Sources/Glint/WindowController.swift)
 - [翻译面板及语言控件](../Sources/Glint/TranslatorView.swift)、[主题与宽度拖拽](../Sources/Glint/Theme.swift)、[输入法与键盘](../Sources/Glint/NativeInput.swift)

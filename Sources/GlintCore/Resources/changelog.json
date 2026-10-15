@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.3.0",
+    "date": "2026-10-15",
+    "items": [
+      "使用 SwiftUI + AppKit 重构为原生 macOS 应用，支持 macOS 14 及以上，提供 Apple Silicon / Intel 通用安装包；此版本不提供 Windows 安装包",
+      "保留输入、截图、划词和剪贴板翻译，以及词典、生词本、历史、朗读、快捷键和服务商设置",
+      "截图使用 ScreenCaptureKit 与离线 Vision OCR，译文使用原生 Markdown、表格与数学公式渲染",
+      "首次启动自动导入旧版设置、历史和生词本，保留原文件及备份；跨应用划词与截图请在设置中检查辅助功能和屏幕录制权限"
+    ]
+  },
+  {
     "version": "0.2.22",
     "date": "2026-10-14",
     "items": [
