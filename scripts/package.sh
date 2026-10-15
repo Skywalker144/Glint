@@ -1,10 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-bash scripts/build.sh release --universal
+bash scripts/build.sh release
 version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' build/Info.plist)
-archive="dist/Glint-${version}-universal-mac.zip"
-image="dist/Glint-${version}-universal.dmg"
+archive="dist/Glint-${version}-arm64-mac.zip"
+image="dist/Glint-${version}-arm64.dmg"
 /usr/bin/ditto -c -k --sequesterRsrc --keepParent dist/Glint.app "$archive"
 mkdir -p .cache/dmg
 stage=$(mktemp -d "$PWD/.cache/dmg/stage.XXXXXX")

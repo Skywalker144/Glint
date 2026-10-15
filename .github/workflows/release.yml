@@ -26,7 +26,7 @@ jobs:
       - run: |
           version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' build/Info.plist)
           test "$RELEASE_TAG" = "v$version"
-      - run: bash scripts/swift.sh test --disable-xctest
+      - run: bash scripts/swift.sh test --arch arm64 --disable-xctest
       - run: bash scripts/package.sh
       - run: |
           python3 - <<'PY' > .cache/release-notes.md
@@ -37,6 +37,7 @@ jobs:
           entry = next(item for item in entries if item['version'] == version)
           print('\n'.join('- ' + item for item in entry['items']))
           PY
-          gh release create "$RELEASE_TAG" dist/Glint-*.dmg dist/Glint-*-mac.zip dist/SHA256SUMS --verify-tag --draft --title "Glint $RELEASE_TAG" --notes-file .cache/release-notes.md
+          version="${RELEASE_TAG#v}"
+          gh release create "$RELEASE_TAG" "dist/Glint-${version}-arm64.dmg" "dist/Glint-${version}-arm64-mac.zip" dist/SHA256SUMS --verify-tag --draft --title "Glint $RELEASE_TAG" --notes-file .cache/release-notes.md
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

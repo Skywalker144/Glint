@@ -13,7 +13,7 @@
 - [原生 Markdown、表格与公式](../Sources/Glint/NativeMarkdown.swift)、[在线及系统朗读](../Sources/Glint/SpeechService.swift)
 - [截图选区、Retina 裁剪及 Vision OCR](../Sources/Glint/CaptureService.swift)
 - [全局快捷键与录制](../Sources/Glint/Hotkeys.swift)、[划词索引](selection-popup.md)
-- [更新下载、校验与安装](../Sources/Glint/UpdateService.swift)、[构建](../scripts/build.sh)、[分发包](../scripts/package.sh)、[Release 工作流](../.github/workflows/release.yml)
+- [更新下载、校验与安装](../Sources/Glint/UpdateService.swift)、[Apple Silicon 构建](../scripts/build.sh)、[分发包](../scripts/package.sh)、[Release 工作流](../.github/workflows/release.yml)
 - [图标](icons.md)
 - [原迁移路线评估](migration-feasibility.md)
 

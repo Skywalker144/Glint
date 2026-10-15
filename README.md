@@ -1,6 +1,6 @@
 # 闪译 · Glint
 
-macOS 14 及以上的原生翻译工具。SwiftUI + AppKit 界面，常驻菜单栏，支持输入、截图、划词和剪贴板翻译，保留紧凑黑白浮窗、词典、生词本、历史、朗读与七个设置面板。
+适用于 Apple Silicon Mac、macOS 14 及以上的原生翻译工具。SwiftUI + AppKit 界面，常驻菜单栏，支持输入、截图、划词和剪贴板翻译，保留紧凑黑白浮窗、词典、生词本、历史、朗读与七个设置面板。
 
 快捷键可在设置中录制；默认值、语言及服务商目录以[源码资源](docs/README.md)为准。截图使用 ScreenCaptureKit 与离线 Vision OCR；跨应用划词需要辅助功能权限。两项权限可从「设置 → 权限」打开系统授权页。
 
@@ -21,7 +21,7 @@ open dist/Glint.app
 bash scripts/package.sh
 ```
 
-生成 Apple Silicon / Intel 通用 `.app`、`.dmg` 和 `-mac.zip`，保存在 `dist/`。应用使用本地 ad-hoc 签名；尚未配置 Developer ID 与公证。版本及最低系统版本以 [Info.plist](build/Info.plist) 为准。
+生成仅支持 Apple Silicon（arm64）的 `.app`、`.dmg` 和 `-mac.zip`，保存在 `dist/`，不支持 Intel Mac。应用使用本地 ad-hoc 签名；尚未配置 Developer ID 与公证。版本及最低系统版本以 [Info.plist](build/Info.plist) 为准。
 
 公开发布入口是 [Release 工作流](.github/workflows/release.yml)：更新 Info.plist 与[应用内更新日志](Sources/GlintCore/Resources/changelog.json)，完成验证后提交，再推送匹配的 `v*` 标签。工作流生成 Release 草稿，审核后由维护者发布。构建失败时，可从默认分支手动运行该工作流，输入原标签重新构建，无需移动标签。
 
