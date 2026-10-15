@@ -26,6 +26,12 @@ jobs:
       - run: |
           version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' build/Info.plist)
           test "$RELEASE_TAG" = "v$version"
+      - name: Import signing identity
+        run: bash scripts/signing.sh import
+        env:
+          GLINT_SIGNING_P12_BASE64: ${{ secrets.GLINT_SIGNING_P12_BASE64 }}
+          GLINT_SIGNING_PASSWORD: ${{ secrets.GLINT_SIGNING_PASSWORD }}
+      - run: bash scripts/test-signing.sh
       - run: bash scripts/swift.sh test --arch arm64 --disable-xctest
       - run: bash scripts/package.sh
       - run: |
@@ -41,3 +47,10 @@ jobs:
           gh release create "$RELEASE_TAG" "dist/Glint-${version}-arm64.dmg" "dist/Glint-${version}-arm64-mac.zip" dist/SHA256SUMS --verify-tag --draft --title "Glint $RELEASE_TAG" --notes-file .cache/release-notes.md
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Clean up signing identity
+        if: ${{ always() }}
+        run: |
+          if [[ -f .signing/Glint.keychain-db ]]; then
+            security delete-keychain "$PWD/.signing/Glint.keychain-db"
+          fi
+          rm -rf .signing

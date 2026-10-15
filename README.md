@@ -15,13 +15,15 @@ open dist/Glint.app
 
 用 Xcode 打开 `Package.swift` 可编辑与调试；验证系统集成时运行脚本生成的 `.app`，保持应用标识与资源完整。
 
+首次在新环境构建前，按[个人签名配置](docs/signing.md)导入固定签名身份。
+
 ## 打包
 
 ```bash
 bash scripts/package.sh
 ```
 
-生成仅支持 Apple Silicon（arm64）的 `.app`、`.dmg` 和 `-mac.zip`，保存在 `dist/`，不支持 Intel Mac。应用使用本地 ad-hoc 签名；尚未配置 Developer ID 与公证。版本及最低系统版本以 [Info.plist](build/Info.plist) 为准。
+生成仅支持 Apple Silicon（arm64）的 `.app`、`.dmg` 和 `-mac.zip`，保存在 `dist/`，不支持 Intel Mac。所有版本使用[固定个人签名身份](docs/signing.md)。版本及最低系统版本以 [Info.plist](build/Info.plist) 为准。
 
 公开发布入口是 [Release 工作流](.github/workflows/release.yml)：更新 Info.plist 与[应用内更新日志](Sources/GlintCore/Resources/changelog.json)，完成验证后提交，再推送匹配的 `v*` 标签。工作流生成 Release 草稿，审核后由维护者发布。构建失败时，可从默认分支手动运行该工作流，输入原标签重新构建，无需移动标签。
 

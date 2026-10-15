@@ -60,7 +60,7 @@ final class UpdateService {
             let bundleURL = work.appendingPathComponent("Glint.app")
             guard let bundle = Bundle(url: bundleURL), bundle.bundleIdentifier == "com.skywalker144.glint",
                   bundle.infoDictionary?["CFBundleShortVersionString"] as? String == version else { throw GlintError.message("更新包应用标识或版本不匹配") }
-            try await NativeProcess.run("/usr/bin/codesign", ["--verify", "--deep", "--strict", bundleURL.path])
+            try UpdateSignature.validate(bundleURL, replacing: Bundle.main.bundleURL)
             staged = bundleURL; ready = true; progress = 1; message = "新版 v\(version) 已下载"
         } catch { message = "检查或下载失败：" + error.localizedDescription }
     }
@@ -86,6 +86,7 @@ final class UpdateService {
         let backup = target.deletingLastPathComponent().appendingPathComponent(".Glint-backup-\(UUID().uuidString).app")
         do {
             try fm.copyItem(at: staged, to: next)
+            try UpdateSignature.validate(next, replacing: target)
             for _ in 0..<600 { if kill(pid, 0) != 0 { break }; usleep(100_000) }
             guard kill(pid, 0) != 0 else { try fm.removeItem(at: next); return 1 }
             try fm.moveItem(at: target, to: backup)

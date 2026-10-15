@@ -29,9 +29,7 @@ for package in SwiftMath swift-markdown swift-cmark; do
         [[ -f "$license" ]] && cp "$license" "$staging/Contents/Resources/Licenses/$package-$(basename "$license")"
     done
 done
-codesign --force --sign - --identifier com.skywalker144.glint "$staging/Contents/MacOS/Glint"
-codesign --force --deep --sign - --identifier com.skywalker144.glint "$staging"
-codesign --verify --deep --strict "$staging"
+bash scripts/signing.sh sign "$staging"
 if [[ -e "$app" ]]; then rm -rf "$app"; fi
 mv "$staging" "$app"
 echo "$app"

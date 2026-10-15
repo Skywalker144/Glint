@@ -1,5 +1,6 @@
 .build/
 .swiftpm/
+.signing/
 .cache/
 dist/
 out/

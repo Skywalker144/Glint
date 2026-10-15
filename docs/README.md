@@ -14,6 +14,7 @@
 - [截图选区、Retina 裁剪及 Vision OCR](../Sources/Glint/CaptureService.swift)
 - [全局快捷键与录制](../Sources/Glint/Hotkeys.swift)、[划词索引](selection-popup.md)
 - [更新下载、校验与安装](../Sources/Glint/UpdateService.swift)、[Apple Silicon 构建](../scripts/build.sh)、[分发包](../scripts/package.sh)、[Release 工作流](../.github/workflows/release.yml)
+- [个人签名、私钥备份、CI 配置与跨版本验收](signing.md)
 - [图标](icons.md)
 - [原迁移路线评估](migration-feasibility.md)
 
