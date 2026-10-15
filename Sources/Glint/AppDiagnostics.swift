@@ -26,6 +26,33 @@ enum AppDiagnostics {
                     guard window.frame.height >= 100, window.frame.height <= 600 else { throw GlintError.message("翻译窗口高度异常") }
                 }
             }
+            let resizeWindow = delegate.translator!.window
+            model.input = String(repeating: "横向拖动保持原文区域高度。", count: 4)
+            model.output = String(repeating: "译文根据窗口宽度重新排版，顶部控件保持原位。", count: 12)
+            try await Task.sleep(for: .milliseconds(150))
+            guard let resizeRoot = resizeWindow.contentView,
+                  let handle = descendants(of: resizeRoot, type: WindowWidthHandle.Handle.self).first,
+                  let input = descendants(of: resizeRoot, type: InputScrollView.self).first,
+                  let result = descendants(of: resizeRoot, type: TranslationScrollView.self).first,
+                  let down = NSEvent.mouseEvent(with: .leftMouseDown, location: NSPoint(x: resizeWindow.frame.width - 3, y: 60), modifierFlags: [], timestamp: 0, windowNumber: resizeWindow.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) else { throw GlintError.message("无法建立窗口拖动检查") }
+            let resizeTop = resizeWindow.frame.maxY
+            let inputTop = resizeWindow.frame.height - input.convert(input.bounds, to: nil).maxY
+            let inputHeight = input.frame.height
+            let resultTop = resizeWindow.frame.height - result.convert(result.bounds, to: nil).maxY
+            handle.mouseDown(with: down)
+            for width in [760.0, 680.0, 600.0, 520.0, 440.0, 360.0, 440.0, 560.0, 680.0, 820.0] {
+                guard let drag = NSEvent.mouseEvent(with: .leftMouseDragged, location: NSPoint(x: width - 3, y: 60), modifierFlags: [], timestamp: 0, windowNumber: resizeWindow.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) else { throw GlintError.message("无法建立拖动事件") }
+                handle.mouseDragged(with: drag)
+                try await Task.sleep(for: .milliseconds(80))
+                guard abs(resizeWindow.frame.maxY - resizeTop) < 0.5,
+                      abs(resizeWindow.frame.height - input.convert(input.bounds, to: nil).maxY - inputTop) < 0.5,
+                      abs(input.frame.height - inputHeight) < 0.5,
+                      abs(resizeWindow.frame.height - result.convert(result.bounds, to: nil).maxY - resultTop) < 0.5 else { throw GlintError.message("横向拖动布局异常 width=\(width), top=\(resizeWindow.frame.maxY)/\(resizeTop), inputTop=\(resizeWindow.frame.height - input.convert(input.bounds, to: nil).maxY)/\(inputTop), inputHeight=\(input.frame.height)/\(inputHeight), resultTop=\(resizeWindow.frame.height - result.convert(result.bounds, to: nil).maxY)/\(resultTop)") }
+                if [360.0, 600.0, 820.0].contains(width) {
+                    try snapshot(resizeWindow, at: output.appendingPathComponent("translator-resize-\(Int(width)).png"))
+                }
+            }
+            handle.mouseUp(with: down)
             NSApp.appearance = NSAppearance(named: .darkAqua)
             let translator = delegate.translator!
             translator.window.setContentSize(CGSize(width: 420, height: translator.window.frame.height))
@@ -79,7 +106,7 @@ enum AppDiagnostics {
             try snapshot(delegate.vocabularyWindow!.window, at: output.appendingPathComponent("vocabulary.png"))
             let plain = NativeMarkdown.plainText("**普通译文**\n\n- [链接](https://example.com)\n\n`code`")
             guard plain.contains("普通译文"), plain.contains("链接"), !plain.contains("**"), !plain.contains("](https") else { throw GlintError.message("纯文本复制检查失败") }
-            try Data("原生窗口、三个宽度、深浅主题、词典、流式完成高度、阅读位置保持、回到最新、富文本、公式、设置、生词本与纯文本复制检查通过\n".utf8).write(to: output.appendingPathComponent("result.txt"))
+            try Data("原生窗口、三个宽度、深浅主题、横向拖动顶边与内容稳定、词典、流式完成高度、阅读位置保持、回到最新、富文本、公式、设置、生词本与纯文本复制检查通过\n".utf8).write(to: output.appendingPathComponent("result.txt"))
             NSApp.terminate(nil)
         } catch {
             try? Data(error.localizedDescription.utf8).write(to: output.appendingPathComponent("failure.txt"))

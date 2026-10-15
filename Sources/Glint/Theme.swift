@@ -25,6 +25,12 @@ enum Theme {
     static let settingsBackground = Color(nsColor: .adaptive(0xf9f9fa, 0x1c1c1e))
 }
 
+enum TranslatorLayout {
+    static let inset: CGFloat = 10
+    static let bottomInset: CGFloat = 6
+    static let footerHeight: CGFloat = 28
+}
+
 struct GlintButtonStyle: ButtonStyle {
     var selected = false
     var horizontalPadding: CGFloat = 7
@@ -112,6 +118,7 @@ struct GlintToggle: View {
 struct WindowWidthHandle: NSViewRepresentable {
     final class Handle: NSView {
         private var hovering = false
+        private var drag: (width: CGFloat, pointerX: CGFloat, top: CGFloat)?
         override func resetCursorRects() { addCursorRect(bounds, cursor: .resizeLeftRight) }
         override func updateTrackingAreas() {
             trackingAreas.forEach(removeTrackingArea)
@@ -125,14 +132,17 @@ struct WindowWidthHandle: NSViewRepresentable {
         }
         override func mouseDown(with event: NSEvent) {
             guard let window else { return }
-            let initial = window.frame, x = NSEvent.mouseLocation.x
-            while let next = window.nextEvent(matching: [.leftMouseDragged, .leftMouseUp]) {
-                if next.type == .leftMouseUp { break }
-                var frame = initial
-                frame.size.width = min(820, max(360, initial.width + NSEvent.mouseLocation.x - x))
-                window.setFrame(frame, display: true)
-            }
+            drag = (window.frame.width, window.convertPoint(toScreen: event.locationInWindow).x, window.frame.maxY)
+            (window as? GlintPanel)?.onWidthResizeStarted()
         }
+        override func mouseDragged(with event: NSEvent) {
+            guard let window, let drag else { return }
+            var frame = window.frame
+            frame.size.width = min(window.maxSize.width, max(window.minSize.width, drag.width + window.convertPoint(toScreen: event.locationInWindow).x - drag.pointerX))
+            frame.origin.y = drag.top - frame.height
+            window.setFrame(frame, display: true)
+        }
+        override func mouseUp(with event: NSEvent) { drag = nil }
     }
     func makeNSView(context: Context) -> Handle { Handle() }
     func updateNSView(_ view: Handle, context: Context) {}

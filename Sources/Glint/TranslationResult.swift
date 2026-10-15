@@ -2,13 +2,13 @@ import AppKit
 import SwiftUI
 
 final class TranslationScrollView: NSScrollView {
+    static let minimumHeight = ceil(NSLayoutManager().defaultLineHeight(for: .systemFont(ofSize: 15)))
     private var revision: UUID?
     private var source = ""
-    private var streaming = false
     private var updatingLayout = false
     private var layoutWidth: CGFloat = 0
     private(set) var followsEnd = true
-    private(set) var preferredHeight: CGFloat = 44
+    private(set) var preferredHeight = minimumHeight
     var onMetrics: (CGFloat, Bool) -> Void = { _, _ in }
     var distanceFromEnd: CGFloat { max(0, (documentView?.frame.height ?? 0) - contentView.bounds.maxY) }
     var showsLatest: Bool { !followsEnd && distanceFromEnd > 2 }
@@ -19,7 +19,7 @@ final class TranslationScrollView: NSScrollView {
         scrollerStyle = .overlay
         let view = RichTextView()
         view.isEditable = false; view.isSelectable = true; view.drawsBackground = false
-        view.textContainerInset = NSSize(width: 12, height: 10); view.textContainer?.lineFragmentPadding = 0
+        view.textContainerInset = .zero; view.textContainer?.lineFragmentPadding = 0
         view.isVerticallyResizable = false; view.isHorizontallyResizable = false
         view.textContainer?.widthTracksTextView = false
         view.linkTextAttributes = [.foregroundColor: NSColor.labelColor, .underlineStyle: NSUnderlineStyle.single.rawValue]
@@ -32,13 +32,16 @@ final class TranslationScrollView: NSScrollView {
     required init?(coder: NSCoder) { fatalError() }
     deinit { NotificationCenter.default.removeObserver(self) }
     override func tile() {
+        let wasUpdating = updatingLayout
+        updatingLayout = true
         super.tile()
+        updatingLayout = wasUpdating
         layoutTranslation()
     }
     func update(text: String, revision: UUID, streaming: Bool, appearance: NSAppearance.Name) {
         if self.revision != revision {
             self.revision = revision
-            preferredHeight = 44; followsEnd = streaming
+            preferredHeight = Self.minimumHeight; followsEnd = streaming
             (documentView as? NSTextView)?.setSelectedRange(NSRange(location: 0, length: 0))
             updatingLayout = true
             contentView.scroll(to: .zero)
@@ -46,7 +49,6 @@ final class TranslationScrollView: NSScrollView {
         }
         source = text
         self.appearance = NSAppearance(named: appearance)
-        self.streaming = streaming
         layoutTranslation()
     }
     private func layoutTranslation() {
@@ -56,16 +58,30 @@ final class TranslationScrollView: NSScrollView {
         defer { updatingLayout = false }
         let offset = contentView.bounds.origin
         let width = max(1, contentSize.width)
-        if !streaming && abs(layoutWidth - width) > 0.5 { preferredHeight = 44 }
+        let widthChanged = abs(layoutWidth - width) > 0.5
+        var readingAnchor: (character: Int, offset: CGFloat)?
+        if widthChanged {
+            preferredHeight = Self.minimumHeight
+            if !followsEnd && offset.y > 0 && manager.numberOfGlyphs > 0 {
+                let glyph = manager.glyphIndex(for: NSPoint(x: 0, y: offset.y), in: container)
+                let line = manager.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil)
+                readingAnchor = (manager.characterIndexForGlyph(at: glyph), offset.y - line.minY)
+            }
+        }
         layoutWidth = width
         let textWidth = max(1, width - view.textContainerInset.width * 2)
         view.render(source, fontSize: 15, width: textWidth)
         container.containerSize = NSSize(width: textWidth, height: .greatestFiniteMagnitude)
         manager.ensureLayout(for: container)
-        let height = max(44, ceil(manager.usedRect(for: container).height) + view.textContainerInset.height * 2)
+        let height = max(Self.minimumHeight, ceil(manager.usedRect(for: container).height))
         view.setFrameSize(NSSize(width: width, height: max(contentSize.height, height)))
         preferredHeight = min(340, max(preferredHeight, height))
-        contentView.scroll(to: NSPoint(x: 0, y: followsEnd ? max(0, view.frame.height - contentSize.height) : min(offset.y, max(0, view.frame.height - contentSize.height))))
+        var readingY = offset.y
+        if let readingAnchor, readingAnchor.character < (view.textStorage?.length ?? 0) {
+            let glyph = manager.glyphIndexForCharacter(at: readingAnchor.character)
+            readingY = manager.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil).minY + readingAnchor.offset
+        }
+        contentView.scroll(to: NSPoint(x: 0, y: followsEnd ? max(0, view.frame.height - contentSize.height) : min(readingY, max(0, view.frame.height - contentSize.height))))
         reflectScrolledClipView(contentView)
         onMetrics(preferredHeight, showsLatest)
     }
@@ -125,17 +141,18 @@ struct NativeTranslationResult: NSViewRepresentable {
 
 struct TranslationResult: View {
     @Bindable var model: AppModel
-    @ViewState<CGFloat> private var height = 44
+    let maximumHeight: CGFloat
+    @ViewState<CGFloat> private var height = TranslationScrollView.minimumHeight
     @ViewState<Bool> private var showsLatest = false
     @ViewState<Int> private var jumpRevision = 0
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: TranslatorLayout.inset) {
             NativeTranslationResult(text: model.output, revision: model.resultRevision, streaming: model.streaming, jumpRevision: jumpRevision, height: $height, showsLatest: $showsLatest)
-                .frame(height: height)
+                .frame(height: min(height, max(TranslationScrollView.minimumHeight, maximumHeight - TranslatorLayout.inset - TranslatorLayout.footerHeight)))
                 .overlay(alignment: .topLeading) {
                     if model.streaming && model.output.isEmpty {
                         Text("正在翻译…").font(.system(size: 12)).foregroundStyle(Theme.muted)
-                            .padding(.horizontal, 12).padding(.vertical, 10).allowsHitTesting(false)
+                            .frame(height: TranslationScrollView.minimumHeight, alignment: .leading).allowsHitTesting(false)
                     }
                 }
             HStack(spacing: 6) {
@@ -153,7 +170,7 @@ struct TranslationResult: View {
                 Button(model.copied ? "已复制" : "复制", action: model.copyResult)
                     .buttonStyle(GlintButtonStyle()).font(.system(size: 12))
                     .disabled(model.streaming || model.output.isEmpty)
-            }.frame(height: 28).accessibilityIdentifier("translation-actions")
+            }.frame(height: TranslatorLayout.footerHeight).accessibilityIdentifier("translation-actions")
         }
     }
 }

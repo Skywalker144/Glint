@@ -85,6 +85,7 @@ struct NativeInput: NSViewRepresentable {
         var parent: NativeInput
         var focusRevision = 0
         var resultFocusRevision = 0
+        private var measuredText: String?
         init(_ parent: NativeInput) { self.parent = parent }
         func textDidChange(_ notification: Notification) {
             guard let view = notification.object as? InputTextView else { return }
@@ -93,6 +94,8 @@ struct NativeInput: NSViewRepresentable {
         func measure(_ view: NSTextView) {
             guard let scroll = view.enclosingScrollView as? InputScrollView else { return }
             let size = scroll.layoutText()
+            guard measuredText != view.string else { return }
+            measuredText = view.string
             if abs(parent.height - size) > 0.5 { DispatchQueue.main.async { self.parent.height = size } }
         }
     }

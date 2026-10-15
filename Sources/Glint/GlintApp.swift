@@ -98,6 +98,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.hideTranslator = { [weak self] in self?.translator.hide() }
         model.closeSettings = { [weak self] in self?.settingsWindow?.hide() }
         model.closeVocabulary = { [weak self] in self?.vocabularyWindow?.hide() }
+        translator.onAvailableHeightChanged = { [weak self] in self?.model.translatorMaximumHeight = $0 }
         model.resizeTranslator = { [weak self] in self?.translator?.fitHeight($0) }
         model.resizeSettings = { [weak self] in self?.settingsWindow?.fitHeight($0) }
         model.onApplySettings = { [weak self] old, next in
