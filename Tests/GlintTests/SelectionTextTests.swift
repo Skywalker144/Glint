@@ -5,6 +5,104 @@ import GlintCore
 
 @MainActor
 struct SelectionTextTests {
+    @Test func menuCopyPrecedesOtherStrategies() async throws {
+        let pasteboard = NSPasteboard.withUniqueName()
+        defer { pasteboard.releaseGlobally() }
+        var shortcuts = 0, accessibilityReads = 0
+        let reader = SelectionTextReader(
+            pasteboard: pasteboard, isSourceActive: { true },
+            menuCopy: { {
+                pasteboard.clearContents()
+                pasteboard.setString("First\nSecond", forType: .string)
+                return true
+            } },
+            shortcutCopy: { shortcuts += 1; return false },
+            accessibilityText: { accessibilityReads += 1; return "FirstSecond" }
+        )
+        #expect(try await reader.read() == "First\nSecond")
+        #expect(shortcuts == 0 && accessibilityReads == 0)
+    }
+
+    @Test func menuWithoutTextFallsBackToShortcut() async throws {
+        let pasteboard = NSPasteboard.withUniqueName()
+        defer { pasteboard.releaseGlobally() }
+        pasteboard.setString("Original", forType: .string)
+        var steps: [String] = []
+        let reader = SelectionTextReader(
+            pasteboard: pasteboard, isSourceActive: { true },
+            menuCopy: { { steps.append("menu"); return true } },
+            shortcutCopy: {
+                steps.append("shortcut")
+                #expect(pasteboard.string(forType: .string) == "Original")
+                pasteboard.clearContents()
+                pasteboard.setString("First\nSecond", forType: .string)
+                return true
+            },
+            accessibilityText: { steps.append("accessibility"); return "FirstSecond" }
+        )
+        #expect(try await reader.read() == "First\nSecond")
+        #expect(steps == ["menu", "shortcut"])
+        #expect(pasteboard.string(forType: .string) == "Original")
+    }
+
+    @Test func failedCopyActionsFallBackToAccessibility() async throws {
+        let pasteboard = NSPasteboard.withUniqueName()
+        defer { pasteboard.releaseGlobally() }
+        var steps: [String] = []
+        let reader = SelectionTextReader(
+            pasteboard: pasteboard, isSourceActive: { true },
+            menuCopy: { { steps.append("menu"); return false } },
+            shortcutCopy: { steps.append("shortcut"); return false },
+            accessibilityText: { steps.append("accessibility"); return "First\nSecond" }
+        )
+        #expect(try await reader.read() == "First\nSecond")
+        #expect(steps == ["menu", "shortcut", "accessibility"])
+    }
+
+    @Test func failedMenuActionRestoresClipboardBeforeNextStrategy() async throws {
+        let pasteboard = NSPasteboard.withUniqueName()
+        defer { pasteboard.releaseGlobally() }
+        pasteboard.setString("Original", forType: .string)
+        let reader = SelectionTextReader(
+            pasteboard: pasteboard, isSourceActive: { true },
+            menuCopy: { {
+                pasteboard.clearContents()
+                pasteboard.setString("Partial copy", forType: .string)
+                return false
+            } },
+            shortcutCopy: {
+                #expect(pasteboard.string(forType: .string) == "Original")
+                pasteboard.clearContents()
+                pasteboard.setString("First\nSecond", forType: .string)
+                return true
+            },
+            accessibilityText: { nil }
+        )
+        #expect(try await reader.read() == "First\nSecond")
+        #expect(pasteboard.string(forType: .string) == "Original")
+    }
+
+    @Test func copyWaitsForTextAfterPasteboardClears() async throws {
+        let pasteboard = NSPasteboard.withUniqueName()
+        defer { pasteboard.releaseGlobally() }
+        pasteboard.setString("Original", forType: .string)
+        let reader = SelectionTextReader(
+            pasteboard: pasteboard, isSourceActive: { true },
+            menuCopy: { {
+                pasteboard.clearContents()
+                _ = Task { @MainActor in
+                    try await Task.sleep(for: .milliseconds(50))
+                    pasteboard.setString("First\nSecond", forType: .string)
+                }
+                return true
+            } },
+            shortcutCopy: { Issue.record("Shortcut should not run"); return false },
+            accessibilityText: { Issue.record("Accessibility should not run"); return nil }
+        )
+        #expect(try await reader.read() == "First\nSecond")
+        #expect(pasteboard.string(forType: .string) == "Original")
+    }
+
     @Test func copiedSelectionPreservesLineBreaksAndRestoresPasteboard() async throws {
         _ = NSApplication.shared
         let pasteboard = NSPasteboard.withUniqueName()
@@ -24,11 +122,11 @@ struct SelectionTextTests {
         editor.setSelectedRange(NSRange(location: 0, length: (source as NSString).length))
         var copies = 0, accessibilityReads = 0
         let reader = SelectionTextReader(
-            pasteboard: pasteboard, isSourceActive: { true }, modifiers: { [] },
-            copy: {
+            pasteboard: pasteboard, isSourceActive: { true }, menuCopy: { nil },
+            shortcutCopy: {
                 copies += 1
                 pasteboard.clearContents()
-                #expect(editor.writeSelection(to: pasteboard, types: editor.writablePasteboardTypes))
+                return editor.writeSelection(to: pasteboard, types: editor.writablePasteboardTypes)
             },
             accessibilityText: { accessibilityReads += 1; return "First lineSecond lineThird paragraphIndented line" }
         )
@@ -52,8 +150,8 @@ struct SelectionTextTests {
         defer { pasteboard.releaseGlobally() }
         let source = "One" + separator + separator + "Two\tThree"
         let reader = SelectionTextReader(
-            pasteboard: pasteboard, isSourceActive: { true }, modifiers: { [] },
-            copy: { pasteboard.clearContents(); pasteboard.setString("  " + source + "  ", forType: .string) },
+            pasteboard: pasteboard, isSourceActive: { true }, menuCopy: { nil },
+            shortcutCopy: { pasteboard.clearContents(); pasteboard.setString("  " + source + "  ", forType: .string); return true },
             accessibilityText: { "OneTwoThree" }
         )
         #expect(try await reader.read() == source)
@@ -66,8 +164,8 @@ struct SelectionTextTests {
         pasteboard.setString("Unrelated clipboard", forType: .string)
         var copies = 0, accessibilityReads = 0
         let reader = SelectionTextReader(
-            pasteboard: pasteboard, isSourceActive: { true }, modifiers: { [] },
-            copy: { copies += 1 },
+            pasteboard: pasteboard, isSourceActive: { true }, menuCopy: { nil },
+            shortcutCopy: { copies += 1; return true },
             accessibilityText: { accessibilityReads += 1; return "Fallback\nselection" }
         )
         #expect(try await reader.read() == "Fallback\nselection")
@@ -85,8 +183,8 @@ struct SelectionTextTests {
         }
         #expect(pasteboard.writeObjects(originals))
         let reader = SelectionTextReader(
-            pasteboard: pasteboard, isSourceActive: { true }, modifiers: { [] },
-            copy: { pasteboard.clearContents(); pasteboard.setData(Data([1, 2]), forType: .png) },
+            pasteboard: pasteboard, isSourceActive: { true }, menuCopy: { nil },
+            shortcutCopy: { pasteboard.clearContents(); pasteboard.setData(Data([1, 2]), forType: .png); return true },
             accessibilityText: {
                 #expect(pasteboard.pasteboardItems?.map { $0.string(forType: .string) } == ["First", "Second"])
                 return "Fallback\nselection"
@@ -102,8 +200,8 @@ struct SelectionTextTests {
         pasteboard.setString("Existing clipboard", forType: .string)
         var active = true, accessibilityReads = 0
         let reader = SelectionTextReader(
-            pasteboard: pasteboard, isSourceActive: { active }, modifiers: { [] },
-            copy: { pasteboard.clearContents(); pasteboard.setString("Selection", forType: .string); active = false },
+            pasteboard: pasteboard, isSourceActive: { active }, menuCopy: { nil },
+            shortcutCopy: { pasteboard.clearContents(); pasteboard.setString("Selection", forType: .string); active = false; return true },
             accessibilityText: { accessibilityReads += 1; return "Selection" }
         )
         #expect(try await reader.read().isEmpty)
@@ -117,14 +215,15 @@ struct SelectionTextTests {
         pasteboard.setString("Existing clipboard", forType: .string)
         var started = false, accessibilityReads = 0
         let reader = SelectionTextReader(
-            pasteboard: pasteboard, isSourceActive: { true }, modifiers: { [] },
-            copy: {
+            pasteboard: pasteboard, isSourceActive: { true }, menuCopy: { nil },
+            shortcutCopy: {
                 started = true
                 _ = Task { @MainActor in
                     try await Task.sleep(for: .milliseconds(50))
                     pasteboard.clearContents()
                     pasteboard.setString("Selected\ntext", forType: .string)
                 }
+                return true
             },
             accessibilityText: { accessibilityReads += 1; return "Selection" }
         )

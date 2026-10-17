@@ -14,7 +14,7 @@
 | 生词本词头与读音、朗读、复制、重查、删除确认、排序与键盘导航 | [生词本](../Sources/Glint/VocabularyView.swift)、[词条派生字段](../Sources/GlintCore/Models.swift)、[共用控件](../Sources/Glint/Controls.swift) | [翻译规则测试](../Tests/GlintCoreTests/TranslationRulesTests.swift)、[窗口诊断](../Sources/Glint/AppDiagnostics.swift) |
 | 跨显示器截图、取消恢复固定浮窗 | [截图服务](../Sources/Glint/CaptureService.swift)、[截图入口](../Sources/Glint/GlintApp.swift) | [图像合成测试](../Tests/GlintTests/CaptureTextTests.swift)、下方系统验收 |
 | OCR 自然段、列表、断词与中外文间距 | [OCR 文本](../Sources/Glint/OCRText.swift) | [段落测试](../Tests/GlintTests/CaptureTextTests.swift)、[真实 Vision 测试](../Tests/GlintTests/NativeTests.swift) |
-| 外部选区阻塞条件、修饰键释放提示、浮标边界与交互态 | [划词入口](../Sources/Glint/GlintApp.swift)、[划词服务](../Sources/Glint/SelectionService.swift) | [划词索引](selection-popup.md)、下方系统验收 |
+| 外部选区阻塞条件、菜单复制取词、浮标边界与交互态 | [划词入口](../Sources/Glint/GlintApp.swift)、[划词服务](../Sources/Glint/SelectionService.swift) | [划词索引](selection-popup.md)、下方系统验收 |
 
 ## 交互验收
 
@@ -32,6 +32,6 @@
 - 使用实际代理地址，分别开启和关闭代理后测试网络，核对显示的连接方式与翻译请求。
 - 浏览设置的历史、通用页时使用四个全局快捷键；录制时检查暂停，切换页面、窗口或应用后检查恢复。
 - 设置或生词本保留在后台时，在外部应用划词并点击浮标；在深浅背景检查浮标悬停与按下态。
-- 持续按住划词快捷键，检查释放修饰键的提示；松开后重新取词。
+- 轻按或持续按住划词快捷键，检查多行原文、空行与缩进；连续触发后检查剪贴板恢复。
 - 在不同缩放比例、左右及上下排列的显示器之间拖动截图选区，核对图像拼接与 OCR；固定浮窗显示时按 Esc 取消截图。
 - 检查在线朗读加载、停止、重新播放、切换原文和译文，以及网络失败后的系统朗读。

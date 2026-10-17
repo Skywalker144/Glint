@@ -17,7 +17,7 @@ let package = Package(
             .product(name: "SwiftMath", package: "SwiftMath")
         ]),
         .testTarget(name: "GlintCoreTests", dependencies: ["GlintCore", .product(name: "Testing", package: "swift-testing")], exclude: ["stream_server.py"], resources: [.process("Fixtures")]),
-        .testTarget(name: "GlintTests", dependencies: ["Glint", .product(name: "Testing", package: "swift-testing")])
+        .testTarget(name: "GlintTests", dependencies: ["Glint", .product(name: "Testing", package: "swift-testing")], exclude: ["selection_menu_host.swift", "selection_menu_driver.swift"])
     ],
     swiftLanguageModes: [.v5]
 )

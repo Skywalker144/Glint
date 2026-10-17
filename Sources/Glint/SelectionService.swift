@@ -81,14 +81,20 @@ final class SelectionService {
         return try await SelectionTextReader(
             pasteboard: .general,
             isSourceActive: { NSWorkspace.shared.frontmostApplication?.processIdentifier == pid },
-            modifiers: { NSEvent.modifierFlags },
-            copy: {
-                let source = CGEventSource(stateID: .combinedSessionState)
-                for down in [true, false] {
-                    let event = CGEvent(keyboardEventSource: source, virtualKey: 8, keyDown: down)
-                    event?.flags = .maskCommand
-                    event?.post(tap: .cghidEventTap)
+            menuCopy: {
+                let item = await Task.detached { SelectionCopyMenu.find(pid: pid) }.value
+                guard NSWorkspace.shared.frontmostApplication?.processIdentifier == pid, let item else { return nil }
+                return { AXUIElementPerformAction(item, kAXPressAction as CFString) == .success }
+            },
+            shortcutCopy: {
+                let source = CGEventSource(stateID: .hidSystemState)
+                guard let down = CGEvent(keyboardEventSource: source, virtualKey: 8, keyDown: true),
+                      let up = CGEvent(keyboardEventSource: source, virtualKey: 8, keyDown: false) else { return false }
+                for event in [down, up] {
+                    event.flags = .maskCommand
+                    event.post(tap: .cghidEventTap)
                 }
+                return true
             },
             accessibilityText: {
                 await Task.detached { SelectionMonitor(parentPID: getpid(), delayMilliseconds: 0).selectedText(pid: pid, point: point) }.value
