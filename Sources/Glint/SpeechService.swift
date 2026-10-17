@@ -1,24 +1,28 @@
 import AVFoundation
 import Observation
+import SwiftUI
 import GlintCore
 
 @MainActor @Observable
 final class SpeechService: NSObject, AVAudioPlayerDelegate, AVSpeechSynthesizerDelegate {
     var channel = ""
+    private(set) var loading = false
     @ObservationIgnored private var player: AVAudioPlayer?
     @ObservationIgnored private var synthesizer = AVSpeechSynthesizer()
     @ObservationIgnored private var task: Task<Void, Never>?
     @ObservationIgnored private var revision = UUID()
+    @ObservationIgnored private var utterance: AVSpeechUtterance?
     override init() { super.init(); synthesizer.delegate = self }
     func stop() {
         revision = UUID(); task?.cancel(); task = nil; player?.stop(); player = nil
-        synthesizer.stopSpeaking(at: .immediate); channel = ""
+        utterance = nil; synthesizer.stopSpeaking(at: .immediate); channel = ""; loading = false
     }
     func speak(_ text: String, language: String, proxy: ProxySettings, channel: String) {
+        if self.channel == channel { stop(); return }
         stop()
         guard !text.trimmed.isEmpty else { return }
-        let token = UUID(); revision = token; self.channel = channel
-        let code = Language.valid(language) ? language : "en"
+        let token = UUID(); revision = token; self.channel = channel; loading = true
+        let code = Language.valid(language) ? language : (Language.detect(text) ?? Language.guess(text))
         task = Task {
             do {
                 let client = try HTTPClient(proxy: proxy)
@@ -36,9 +40,11 @@ final class SpeechService: NSObject, AVAudioPlayerDelegate, AVSpeechSynthesizerD
                 guard revision == token else { return }
                 player = try AVAudioPlayer(data: audio); player?.delegate = self
                 guard player?.play() == true else { throw GlintError.message("无法播放朗读音频") }
+                loading = false
             } catch {
                 guard revision == token, !Task.isCancelled else { return }
                 let utterance = AVSpeechUtterance(string: text)
+                self.utterance = utterance; loading = false
                 utterance.voice = AVSpeechSynthesisVoice(language: code); synthesizer.speak(utterance)
             }
         }
@@ -47,7 +53,7 @@ final class SpeechService: NSObject, AVAudioPlayerDelegate, AVSpeechSynthesizerD
         Task { @MainActor in if self.player === player { self.channel = "" } }
     }
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        Task { @MainActor in self.channel = "" }
+        Task { @MainActor in if self.utterance === utterance { self.channel = ""; self.utterance = nil } }
     }
     static func split(_ text: String) -> [String] {
         var remaining = Array(text.trimmed), result: [String] = []
@@ -58,5 +64,21 @@ final class SpeechService: NSObject, AVAudioPlayerDelegate, AVSpeechSynthesizerD
         }
         if !remaining.isEmpty { result.append(String(remaining.prefix(190)).trimmed) }
         return result.filter { !$0.isEmpty }
+    }
+}
+
+struct SpeechButton: View {
+    let speech: SpeechService
+    let channel: String
+    let label: String
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            Group {
+                if speech.channel == channel && speech.loading { ProgressView().controlSize(.mini) }
+                else { Image(systemName: speech.channel == channel ? "stop.fill" : "speaker.wave.2").font(.system(size: 13)) }
+            }.frame(width: 24, height: 24)
+        }.buttonStyle(GlintButtonStyle(selected: speech.channel == channel, horizontalPadding: 0, verticalPadding: 0))
+            .help(speech.channel == channel ? "停止朗读" : label).accessibilityLabel(speech.channel == channel ? "停止朗读" : label)
     }
 }

@@ -35,6 +35,20 @@ struct Hotkey: Equatable {
     static func display(_ value: String) -> String {
         value.split(separator: "+").map { ["Command":"⌘", "CommandOrControl":"⌘", "Control":"⌃", "Alt":"⌥", "Shift":"⇧", "Space":"␣", "Return":"↩"] [String($0)] ?? String($0) }.joined()
     }
+    var menuKeyEquivalent: String {
+        let special: [UInt32: Int] = [123: NSLeftArrowFunctionKey, 124: NSRightArrowFunctionKey, 125: NSDownArrowFunctionKey, 126: NSUpArrowFunctionKey, 115: NSHomeFunctionKey, 119: NSEndFunctionKey, 116: NSPageUpFunctionKey, 121: NSPageDownFunctionKey, 117: NSDeleteFunctionKey]
+        if let code = special[keyCode], let scalar = UnicodeScalar(code) { return String(scalar) }
+        guard let key = Self.keys.first(where: { $0.value == keyCode })?.key else { return "" }
+        if key.hasPrefix("F"), let number = Int(key.dropFirst()), let scalar = UnicodeScalar(NSF1FunctionKey + number - 1) { return String(scalar) }
+        return ["Space": " ", "Return": "\r", "Tab": "\t", "Backspace": "\u{8}", "Escape": "\u{1b}"][key] ?? key.lowercased()
+    }
+    var menuModifiers: NSEvent.ModifierFlags {
+        var flags: NSEvent.ModifierFlags = []
+        for (carbon, cocoa) in [(cmdKey, NSEvent.ModifierFlags.command), (optionKey, .option), (controlKey, .control), (shiftKey, .shift)] {
+            if modifiers & UInt32(carbon) != 0 { flags.insert(cocoa) }
+        }
+        return flags
+    }
 }
 
 @MainActor
@@ -80,14 +94,33 @@ final class HotkeyManager {
 
 struct HotkeyRecorder: NSViewRepresentable {
     @Binding var value: String
+    var onRecordingChanged: (Bool) -> Void = { _ in }
     final class Recorder: NSButton {
         var onRecord: (String) -> Void = { _ in }
+        var onRecordingChanged: (Bool) -> Void = { _ in }
+        private(set) var recording = false
         var value = ""
         override var acceptsFirstResponder: Bool { true }
         @objc func beginRecording() { window?.makeFirstResponder(self) }
         override func becomeFirstResponder() -> Bool {
+            guard super.becomeFirstResponder() else { return false }
+            recording = true; onRecordingChanged(true)
             title = "请按下新的组合键…"; needsDisplay = true
-            return super.becomeFirstResponder()
+            return true
+        }
+        override func viewWillMove(toWindow newWindow: NSWindow?) {
+            NotificationCenter.default.removeObserver(self, name: NSWindow.didResignKeyNotification, object: window)
+            if recording { recording = false; onRecordingChanged(false) }
+            super.viewWillMove(toWindow: newWindow)
+        }
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let window { NotificationCenter.default.addObserver(self, selector: #selector(windowResigned), name: NSWindow.didResignKeyNotification, object: window) }
+        }
+        @objc private func windowResigned() { window?.makeFirstResponder(nil) }
+        override func performKeyEquivalent(with event: NSEvent) -> Bool {
+            guard recording else { return super.performKeyEquivalent(with: event) }
+            keyDown(with: event); return true
         }
         override func draw(_ dirtyRect: NSRect) {
             let focused = window?.firstResponder === self
@@ -104,7 +137,12 @@ struct HotkeyRecorder: NSViewRepresentable {
             guard let accelerator = Hotkey.accelerator(event) else { NSSound.beep(); return }
             onRecord(accelerator); window?.makeFirstResponder(nil)
         }
-        override func resignFirstResponder() -> Bool { title = value.isEmpty ? "点击录制快捷键" : Hotkey.display(value); needsDisplay = true; return super.resignFirstResponder() }
+        override func resignFirstResponder() -> Bool {
+            guard super.resignFirstResponder() else { return false }
+            if recording { recording = false; onRecordingChanged(false) }
+            title = value.isEmpty ? "点击录制快捷键" : Hotkey.display(value); needsDisplay = true
+            return true
+        }
     }
     func makeNSView(context: Context) -> Recorder {
         let button = Recorder(); button.isBordered = false; button.focusRingType = .none; button.alignment = .center
@@ -117,5 +155,10 @@ struct HotkeyRecorder: NSViewRepresentable {
         if view.window?.firstResponder !== view { view.title = value.isEmpty ? "点击录制快捷键" : Hotkey.display(value) }
         view.needsDisplay = true
         view.onRecord = { value = $0 }
+        view.onRecordingChanged = onRecordingChanged
+    }
+    static func dismantleNSView(_ view: Recorder, coordinator: ()) {
+        if view.recording { view.window?.makeFirstResponder(nil) }
+        NotificationCenter.default.removeObserver(view)
     }
 }

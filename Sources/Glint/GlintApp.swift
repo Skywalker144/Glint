@@ -17,7 +17,7 @@ enum GlintApp {
 }
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     var model: AppModel!
     var translator: GlintWindowController!
     var settingsWindow: GlintWindowController?
@@ -62,7 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             rebuildStatusItem()
             selection.isBlocked = { [weak self] activating in
                 guard let self else { return true }
-                return self.capture.active || (NSApp.keyWindow != nil && !(activating && NSApp.keyWindow === self.translator.window))
+                return self.capture.active || (NSApp.isActive && !(activating && NSApp.keyWindow === self.translator.window))
             }
             selection.onTranslate = { [weak self] text in self?.showTranslation(text) }
             if !isolated {
@@ -96,11 +96,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.showSettings = { [weak self] in self?.openSettings() }
         model.showVocabulary = { [weak self] in self?.openVocabulary() }
         model.hideTranslator = { [weak self] in self?.translator.hide() }
+        model.showTranslator = { [weak self] in
+            guard let self else { return }
+            self.translator.show(nearCursor: !self.model.settings.pinned)
+        }
+        model.onRecordingHotkey = { [weak self] recording in
+            guard let self, self.recording != recording else { return }
+            self.recording = recording
+            guard !self.isolated else { return }
+            if recording { self.hotkeys.unregister() }
+            else { do { try self.hotkeys.register(self.model.settings.hotkeys) } catch { self.model.saveMessage = error.localizedDescription } }
+        }
         model.closeSettings = { [weak self] in self?.settingsWindow?.hide() }
         model.closeVocabulary = { [weak self] in self?.vocabularyWindow?.hide() }
         translator.onAvailableHeightChanged = { [weak self] in self?.model.translatorMaximumHeight = $0 }
         model.resizeTranslator = { [weak self] in self?.translator?.fitHeight($0) }
-        model.resizeSettings = { [weak self] in self?.settingsWindow?.fitHeight($0) }
         model.onApplySettings = { [weak self] old, next in
             guard let self else { return }
             if old.hotkeys != next.hotkeys && !self.isolated {
@@ -151,11 +161,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         case "screenshot":
             guard captureTask == nil else { return }
+            let restorePinned = translator.window.isVisible && model.settings.pinned
             translator.hide()
             captureTask = Task {
                 defer { captureTask = nil }
                 do {
-                    guard let image = try await capture.capture() else { return }
+                    guard let image = try await capture.capture() else {
+                        if restorePinned { translator.show() }
+                        return
+                    }
                     translator.show(nearCursor: !model.settings.pinned); model.showMessage("正在识别文字…")
                     let text = try await CaptureService.recognize(image)
                     if text.isEmpty { model.showMessage("没有识别到文字，换个区域再试试。") } else { model.receive(text) }
@@ -167,20 +181,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func openSettings() {
         selection.dismiss()
         if settingsWindow == nil {
-            settingsWindow = GlintWindowController(title: "设置 · Glint", size: SettingsView.size, root: SettingsView(model: model))
-            settingsWindow?.onFocusChanged = { [weak self] focused in
-                guard let self else { return }
-                self.recording = focused
-                guard !self.isolated else { return }
-                if focused { self.hotkeys.unregister() }
-                else { do { try self.hotkeys.register(self.model.settings.hotkeys) } catch { self.model.saveMessage = error.localizedDescription } }
-            }
+            settingsWindow = GlintWindowController(title: "设置 · Glint", size: SettingsView.size, resizable: true, root: SettingsView(model: model))
+            settingsWindow?.window.minSize = CGSize(width: SettingsView.size.width, height: 500)
+            settingsWindow?.window.maxSize = CGSize(width: SettingsView.size.width, height: 1000)
         }
         settingsWindow?.show()
     }
     func openVocabulary() {
         selection.dismiss()
-        if vocabularyWindow == nil { vocabularyWindow = GlintWindowController(title: "生词本 · Glint", size: CGSize(width: 760, height: 560), resizable: true, root: VocabularyView(model: model)) }
+        if vocabularyWindow == nil {
+            vocabularyWindow = GlintWindowController(title: "生词本 · Glint", size: CGSize(width: 760, height: 560), resizable: true, root: VocabularyView(model: model))
+            vocabularyWindow?.window.minSize = CGSize(width: 680, height: 360)
+        }
         vocabularyWindow?.show()
     }
     func rebuildStatusItem() {
@@ -199,25 +211,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             item.target = self; menu.addItem(item); menu.addItem(.separator())
         }
         for (action, title) in [("input","输入翻译"),("screenshot","截图翻译"),("selection","划词翻译"),("clipboard","剪贴板翻译")] {
-            let item = NSMenuItem(title: title + "   " + Hotkey.display(model.settings.hotkeys[action] ?? ""), action: #selector(menuAction(_:)), keyEquivalent: "")
+            let hotkey = Hotkey.parse(model.settings.hotkeys[action] ?? "")
+            let item = NSMenuItem(title: title, action: #selector(menuAction(_:)), keyEquivalent: hotkey?.menuKeyEquivalent ?? "")
+            item.keyEquivalentModifierMask = hotkey?.menuModifiers ?? []
             item.representedObject = action; item.target = self; menu.addItem(item)
         }
         menu.addItem(.separator())
         for (title, selector) in [("生词本…", #selector(vocabularyAction)), ("设置…", #selector(settingsAction))] {
-            let item = NSMenuItem(title: title, action: selector, keyEquivalent: ""); item.target = self; menu.addItem(item)
+            let item = NSMenuItem(title: title, action: selector, keyEquivalent: selector == #selector(settingsAction) ? "," : ""); item.target = self; menu.addItem(item)
         }
         menu.addItem(.separator()); menu.addItem(withTitle: "退出", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         statusItem?.menu = menu
     }
     private func buildMainMenu() {
         let menu = NSMenu()
-        let appItem = NSMenuItem(); let appMenu = NSMenu(); appMenu.addItem(withTitle: "退出 Glint", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"); appItem.submenu = appMenu; menu.addItem(appItem)
+        let appItem = NSMenuItem(); let appMenu = NSMenu()
+        let settings = appMenu.addItem(withTitle: "设置…", action: #selector(settingsAction), keyEquivalent: ","); settings.target = self
+        appMenu.addItem(.separator()); appMenu.addItem(withTitle: "退出 Glint", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"); appItem.submenu = appMenu; menu.addItem(appItem)
         let editItem = NSMenuItem(); let edit = NSMenu(title: "编辑")
         for (title, selector, key) in [("撤销", Selector(("undo:")), "z"), ("剪切", #selector(NSText.cut(_:)), "x"), ("复制", #selector(NSText.copy(_:)), "c"), ("粘贴", #selector(NSText.paste(_:)), "v"), ("全选", #selector(NSText.selectAll(_:)), "a")] { edit.addItem(withTitle: title, action: selector, keyEquivalent: key) }
-        editItem.submenu = edit; menu.addItem(editItem); NSApp.mainMenu = menu
+        editItem.submenu = edit; menu.addItem(editItem)
+        let windowItem = NSMenuItem(); let windowMenu = NSMenu(title: "窗口")
+        let close = windowMenu.addItem(withTitle: "关闭窗口", action: #selector(closeWindowAction), keyEquivalent: "w"); close.target = self
+        windowItem.submenu = windowMenu; menu.addItem(windowItem); NSApp.mainMenu = menu
     }
     @objc private func menuAction(_ sender: NSMenuItem) { if let action = sender.representedObject as? String { perform(action) } }
     @objc private func settingsAction() { openSettings() }
+    @objc private func closeWindowAction() { NSApp.keyWindow?.performClose(nil) }
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool { menuItem.action != #selector(closeWindowAction) || NSApp.keyWindow != nil }
     @objc private func vocabularyAction() { openVocabulary() }
     @objc private func updateAction() { if model.update?.ready == true { model.update?.apply() } else if let url = URL(string: model.update?.releaseURL ?? AppVersion.repository) { NSWorkspace.shared.open(url) } }
     @objc private func reopenFromNotification() { perform("input") }

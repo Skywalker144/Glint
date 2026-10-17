@@ -57,6 +57,7 @@ struct GlintToggle: View {
     var detail = ""
     var symbol: String? = nil
     @Binding var isOn: Bool
+    @Environment(\.isEnabled) private var enabled
 
     var body: some View {
         HStack(spacing: 12) {
@@ -75,6 +76,6 @@ struct GlintToggle: View {
             }
             Spacer(minLength: 8)
             Toggle(title, isOn: $isOn).labelsHidden().toggleStyle(.switch).tint(Theme.text).controlSize(.small)
-        }.frame(minHeight: 36)
+        }.frame(minHeight: 36).opacity(enabled ? 1 : 0.4)
     }
 }

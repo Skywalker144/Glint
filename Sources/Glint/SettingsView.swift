@@ -115,12 +115,12 @@ struct SettingsView: View {
                         Spacer(minLength: 0)
                     }.font(.system(size: 11)).foregroundStyle(SettingsPalette.secondary).padding(.horizontal, 30).padding(.vertical, 12)
                         .background(SettingsPalette.background)
+                        .overlay(alignment: .top) { Rectangle().fill(SettingsPalette.border).frame(height: 0.5) }
                 }.background(SettingsPalette.background)
-            }.frame(height: Self.size.height)
+            }.frame(minHeight: 360)
                 .buttonStyle(SettingsButtonStyle()).textFieldStyle(SettingsTextFieldStyle())
                 .tint(Theme.text)
-        }.onAppear { model.resizeSettings(Self.size.height) }
-            .onExitCommand(perform: model.closeSettings)
+        }.onExitCommand(perform: model.closeSettings)
             .onReceive(Timer.publish(every: 2, on: .main, in: .common).autoconnect()) { _ in accessibility = AXIsProcessTrusted(); screen = CGPreflightScreenCaptureAccess() }
             .alert("确定要清空所有翻译历史吗？", isPresented: $clearConfirmation) {
                 Button("取消", role: .cancel) {}
@@ -214,15 +214,17 @@ struct SettingsView: View {
             } else {
                 HStack { section("系统提示词", "可用占位符：{{primary}}、{{secondary}}、{{target}}。"); Spacer(); Button("恢复默认") { model.changeSettings { $0.systemPrompt = Catalog.defaultSystemPrompt } }.font(.system(size: 12)) }
                 PromptEditor(title: "系统提示词", text: model.binding(\.systemPrompt))
-                HStack { section("单词词典", "输入单个词时给出音标与紧凑释义。"); Spacer(); Button("恢复默认") { model.changeSettings { $0.dictionaryPrompt = Catalog.defaultDictionaryPrompt } }.font(.system(size: 12)) }
+                HStack { section("单词词典", "输入单个词时给出音标与紧凑释义。"); Spacer(); Button("恢复默认") { model.changeSettings { $0.dictionaryPrompt = Catalog.defaultDictionaryPrompt } }.font(.system(size: 12)).disabled(!model.settings.dictionaryMode) }
                 SettingsCard {
                     GlintToggle(title: "启用单词词典", detail: "输入单词、或划词选中单词时自动切换", isOn: model.binding(\.dictionaryMode))
                     SettingsDivider()
-                    GlintToggle(title: "例句", detail: "一条短例句，附译文", isOn: model.binding(\.dictionaryExtras.examples))
-                    GlintToggle(title: "近义词 / 反义词", detail: "各最多三个，标明词性", isOn: model.binding(\.dictionaryExtras.synonyms))
-                    GlintToggle(title: "关联词", detail: "最多三个常用关联词，附简短释义", isOn: model.binding(\.dictionaryExtras.related))
+                    Group {
+                        GlintToggle(title: "例句", detail: "一条短例句，附译文", isOn: model.binding(\.dictionaryExtras.examples))
+                        GlintToggle(title: "近义词 / 反义词", detail: "各最多三个，标明词性", isOn: model.binding(\.dictionaryExtras.synonyms))
+                        GlintToggle(title: "关联词", detail: "最多三个常用关联词，附简短释义", isOn: model.binding(\.dictionaryExtras.related))
+                    }.disabled(!model.settings.dictionaryMode)
                 }
-                PromptEditor(title: "词典提示词", text: model.binding(\.dictionaryPrompt))
+                PromptEditor(title: "词典提示词", text: model.binding(\.dictionaryPrompt)).disabled(!model.settings.dictionaryMode)
             }
         }
     }
@@ -230,7 +232,7 @@ struct SettingsView: View {
         Group {
             SettingsCard {
                 ForEach([("input","输入翻译"),("screenshot","截图翻译"),("selection","划词翻译"),("clipboard","剪贴板翻译")], id: \.0) { key, label in
-                    SettingsRow(title: label) { HotkeyRecorder(value: Binding(get: { model.settings.hotkeys[key] ?? "" }, set: { value in model.changeSettings { $0.hotkeys[key] = value } })).frame(width: 230, height: 30) }
+                    SettingsRow(title: label) { HotkeyRecorder(value: Binding(get: { model.settings.hotkeys[key] ?? "" }, set: { value in model.changeSettings { $0.hotkeys[key] = value } }), onRecordingChanged: model.onRecordingHotkey).frame(width: 230, height: 30) }
                     if key != "clipboard" { SettingsDivider() }
                 }
             }
@@ -264,7 +266,6 @@ struct SettingsView: View {
         Group {
             HStack {
                 TextField("搜索原文或译文", text: $historySearch)
-                Button("刷新") { model.history = model.store.history }
                 Button("清空", role: .destructive) { clearConfirmation = true }.disabled(model.history.isEmpty)
             }
             if filteredHistory.isEmpty {
@@ -274,21 +275,7 @@ struct SettingsView: View {
                 }.foregroundStyle(SettingsPalette.secondary).frame(maxWidth: .infinity).padding(.vertical, 60)
             }
             ForEach(filteredHistory) { item in
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(item.original).font(.system(size: 12)).foregroundStyle(SettingsPalette.secondary).lineLimit(1)
-                    Text(item.translated).lineLimit(2)
-                    HStack {
-                        Text(Language.label(item.source) + " → " + Language.label(item.target)).font(.system(size: 11)).foregroundStyle(SettingsPalette.secondary)
-                        Spacer(); Text(StoredDate.display(item.createdAt, time: true)).font(.system(size: 11)).foregroundStyle(SettingsPalette.secondary)
-                    }
-                    HStack {
-                        Spacer()
-                        Button("复制原文") { AppModel.copy(item.original) }
-                        Button("复制译文") { AppModel.copy(item.translated) }
-                        Button("重新翻译") { model.input = item.original; model.overrides = .init(); model.translate(); model.saveMessage = "重新翻译中…" }
-                    }.font(.system(size: 11)).buttonStyle(GlintButtonStyle())
-                }.padding(16).background(SettingsPalette.card, in: RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(SettingsPalette.border, lineWidth: 0.5))
+                HistoryCard(item: item, retranslate: { model.openTranslation(item.original) })
             }
         }
     }
@@ -328,10 +315,11 @@ struct SettingsView: View {
         Task {
             defer { busy = false }
             do {
-                let client = try HTTPClient(proxy: .init(enabled: !model.settings.proxy.url.isEmpty, url: model.settings.proxy.url))
+                let proxy = model.settings.proxy
+                let client = try HTTPClient(proxy: proxy)
                 var request = URLRequest(url: URL(string: "https://www.gstatic.com/generate_204")!); request.timeoutInterval = 8
                 let start = Date(); _ = try await client.data(for: request)
-                networkStatus = "连接成功 · \(Int(Date().timeIntervalSince(start) * 1000)) ms"
+                networkStatus = (proxy.enabled ? "代理" : "直连") + "连接成功 · \(Int(Date().timeIntervalSince(start) * 1000)) ms"
             } catch { networkStatus = error.localizedDescription }
         }
     }

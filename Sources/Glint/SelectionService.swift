@@ -57,7 +57,7 @@ final class SelectionService {
             if popup == nil {
                 let panel = PassivePanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
                 panel.isFloatingPanel = true; panel.level = .floating; panel.isOpaque = false; panel.backgroundColor = .clear
-                panel.hasShadow = false; panel.hidesOnDeactivate = false; panel.isReleasedWhenClosed = false
+                panel.hasShadow = true; panel.hidesOnDeactivate = false; panel.isReleasedWhenClosed = false
                 panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
                 let button = SelectionButton(frame: CGRect(x: 0, y: 0, width: 40, height: 40))
                 button.target = self; button.action = #selector(activate)
@@ -85,12 +85,12 @@ final class SelectionService {
         let pasteboard = NSPasteboard.general
         let saved = (pasteboard.pasteboardItems ?? []).map { item in Dictionary(uniqueKeysWithValues: item.types.compactMap { type in item.data(forType: type).map { (type, $0) } }) }
         let initialCount = pasteboard.changeCount
-        for _ in 0..<24 {
+        for _ in 0..<80 {
             if NSEvent.modifierFlags.intersection([.option, .command, .control, .shift]).isEmpty { break }
             try await Task.sleep(for: .milliseconds(25))
         }
         guard NSWorkspace.shared.frontmostApplication?.processIdentifier == pid else { return "" }
-        guard NSEvent.modifierFlags.intersection([.option, .command, .control, .shift]).isEmpty else { return "" }
+        guard NSEvent.modifierFlags.intersection([.option, .command, .control, .shift]).isEmpty else { throw GlintError.message("请松开快捷键的修饰键，再试一次划词翻译。") }
         try Task.checkCancellation()
         let source = CGEventSource(stateID: .combinedSessionState)
         for down in [true, false] {
@@ -116,12 +116,23 @@ final class SelectionService {
 
 final class PassivePanel: NSPanel { override var canBecomeKey: Bool { false }; override var canBecomeMain: Bool { false } }
 final class SelectionButton: NSButton {
+    private var hovering = false
     override init(frame: NSRect) { super.init(frame: frame); title = "译"; isBordered = false; font = .systemFont(ofSize: 16, weight: .semibold); setAccessibilityLabel("翻译选中文字") }
     required init?(coder: NSCoder) { nil }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func updateTrackingAreas() {
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(rect: .zero, options: [.activeAlways, .mouseEnteredAndExited, .inVisibleRect], owner: self))
+        super.updateTrackingAreas()
+    }
+    override func mouseEntered(with event: NSEvent) { hovering = true; needsDisplay = true }
+    override func mouseExited(with event: NSEvent) { hovering = false; needsDisplay = true }
     override func draw(_ dirtyRect: NSRect) {
-        NSColor.adaptive(0xffffff, 0x232326).setFill()
-        NSBezierPath(roundedRect: bounds.insetBy(dx: 4, dy: 4), xRadius: 9, yRadius: 9).fill()
-        super.draw(dirtyRect)
+        let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 4.5, dy: 4.5), xRadius: 9, yRadius: 9)
+        NSColor(isHighlighted ? Theme.pressed : hovering ? Theme.hover : Theme.card).setFill(); path.fill()
+        NSColor.adaptive(0xbcbcc2, 0x66666e).setStroke(); path.lineWidth = 1; path.stroke()
+        let attributes: [NSAttributedString.Key: Any] = [.font: font ?? .systemFont(ofSize: 16, weight: .semibold), .foregroundColor: NSColor.labelColor]
+        let size = title.size(withAttributes: attributes)
+        title.draw(at: CGPoint(x: (bounds.width - size.width) / 2, y: (bounds.height - size.height) / 2), withAttributes: attributes)
     }
 }

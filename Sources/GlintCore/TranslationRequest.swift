@@ -36,6 +36,14 @@ public struct TranslationRequest: Codable, Equatable, Sendable {
     public let target: String
     public let options: TranslationOptions
     public var resultTarget: String { options.semanticDirection ? "" : target }
+    public func resolvedLanguages(original: String, translated: String, detectedSource: String) -> (source: String, target: String) {
+        let normalized = detectedSource.hasPrefix("zh") ? "zh-CN" : detectedSource
+        let source = Language.valid(normalized) ? normalized : (Language.detect(original) ?? Language.guess(original))
+        let target = options.semanticDirection
+            ? (Language.detect(translated) ?? (source == options.primaryLanguage ? options.secondaryLanguage : options.primaryLanguage))
+            : (options.dict ? options.primaryLanguage : self.target)
+        return (source, target)
+    }
     public static func resolve(_ text: String, settings s: AppSettings, overrides o: TranslationOverrides = .init()) throws -> Self {
         guard let provider = Provider.find(s.engine) else { throw GlintError.message("未知翻译引擎：" + s.engine) }
         let primary = Language.valid(s.primaryLanguage) ? s.primaryLanguage : "zh-CN"

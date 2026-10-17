@@ -20,7 +20,7 @@ struct TranslatorLayoutTests {
         text.string = "原文\n"
         #expect(scroll.layoutText() > 40)
         text.string = String(repeating: "原文输入需要保留多行和滚动。\n", count: 20)
-        #expect(scroll.layoutText() == 62)
+        #expect(scroll.layoutText() == 140)
         #expect(text.frame.height > scroll.contentSize.height)
         #expect(text.textContainerInset.height == 8)
     }

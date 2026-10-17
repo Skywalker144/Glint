@@ -13,8 +13,12 @@ enum AppDiagnostics {
             model.input = "abstract"
             model.output = "**abstract** /ˈæbstrækt/\nadj. 抽象的；难以理解的\nn. 摘要；梗概\n\n---\n\n例句 An abstract idea. — 一个抽象的想法。"
             model.displayMode = .dict
+            model.source = "en"; model.target = "zh-CN"
             model.currentEntry = VocabularyEntry.parse(model.output, language: "en", definitionLanguage: "zh-CN")
             if !model.isFavorite { model.toggleFavorite() }
+            try model.store.addHistory(.init(original: model.input, translated: model.output, source: "en", target: "zh-CN", engine: "openai"))
+            try model.store.addHistory(.init(original: "A longer original text.\n" + String(repeating: "Read the complete paragraph. ", count: 6), translated: String(repeating: "展开后可以阅读完整的原文与译文。", count: 12), source: "en", target: "zh-CN", engine: "google"))
+            model.history = model.store.history
             for dark in [false, true] {
                 NSApp.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
                 for width in [360.0, 420.0, 820.0] {
@@ -68,6 +72,14 @@ enum AppDiagnostics {
             try await Task.sleep(for: .milliseconds(200))
             guard abs(translator.window.frame.height - streamingHeight) <= 1 else { throw GlintError.message("翻译完成时操作栏导致窗口跳动") }
             try snapshot(translator.window, at: output.appendingPathComponent("translator-complete.png"))
+            model.editInput("Hello again.")
+            try await Task.sleep(for: .milliseconds(200))
+            guard model.resultIsStale, !model.canSwap else { throw GlintError.message("编辑原文后未使旧结果失效") }
+            try snapshot(translator.window, at: output.appendingPathComponent("translator-edited.png"))
+            model.restoreHistory(model.history[0])
+            model.clearInput()
+            guard model.input.isEmpty, model.output.isEmpty else { throw GlintError.message("清空输入未清空结果") }
+            model.input = "Hello world."
             model.streaming = true
             model.output = String(repeating: "这是一段用于验证流式阅读位置的译文。\n", count: 35)
             try await Task.sleep(for: .milliseconds(200))
@@ -93,7 +105,6 @@ enum AppDiagnostics {
                 NSApp.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
                 for tab in SettingsPage.allCases {
                     let controller = GlintWindowController(title: "设置", size: SettingsView.size, root: SettingsView(model: model, tab: tab))
-                    model.resizeSettings = { controller.fitHeight($0) }
                     controller.show()
                     try await Task.sleep(for: .milliseconds(300))
                     try snapshot(controller.window, at: output.appendingPathComponent("settings-\(tab.rawValue)-\(dark ? "dark" : "light").png"))
@@ -101,12 +112,32 @@ enum AppDiagnostics {
                 }
             }
             NSApp.appearance = NSAppearance(named: .aqua)
+            let second = VocabularyEntry.parse("**serene** /səˈriːn/\nadj. 平静的；安详的", language: "en", definitionLanguage: "zh-CN")!
+            try model.store.addVocabulary(second); model.vocabulary = model.store.vocabulary
             delegate.openVocabulary()
             try await Task.sleep(for: .milliseconds(300))
             try snapshot(delegate.vocabularyWindow!.window, at: output.appendingPathComponent("vocabulary.png"))
+            guard let vocabularyRoot = delegate.vocabularyWindow?.window.contentView,
+                  let search = descendants(of: vocabularyRoot, type: NavigationSearchField.SearchField.self).first,
+                  let editor = search.currentEditor(),
+                  let down = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: delegate.vocabularyWindow!.window.windowNumber, context: nil, characters: String(UnicodeScalar(NSDownArrowFunctionKey)!), charactersIgnoringModifiers: String(UnicodeScalar(NSDownArrowFunctionKey)!), isARepeat: false, keyCode: 125) else { throw GlintError.message("生词本搜索框未获得焦点") }
+            editor.keyDown(with: down)
+            try await Task.sleep(for: .milliseconds(150))
+            try snapshot(delegate.vocabularyWindow!.window, at: output.appendingPathComponent("vocabulary-keyboard.png"))
+            guard descendants(of: vocabularyRoot, type: RichTextView.self).contains(where: { $0.string.hasPrefix("adj. 抽象的") }) else { throw GlintError.message("生词本方向键导航或词头去重失败") }
+            delegate.openSettings()
+            let settingsWindow = delegate.settingsWindow!.window
+            settingsWindow.setContentSize(CGSize(width: 800, height: 800))
+            try await Task.sleep(for: .milliseconds(150))
+            guard abs(settingsWindow.contentView!.frame.height - 800) < 1 else { throw GlintError.message("设置窗口高度无法调整") }
+            try snapshot(settingsWindow, at: output.appendingPathComponent("settings-resized.png"))
+            settingsWindow.performClose(nil)
+            guard !settingsWindow.isVisible else { throw GlintError.message("标准关闭窗口动作失败") }
+            delegate.translator.hide(); model.openTranslation("")
+            guard delegate.translator.window.isVisible, delegate.translator.window.isMainWindow, delegate.translator.window.isKeyWindow else { throw GlintError.message("重译入口未将翻译窗置前") }
             let plain = NativeMarkdown.plainText("**普通译文**\n\n- [链接](https://example.com)\n\n`code`")
             guard plain.contains("普通译文"), plain.contains("链接"), !plain.contains("**"), !plain.contains("](https") else { throw GlintError.message("纯文本复制检查失败") }
-            try Data("原生窗口、三个宽度、深浅主题、横向拖动顶边与内容稳定、词典、流式完成高度、阅读位置保持、回到最新、富文本、公式、设置、生词本与纯文本复制检查通过\n".utf8).write(to: output.appendingPathComponent("result.txt"))
+            try Data("原生窗口、三个宽度、深浅主题、横向拖动、词典、流式高度与阅读位置、编辑失效与清空、富文本与公式、设置垂直缩放、标准关闭、重译显示、生词本方向键与词头去重、纯文本复制检查通过\n".utf8).write(to: output.appendingPathComponent("result.txt"))
             NSApp.terminate(nil)
         } catch {
             try? Data(error.localizedDescription.utf8).write(to: output.appendingPathComponent("failure.txt"))

@@ -1,4 +1,57 @@
 import SwiftUI
+import AppKit
+
+struct NavigationSearchField: NSViewRepresentable {
+    @Binding var text: String
+    let placeholder: String
+    let moveSelection: (Int) -> Void
+    final class SearchField: NSTextField {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let window { DispatchQueue.main.async { window.makeFirstResponder(self) } }
+        }
+    }
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+    func makeNSView(context: Context) -> SearchField {
+        let view = SearchField()
+        view.isBordered = false; view.drawsBackground = false; view.focusRingType = .none
+        view.font = .systemFont(ofSize: 12); view.delegate = context.coordinator
+        return view
+    }
+    func updateNSView(_ view: SearchField, context: Context) {
+        context.coordinator.parent = self; view.placeholderString = placeholder
+        if view.stringValue != text { view.stringValue = text }
+        view.setAccessibilityLabel(placeholder)
+    }
+    final class Coordinator: NSObject, NSTextFieldDelegate {
+        var parent: NavigationSearchField
+        init(_ parent: NavigationSearchField) { self.parent = parent }
+        func controlTextDidChange(_ notification: Notification) {
+            if let field = notification.object as? NSTextField { parent.text = field.stringValue }
+        }
+        func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+            if commandSelector == #selector(NSResponder.moveDown(_:)) { parent.moveSelection(1); return true }
+            if commandSelector == #selector(NSResponder.moveUp(_:)) { parent.moveSelection(-1); return true }
+            return false
+        }
+    }
+}
+
+struct CopyButton: View {
+    let title: String
+    let text: String
+    @ViewState<Int> private var copyRevision = 0
+    @ViewState<Bool> private var copied = false
+    var body: some View {
+        Button(copied ? "已复制" : title) { AppModel.copy(text); copied = true; copyRevision += 1 }
+            .buttonStyle(GlintButtonStyle()).font(.system(size: 12))
+            .task(id: copyRevision) {
+                guard copyRevision > 0 else { return }
+                do { try await Task.sleep(for: .seconds(1.2)); copied = false } catch {}
+            }
+            .onChange(of: text) { _, _ in copied = false }
+    }
+}
 
 struct ControlSurface: ViewModifier {
     var active = false
@@ -118,11 +171,13 @@ struct PromptEditor: View {
     let title: String
     @Binding var text: String
     @FocusState private var focused: Bool
+    @Environment(\.isEnabled) private var enabled
 
     var body: some View {
         TextEditor(text: $text).font(.system(size: 12)).scrollContentBackground(.hidden)
             .focused($focused).padding(8).frame(height: 154)
             .modifier(ControlSurface(active: focused, radius: 9))
+            .opacity(enabled ? 1 : 0.4)
             .accessibilityLabel(title)
     }
 }

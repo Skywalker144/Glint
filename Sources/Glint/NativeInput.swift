@@ -48,7 +48,7 @@ final class InputScrollView: NSScrollView {
         let size = NSSize(width: contentSize.width, height: max(contentSize.height, textHeight + 16))
         if view.frame.size != size { view.setFrameSize(size) }
         view.needsDisplay = true
-        return min(62, max(40, textHeight + 16))
+        return min(140, max(40, textHeight + 16))
     }
 }
 

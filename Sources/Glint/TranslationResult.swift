@@ -156,9 +156,10 @@ struct TranslationResult: View {
                     }
                 }
                 .padding(.horizontal, TranslatorLayout.resultInset - TranslatorLayout.inset)
+                .opacity(model.resultIsStale ? 0.4 : 1)
             HStack(spacing: 6) {
-                IconButton(symbol: "speaker.wave.2", label: "朗读译文", selected: model.speech.channel == "result", action: model.speakOutput)
-                    .disabled(model.streaming || model.output.isEmpty)
+                SpeechButton(speech: model.speech, channel: "result", label: "朗读译文", action: model.speakOutput)
+                    .disabled(model.streaming || model.output.isEmpty || model.resultIsStale)
                 Spacer(minLength: 0)
                 if showsLatest {
                     IconButton(symbol: "arrow.down", label: "回到最新译文") { jumpRevision += 1 }
@@ -167,10 +168,9 @@ struct TranslationResult: View {
                     IconButton(symbol: "stop", label: "停止翻译", action: model.stop)
                 }
                 IconButton(symbol: model.isFavorite ? "star.fill" : "star", label: model.isFavorite ? "取消收藏" : "收藏到生词本", action: model.toggleFavorite)
-                    .disabled(model.streaming || model.currentEntry == nil)
-                Button(model.copied ? "已复制" : "复制", action: model.copyResult)
-                    .buttonStyle(GlintButtonStyle()).font(.system(size: 12))
-                    .disabled(model.streaming || model.output.isEmpty)
+                    .disabled(model.streaming || model.currentEntry == nil || model.resultIsStale)
+                CopyButton(title: "复制", text: NativeMarkdown.plainText(model.output))
+                    .disabled(model.streaming || model.output.isEmpty || model.resultIsStale)
             }.frame(height: TranslatorLayout.footerHeight).accessibilityIdentifier("translation-actions")
         }
     }

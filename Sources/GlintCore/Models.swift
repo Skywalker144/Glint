@@ -212,6 +212,8 @@ public struct VocabularyEntry: Codable, Identifiable, Equatable {
     public var createdAt = ISO8601DateFormatter().string(from: Date())
     public var queryCount = 0
     public var lastQueriedAt: String?
+    public var pronunciation: String { translated.trimmed.match(#"^\*\*[^*\n]+\*\*([^\n]*)"#)?[1].trimmed ?? "" }
+    public var definition: String { translated.trimmed.match(#"^\*\*[^*\n]+\*\*[^\n]*\r?\n\s*([\s\S]*)$"#)?[1] ?? translated }
     public static func parse(_ text: String, language: String, definitionLanguage: String) -> Self? {
         guard Language.valid(language), let match = text.trimmed.match(#"^\*\*([^*\n]+)\*\*[^\n]*\r?\n\s*(\S[\s\S]*)$"#) else { return nil }
         let word = match[1].precomposedStringWithCanonicalMapping.trimmed.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)

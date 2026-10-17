@@ -8,6 +8,7 @@ final class GlintPanel: NSPanel {
     var onEscape: () -> Void = {}
     var onWidthResizeStarted: () -> Void = {}
     override func cancelOperation(_ sender: Any?) { onEscape() }
+    override func performClose(_ sender: Any?) { onEscape() }
     override func keyDown(with event: NSEvent) {
         if event.keyCode == 53 { onEscape() } else { super.keyDown(with: event) }
     }
@@ -18,7 +19,6 @@ final class GlintWindowController: NSObject, NSWindowDelegate {
     let window: GlintPanel
     var pinned: () -> Bool = { false }
     var onFrameChanged: (CGRect) -> Void = { _ in }
-    var onFocusChanged: (Bool) -> Void = { _ in }
     var onAvailableHeightChanged: (CGFloat) -> Void = { _ in }
     let translator: Bool
     private var changingFrame = false
@@ -64,9 +64,9 @@ final class GlintWindowController: NSObject, NSWindowDelegate {
             window.setFrameOrigin(CGPoint(x: area.midX - window.frame.width / 2, y: area.midY - window.frame.height / 2))
         }
         if translator { onAvailableHeightChanged(availableHeight) }
-        NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil); window.makeMain()
     }
-    func hide() { window.orderOut(nil); onFocusChanged(false) }
+    func hide() { window.orderOut(nil) }
     func fitHeight(_ value: CGFloat) {
         pendingHeight = value
         guard !heightUpdateScheduled else { return }
@@ -91,10 +91,8 @@ final class GlintWindowController: NSObject, NSWindowDelegate {
         }
     }
     func windowDidResignKey(_ notification: Notification) {
-        onFocusChanged(false)
         if translator && !pinned() && !window.inLiveResize { hide() }
     }
-    func windowDidBecomeKey(_ notification: Notification) { onFocusChanged(true) }
     func windowDidResize(_ notification: Notification) { if !changingFrame { onFrameChanged(window.frame) } }
     func windowDidMove(_ notification: Notification) {
         if !changingFrame {
