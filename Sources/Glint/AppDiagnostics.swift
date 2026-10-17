@@ -84,7 +84,8 @@ enum AppDiagnostics {
             model.output = String(repeating: "这是一段用于验证流式阅读位置的译文。\n", count: 35)
             try await Task.sleep(for: .milliseconds(200))
             guard let scroll = descendants(of: translator.window.contentView!, type: TranslationScrollView.self).first else { throw GlintError.message("缺少译文滚动视图") }
-            guard scroll.distanceFromEnd <= 1 else { throw GlintError.message("流式译文没有跟随底部") }
+            guard abs(scroll.contentView.bounds.minY) <= 1, scroll.showsLatest else { throw GlintError.message("流式译文没有保持在顶部") }
+            try snapshot(translator.window, at: output.appendingPathComponent("translator-streaming-top.png"))
             scroll.contentView.scroll(to: NSPoint(x: 0, y: 60))
             scroll.reflectScrolledClipView(scroll.contentView)
             let readingOffset = scroll.contentView.bounds.minY
@@ -137,7 +138,7 @@ enum AppDiagnostics {
             guard delegate.translator.window.isVisible, delegate.translator.window.isMainWindow, delegate.translator.window.isKeyWindow else { throw GlintError.message("重译入口未将翻译窗置前") }
             let plain = NativeMarkdown.plainText("**普通译文**\n\n- [链接](https://example.com)\n\n`code`")
             guard plain.contains("普通译文"), plain.contains("链接"), !plain.contains("**"), !plain.contains("](https") else { throw GlintError.message("纯文本复制检查失败") }
-            try Data("原生窗口、三个宽度、深浅主题、横向拖动、词典、流式高度与阅读位置、编辑失效与清空、富文本与公式、设置垂直缩放、标准关闭、重译显示、生词本方向键与词头去重、纯文本复制检查通过\n".utf8).write(to: output.appendingPathComponent("result.txt"))
+            try Data("原生窗口、三个宽度、深浅主题、横向拖动、词典、流式顶部保持与阅读位置、编辑失效与清空、富文本与公式、设置垂直缩放、标准关闭、重译显示、生词本方向键与词头去重、纯文本复制检查通过\n".utf8).write(to: output.appendingPathComponent("result.txt"))
             NSApp.terminate(nil)
         } catch {
             try? Data(error.localizedDescription.utf8).write(to: output.appendingPathComponent("failure.txt"))

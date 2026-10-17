@@ -7,7 +7,7 @@ final class TranslationScrollView: NSScrollView {
     private var source = ""
     private var updatingLayout = false
     private var layoutWidth: CGFloat = 0
-    private(set) var followsEnd = true
+    private(set) var followsEnd = false
     private(set) var preferredHeight = minimumHeight
     var onMetrics: (CGFloat, Bool) -> Void = { _, _ in }
     var distanceFromEnd: CGFloat { max(0, (documentView?.frame.height ?? 0) - contentView.bounds.maxY) }
@@ -38,10 +38,10 @@ final class TranslationScrollView: NSScrollView {
         updatingLayout = wasUpdating
         layoutTranslation()
     }
-    func update(text: String, revision: UUID, streaming: Bool, appearance: NSAppearance.Name) {
+    func update(text: String, revision: UUID, appearance: NSAppearance.Name) {
         if self.revision != revision {
             self.revision = revision
-            preferredHeight = Self.minimumHeight; followsEnd = streaming
+            preferredHeight = Self.minimumHeight; followsEnd = false
             (documentView as? NSTextView)?.setSelectedRange(NSRange(location: 0, length: 0))
             updatingLayout = true
             contentView.scroll(to: .zero)
@@ -99,7 +99,6 @@ final class TranslationScrollView: NSScrollView {
 struct NativeTranslationResult: NSViewRepresentable {
     let text: String
     let revision: UUID
-    let streaming: Bool
     let jumpRevision: Int
     @Binding var height: CGFloat
     @Binding var showsLatest: Bool
@@ -110,7 +109,7 @@ struct NativeTranslationResult: NSViewRepresentable {
         let coordinator = context.coordinator
         coordinator.parent = self
         scroll.onMetrics = { [weak coordinator] height, latest in coordinator?.publish(height: height, latest: latest) }
-        scroll.update(text: text, revision: revision, streaming: streaming, appearance: colorScheme == .dark ? .darkAqua : .aqua)
+        scroll.update(text: text, revision: revision, appearance: colorScheme == .dark ? .darkAqua : .aqua)
         if coordinator.jumpRevision != jumpRevision {
             coordinator.jumpRevision = jumpRevision
             scroll.jumpToLatest()
@@ -147,7 +146,7 @@ struct TranslationResult: View {
     @ViewState<Int> private var jumpRevision = 0
     var body: some View {
         VStack(spacing: TranslatorLayout.resultFooterSpacing) {
-            NativeTranslationResult(text: model.output, revision: model.resultRevision, streaming: model.streaming, jumpRevision: jumpRevision, height: $height, showsLatest: $showsLatest)
+            NativeTranslationResult(text: model.output, revision: model.resultRevision, jumpRevision: jumpRevision, height: $height, showsLatest: $showsLatest)
                 .frame(height: min(height, max(TranslationScrollView.minimumHeight, maximumHeight - TranslatorLayout.resultFooterSpacing - TranslatorLayout.footerHeight)))
                 .overlay(alignment: .topLeading) {
                     if model.streaming && model.output.isEmpty {

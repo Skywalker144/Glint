@@ -25,25 +25,32 @@ struct TranslatorLayoutTests {
         #expect(text.textContainerInset.height == 8)
     }
 
-    @Test func resultFollowsStreamUntilReaderScrollsAway() {
+    @Test func resultStaysAtTopWhileStreamingAndJumpsOnlyOnDemand() {
         _ = NSApplication.shared
         let scroll = TranslationScrollView(frame: NSRect(x: 0, y: 0, width: 360, height: 120))
         let revision = UUID()
         let first = String(repeating: "这是一段足够长的流式译文。\n", count: 30)
-        scroll.update(text: first, revision: revision, streaming: true, appearance: .aqua)
-        #expect(scroll.followsEnd)
-        #expect(scroll.distanceFromEnd <= 1)
+        scroll.update(text: first, revision: revision, appearance: .aqua)
+        #expect(!scroll.followsEnd)
+        #expect(scroll.contentView.bounds.minY == 0)
+        #expect(scroll.showsLatest)
+        #expect(scroll.distanceFromEnd > 2)
         #expect(scroll.preferredHeight == 340)
+        scroll.update(text: first + String(repeating: "追加的译文。\n", count: 15), revision: revision, appearance: .aqua)
+        #expect(scroll.contentView.bounds.minY == 0)
+        #expect(!scroll.followsEnd)
         scroll.contentView.scroll(to: NSPoint(x: 0, y: 80))
         scroll.reflectScrolledClipView(scroll.contentView)
         #expect(!scroll.followsEnd)
         let readingOffset = scroll.contentView.bounds.minY
-        scroll.update(text: first + String(repeating: "追加的译文。\n", count: 15), revision: revision, streaming: true, appearance: .aqua)
+        scroll.update(text: first + String(repeating: "追加的译文。\n", count: 30), revision: revision, appearance: .aqua)
         #expect(abs(scroll.contentView.bounds.minY - readingOffset) <= 1)
         #expect(scroll.showsLatest)
         scroll.jumpToLatest()
         #expect(scroll.followsEnd)
         #expect(!scroll.showsLatest)
+        #expect(scroll.distanceFromEnd <= 1)
+        scroll.update(text: first + String(repeating: "追加的译文。\n", count: 45), revision: revision, appearance: .aqua)
         #expect(scroll.distanceFromEnd <= 1)
     }
 
@@ -52,46 +59,45 @@ struct TranslatorLayoutTests {
         let scroll = TranslationScrollView(frame: NSRect(x: 0, y: 0, width: 360, height: 100))
         let revision = UUID()
         let first = String(repeating: "Hello world.\n", count: 30)
-        scroll.update(text: first, revision: revision, streaming: true, appearance: .aqua)
+        scroll.update(text: first, revision: revision, appearance: .aqua)
         let text = try #require(scroll.documentView as? RichTextView)
         text.setSelectedRange(NSRange(location: 0, length: 5))
-        scroll.update(text: first + "More text.", revision: revision, streaming: false, appearance: .aqua)
+        scroll.update(text: first + "More text.", revision: revision, appearance: .aqua)
         #expect(text.selectedRange() == NSRange(location: 0, length: 5))
-        scroll.update(text: "短译文", revision: UUID(), streaming: false, appearance: .darkAqua)
+        scroll.update(text: "短译文", revision: UUID(), appearance: .darkAqua)
+        #expect(!scroll.followsEnd)
         #expect(scroll.contentView.bounds.minY == 0)
         #expect(scroll.preferredHeight < 100)
         #expect(!scroll.showsLatest)
         #expect(text.string == "短译文")
     }
 
-    @Test func streamingHeightDoesNotShrinkWhenMarkdownReflows() {
+    @Test func resultHeightDoesNotShrinkWhenMarkdownReflows() {
         _ = NSApplication.shared
         let scroll = TranslationScrollView(frame: NSRect(x: 0, y: 0, width: 360, height: 120))
         let revision = UUID()
-        scroll.update(text: String(repeating: "待重排的内容。\n", count: 10), revision: revision, streaming: true, appearance: .aqua)
+        scroll.update(text: String(repeating: "待重排的内容。\n", count: 10), revision: revision, appearance: .aqua)
         let reservedHeight = scroll.preferredHeight
-        scroll.update(text: "短译文", revision: revision, streaming: true, appearance: .aqua)
+        scroll.update(text: "短译文", revision: revision, appearance: .aqua)
         #expect(scroll.preferredHeight == reservedHeight)
-        scroll.update(text: "短译文", revision: revision, streaming: false, appearance: .aqua)
-        #expect(scroll.preferredHeight == reservedHeight)
-        scroll.update(text: "短译文", revision: revision, streaming: false, appearance: .aqua)
+        scroll.update(text: "短译文", revision: revision, appearance: .aqua)
         #expect(scroll.preferredHeight == reservedHeight)
     }
 
-    @Test func resultHasNoExtraInsetAndReflowsWhileStreaming() throws {
+    @Test func resultHasNoExtraInsetAndReflowsOnResize() throws {
         _ = NSApplication.shared
         let scroll = TranslationScrollView(frame: NSRect(x: 0, y: 0, width: 360, height: 120))
         let revision = UUID()
         let source = String(repeating: "译文随着窗口宽度自然换行。", count: 6)
-        scroll.update(text: source, revision: revision, streaming: true, appearance: .aqua)
+        scroll.update(text: source, revision: revision, appearance: .aqua)
         let narrowHeight = scroll.preferredHeight
         let text = try #require(scroll.documentView as? RichTextView)
         #expect(text.textContainerInset == .zero)
         scroll.setFrameSize(NSSize(width: 820, height: 120))
         scroll.tile()
-        scroll.update(text: source, revision: revision, streaming: true, appearance: .aqua)
+        scroll.update(text: source, revision: revision, appearance: .aqua)
         #expect(scroll.preferredHeight < narrowHeight)
-        scroll.update(text: "短译文", revision: UUID(), streaming: false, appearance: .aqua)
+        scroll.update(text: "短译文", revision: UUID(), appearance: .aqua)
         let manager = try #require(text.layoutManager)
         #expect(scroll.preferredHeight <= ceil(manager.defaultLineHeight(for: .systemFont(ofSize: 15))) + 1)
     }
@@ -100,7 +106,7 @@ struct TranslatorLayoutTests {
         _ = NSApplication.shared
         let scroll = TranslationScrollView(frame: NSRect(x: 0, y: 0, width: 360, height: 120))
         let source = (1...40).map { "第\($0)段：" + String(repeating: "保持正在阅读的段落，调整宽度时只重排当前内容。", count: 3) }.joined(separator: "\n")
-        scroll.update(text: source, revision: UUID(), streaming: false, appearance: .aqua)
+        scroll.update(text: source, revision: UUID(), appearance: .aqua)
         scroll.contentView.scroll(to: NSPoint(x: 0, y: 180))
         scroll.reflectScrolledClipView(scroll.contentView)
         let text = try #require(scroll.documentView as? RichTextView)
