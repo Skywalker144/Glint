@@ -33,7 +33,7 @@ struct TranslatorView: View {
                             .background(Theme.surface, in: RoundedRectangle(cornerRadius: 9))
                             .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Theme.border, lineWidth: 1))
                             .overlay(alignment: .topTrailing) {
-                                if !model.input.isEmpty { IconButton(symbol: "xmark.circle.fill", label: "清空输入", action: model.clearInput).padding(5) }
+                                if !model.input.isEmpty { IconButton(symbol: "xmark.circle.fill", label: "清空输入", action: model.clearInput).padding(8) }
                             }
                         HStack(spacing: 6) {
                             SpeechButton(speech: model.speech, channel: "input", label: "朗读原文", action: model.speakInput).disabled(model.input.trimmed.isEmpty)
