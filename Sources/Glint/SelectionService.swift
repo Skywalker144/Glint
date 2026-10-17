@@ -78,38 +78,22 @@ final class SelectionService {
         guard let app = NSWorkspace.shared.frontmostApplication, app.processIdentifier != getpid() else { return "" }
         let point = ScreenCoordinates.quartz(NSEvent.mouseLocation)
         let pid = app.processIdentifier
-        let direct = await Task.detached { SelectionMonitor(parentPID: getpid(), delayMilliseconds: 0).selectedText(pid: pid, point: point) }.value
-        try Task.checkCancellation()
-        guard NSWorkspace.shared.frontmostApplication?.processIdentifier == pid else { return "" }
-        if let direct, !direct.trimmed.isEmpty { return direct.trimmed }
-        let pasteboard = NSPasteboard.general
-        let saved = (pasteboard.pasteboardItems ?? []).map { item in Dictionary(uniqueKeysWithValues: item.types.compactMap { type in item.data(forType: type).map { (type, $0) } }) }
-        let initialCount = pasteboard.changeCount
-        for _ in 0..<80 {
-            if NSEvent.modifierFlags.intersection([.option, .command, .control, .shift]).isEmpty { break }
-            try await Task.sleep(for: .milliseconds(25))
-        }
-        guard NSWorkspace.shared.frontmostApplication?.processIdentifier == pid else { return "" }
-        guard NSEvent.modifierFlags.intersection([.option, .command, .control, .shift]).isEmpty else { throw GlintError.message("请松开快捷键的修饰键，再试一次划词翻译。") }
-        try Task.checkCancellation()
-        let source = CGEventSource(stateID: .combinedSessionState)
-        for down in [true, false] {
-            let event = CGEvent(keyboardEventSource: source, virtualKey: 8, keyDown: down)
-            event?.flags = .maskCommand; event?.post(tap: .cghidEventTap)
-        }
-        for _ in 0..<30 {
-            await Task.detached { try? await Task.sleep(for: .milliseconds(25)) }.value
-            if pasteboard.changeCount != initialCount {
-                let text = pasteboard.string(forType: .string) ?? ""
-                pasteboard.clearContents()
-                let items = saved.map { data in
-                    let item = NSPasteboardItem(); data.forEach { item.setData($0.value, forType: $0.key) }; return item
+        return try await SelectionTextReader(
+            pasteboard: .general,
+            isSourceActive: { NSWorkspace.shared.frontmostApplication?.processIdentifier == pid },
+            modifiers: { NSEvent.modifierFlags },
+            copy: {
+                let source = CGEventSource(stateID: .combinedSessionState)
+                for down in [true, false] {
+                    let event = CGEvent(keyboardEventSource: source, virtualKey: 8, keyDown: down)
+                    event?.flags = .maskCommand
+                    event?.post(tap: .cghidEventTap)
                 }
-                pasteboard.writeObjects(items)
-                return text.trimmed
+            },
+            accessibilityText: {
+                await Task.detached { SelectionMonitor(parentPID: getpid(), delayMilliseconds: 0).selectedText(pid: pid, point: point) }.value
             }
-        }
-        return ""
+        ).read()
     }
     func stop() { monitor.stop(); dismiss() }
 }

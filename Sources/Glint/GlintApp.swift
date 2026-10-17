@@ -149,9 +149,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             if text.isEmpty { translator.show(nearCursor: !model.settings.pinned); model.showMessage("剪贴板里没有文本。先复制一段文字，再按快捷键。") }
             else { showTranslation(text) }
         case "selection":
-            selectionTask?.cancel()
+            let previousSelection = selectionTask
+            previousSelection?.cancel()
             selectionTask = Task {
+                await previousSelection?.value
                 do {
+                    try Task.checkCancellation()
                     let text = try await selection.selectedText(); try Task.checkCancellation()
                     if text.isEmpty { translator.show(nearCursor: !model.settings.pinned); model.showMessage("没有检测到选中的文字。先选中文字，再按划词快捷键。") }
                     else { showTranslation(text) }
