@@ -159,7 +159,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     if text.isEmpty { translator.show(nearCursor: !model.settings.pinned); model.showMessage("没有检测到选中的文字。先选中文字，再按划词快捷键。") }
                     else { showTranslation(text) }
                 } catch {
-                    if !Task.isCancelled { translator.show(nearCursor: true); model.showMessage(error.localizedDescription) }
+                    if !Task.isCancelled { translator.show(nearCursor: !model.settings.pinned); model.showMessage(error.localizedDescription) }
                 }
             }
         case "screenshot":
@@ -176,7 +176,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     translator.show(nearCursor: !model.settings.pinned); model.showMessage("正在识别文字…")
                     let text = try await CaptureService.recognize(image)
                     if text.isEmpty { model.showMessage("没有识别到文字，换个区域再试试。") } else { model.receive(text) }
-                } catch { translator.show(nearCursor: true); model.showMessage(error.localizedDescription) }
+                } catch { translator.show(nearCursor: !model.settings.pinned); model.showMessage(error.localizedDescription) }
             }
         default: break
         }
