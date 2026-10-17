@@ -43,8 +43,14 @@ struct CopyButton: View {
     @ViewState<Int> private var copyRevision = 0
     @ViewState<Bool> private var copied = false
     var body: some View {
-        Button(copied ? "已复制" : title) { AppModel.copy(text); copied = true; copyRevision += 1 }
+        Button { AppModel.copy(text); copied = true; copyRevision += 1 } label: {
+            ZStack {
+                Text(title).opacity(copied ? 0 : 1)
+                Text("已复制").opacity(copied ? 1 : 0)
+            }
+        }
             .buttonStyle(GlintButtonStyle()).font(.system(size: 12))
+            .accessibilityLabel(copied ? "已复制" : title)
             .task(id: copyRevision) {
                 guard copyRevision > 0 else { return }
                 do { try await Task.sleep(for: .seconds(1.2)); copied = false } catch {}
