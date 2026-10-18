@@ -229,15 +229,26 @@ struct TranslatorLayoutTests {
         defer { controller.window.close() }
         controller.pinned = { true }
         controller.onAvailableHeightChanged = { model.translatorMaximumHeight = $0 }
-        model.resizeTranslator = { [weak controller] in controller?.fitHeight($0) }
+        var requestedHeight: CGFloat?
+        model.resizeTranslator = { [weak controller] height in
+            requestedHeight = height
+            controller?.fitHeight(height)
+        }
         if nearScreenBottom {
             controller.window.setFrameOrigin(NSPoint(x: screen.visibleFrame.minX + 100, y: screen.visibleFrame.minY + 90))
         }
         controller.show()
         let top = controller.window.frame.maxY
         let maximumHeight = min(600, top - screen.visibleFrame.minY)
-        try await Task.sleep(for: .milliseconds(150))
-        var views = [try #require(controller.window.contentView)]
+        let root = try #require(controller.window.contentView)
+        for _ in 0..<100 {
+            root.layoutSubtreeIfNeeded()
+            if let requestedHeight, abs(controller.window.frame.height - min(requestedHeight, maximumHeight)) < 0.5 { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        let initialHeight = try #require(requestedHeight)
+        try #require(abs(controller.window.frame.height - min(initialHeight, maximumHeight)) < 0.5)
+        var views = [root]
         var index = 0
         while index < views.count {
             views.append(contentsOf: views[index].subviews)
