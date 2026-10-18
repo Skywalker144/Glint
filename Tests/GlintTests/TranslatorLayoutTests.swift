@@ -1,6 +1,7 @@
 import Testing
 import AppKit
 import SwiftUI
+import GlintCore
 @testable import Glint
 
 @MainActor
@@ -170,18 +171,107 @@ struct TranslatorLayoutTests {
         let controller = GlintWindowController(title: "Test", size: CGSize(width: 420, height: 150), translator: true, root: Color.clear)
         let top = screen.visibleFrame.minY + 240
         controller.window.setFrameOrigin(NSPoint(x: screen.visibleFrame.minX + 100, y: top - 150))
-        let handle = WindowWidthHandle.Handle(frame: NSRect(x: 414, y: 16, width: 6, height: 118))
-        controller.window.contentView!.addSubview(handle)
-        let event = try #require(NSEvent.mouseEvent(with: .leftMouseDown, location: NSPoint(x: 417, y: 70), modifierFlags: [], timestamp: 0, windowNumber: controller.window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
         var availableHeight: CGFloat = 0
         controller.onAvailableHeightChanged = { availableHeight = $0 }
-        handle.mouseDown(with: event)
-        controller.fitHeight(500)
-        try await Task.sleep(for: .milliseconds(50))
-        #expect(abs(controller.window.frame.maxY - top) < 0.5)
-        #expect(abs(controller.window.frame.height - 240) < 0.5)
-        #expect(abs(availableHeight - 240) < 0.5)
+        for height in [180.0, 220.0, 260.0, 500.0, 600.0, 180.0] {
+            controller.fitHeight(height)
+            try await Task.sleep(for: .milliseconds(40))
+            #expect(abs(controller.window.frame.maxY - top) < 0.5)
+            #expect(abs(controller.window.frame.height - min(height, 240)) < 0.5)
+            #expect(abs(availableHeight - 240) < 0.5)
+        }
         controller.window.close()
+    }
+
+    @Test func showingPinnedWindowUsesSpaceBelowItsTopEdge() throws {
+        _ = NSApplication.shared
+        let screen = try #require(NSScreen.main)
+        let controller = GlintWindowController(title: "Test", size: CGSize(width: 420, height: 150), translator: true, root: Color.clear)
+        defer { controller.window.close() }
+        controller.pinned = { true }
+        let top = screen.visibleFrame.minY + 240
+        controller.window.setFrameOrigin(NSPoint(x: screen.visibleFrame.minX + 100, y: top - 150))
+        var availableHeight: CGFloat = 0
+        controller.onAvailableHeightChanged = { availableHeight = $0 }
+        controller.show()
+        controller.show()
+        #expect(abs(controller.window.frame.maxY - top) < 0.5)
+        #expect(abs(availableHeight - 240) < 0.5)
+    }
+
+    @Test func movingWindowRecalculatesSpaceForHeightGrowth() async throws {
+        _ = NSApplication.shared
+        let screen = try #require(NSScreen.main)
+        let controller = GlintWindowController(title: "Test", size: CGSize(width: 420, height: 150), translator: true, root: Color.clear)
+        defer { controller.window.close() }
+        var availableHeight: CGFloat = 0
+        controller.onAvailableHeightChanged = { availableHeight = $0 }
+        for space in [240.0, 520.0, 300.0] {
+            let top = screen.visibleFrame.minY + space
+            controller.window.setFrameOrigin(NSPoint(x: screen.visibleFrame.minX + 100, y: top - controller.window.frame.height))
+            controller.fitHeight(500)
+            try await Task.sleep(for: .milliseconds(40))
+            #expect(abs(controller.window.frame.maxY - top) < 0.5)
+            #expect(abs(controller.window.frame.height - min(space, 500)) < 0.5)
+            #expect(abs(availableHeight - space) < 0.5)
+        }
+    }
+
+    @Test(arguments: [false, true]) func streamingKeepsControlsAndReadingPositionStable(nearScreenBottom: Bool) async throws {
+        _ = NSApplication.shared
+        let screen = try #require(NSScreen.main)
+        let directory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".cache/layout-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let model = AppModel(store: try LocalStore(directory: directory))
+        model.input = "Hello world."
+        model.streaming = true
+        let controller = GlintWindowController(title: "Test", size: CGSize(width: 420, height: 150), translator: true, root: TranslatorView(model: model))
+        defer { controller.window.close() }
+        controller.pinned = { true }
+        controller.onAvailableHeightChanged = { model.translatorMaximumHeight = $0 }
+        model.resizeTranslator = { [weak controller] in controller?.fitHeight($0) }
+        if nearScreenBottom {
+            controller.window.setFrameOrigin(NSPoint(x: screen.visibleFrame.minX + 100, y: screen.visibleFrame.minY + 90))
+        }
+        controller.show()
+        let top = controller.window.frame.maxY
+        let maximumHeight = min(600, top - screen.visibleFrame.minY)
+        try await Task.sleep(for: .milliseconds(150))
+        var views = [try #require(controller.window.contentView)]
+        var index = 0
+        while index < views.count {
+            views.append(contentsOf: views[index].subviews)
+            index += 1
+        }
+        let input = try #require(views.compactMap { $0 as? InputScrollView }.first)
+        let result = try #require(views.compactMap { $0 as? TranslationScrollView }.first)
+        let drag = try #require(views.compactMap { $0 as? WindowDragArea.DragView }.first)
+        let inputTop = input.convert(input.bounds, to: nil).maxY - controller.window.frame.height
+        let resultTop = result.convert(result.bounds, to: nil).maxY - controller.window.frame.height
+        for _ in 0..<16 {
+            model.output += "这是一段持续追加、超过窗口剩余高度的译文。\n"
+            try await Task.sleep(for: .milliseconds(40))
+            #expect(abs(controller.window.frame.maxY - top) < 0.5)
+            #expect(controller.window.frame.height <= maximumHeight)
+            #expect(controller.window.contentView!.bounds.contains(drag.convert(drag.bounds, to: nil)))
+            #expect(controller.window.contentView!.bounds.contains(input.convert(input.bounds, to: nil)))
+            #expect(result.convert(result.bounds, to: nil).minY >= TranslatorLayout.bottomInset + TranslatorLayout.footerHeight + TranslatorLayout.resultFooterSpacing)
+            #expect(abs(input.convert(input.bounds, to: nil).maxY - controller.window.frame.height - inputTop) < 0.5)
+            #expect(abs(result.convert(result.bounds, to: nil).maxY - controller.window.frame.height - resultTop) < 0.5)
+            #expect(abs(result.contentView.bounds.minY) < 0.5)
+        }
+        #expect(result.distanceFromEnd > 2)
+        #expect(result.showsLatest)
+        result.contentView.scroll(to: NSPoint(x: 0, y: 40))
+        result.reflectScrolledClipView(result.contentView)
+        let readingOffset = result.contentView.bounds.minY
+        model.output += "继续追加译文。\n"
+        try await Task.sleep(for: .milliseconds(80))
+        #expect(abs(result.contentView.bounds.minY - readingOffset) < 0.5)
+        let finalFrame = controller.window.frame
+        model.streaming = false
+        try await Task.sleep(for: .milliseconds(80))
+        #expect(controller.window.frame == finalFrame)
     }
 
     @Test func heightRequestsUseLatestValueAndKeepTopEdge() async throws {

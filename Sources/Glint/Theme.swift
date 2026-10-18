@@ -102,7 +102,6 @@ struct WindowWidthHandle: NSViewRepresentable {
         override func mouseDown(with event: NSEvent) {
             guard let window else { return }
             drag = (window.frame.width, window.convertPoint(toScreen: event.locationInWindow).x, window.frame.maxY)
-            (window as? GlintPanel)?.onWidthResizeStarted()
         }
         override func mouseDragged(with event: NSEvent) {
             guard let window, let drag else { return }
