@@ -40,7 +40,7 @@ final class GlintWindowController: NSObject, NSWindowDelegate {
         window.collectionBehavior = translator ? [.canJoinAllSpaces, .fullScreenAuxiliary] : [.fullScreenAuxiliary]
         window.animationBehavior = .none; window.delegate = self
         window.onEscape = { [weak self] in self?.hide() }
-        let hosting = NSHostingView(rootView: root.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: translator ? .top : .center))
+        let hosting = NSHostingView(rootView: root.frame(maxWidth: .infinity, minHeight: translator ? 0 : nil, maxHeight: .infinity, alignment: translator ? .top : .center))
         hosting.sizingOptions = []; hosting.autoresizingMask = [.width, .height]
         window.contentView = hosting
         window.minSize = translator ? CGSize(width: 360, height: 100) : CGSize(width: resizable ? 480 : size.width, height: 360)

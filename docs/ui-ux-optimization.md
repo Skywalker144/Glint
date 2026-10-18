@@ -7,7 +7,7 @@
 | 历史重译显示浮窗、语言交换、编辑模式与旧结果、历史回溯 | [AppModel](../Sources/Glint/AppModel.swift)、[应用入口](../Sources/Glint/GlintApp.swift)、[翻译面板](../Sources/Glint/TranslatorView.swift) | [交互测试](../Tests/GlintTests/InteractionTests.swift)、[窗口诊断](../Sources/Glint/AppDiagnostics.swift) |
 | 自动语言外显、语义方向完成后的实际语言 | [语言识别](../Sources/GlintCore/Language.swift)、[方向解析](../Sources/GlintCore/TranslationRequest.swift) | [翻译规则测试](../Tests/GlintCoreTests/TranslationRulesTests.swift)、[真实流式交互](../Tests/GlintTests/InteractionTests.swift) |
 | 词典引擎联动、输入清空按钮布局与多行编辑、过期结果操作 | [翻译面板](../Sources/Glint/TranslatorView.swift)、[原生输入](../Sources/Glint/NativeInput.swift)、[结果区](../Sources/Glint/TranslationResult.swift) | [布局测试](../Tests/GlintTests/TranslatorLayoutTests.swift)、[窗口诊断](../Sources/Glint/AppDiagnostics.swift) |
-| 浮窗初始位置、流式上边缘、屏幕底部高度约束与移动后重算 | [窗口](../Sources/Glint/WindowController.swift)、[结果区](../Sources/Glint/TranslationResult.swift) | [布局与真实窗口流式测试](../Tests/GlintTests/TranslatorLayoutTests.swift) |
+| 浮窗初始位置、异步增高时的内容顶对齐、屏幕底部高度约束与移动后重算 | [窗口](../Sources/Glint/WindowController.swift)、[结果区](../Sources/Glint/TranslationResult.swift) | [布局与真实窗口流式测试](../Tests/GlintTests/TranslatorLayoutTests.swift) |
 | 朗读启停与加载状态 | [朗读服务与按钮](../Sources/Glint/SpeechService.swift) | [交互测试](../Tests/GlintTests/InteractionTests.swift)、[在线音频测试](../Tests/GlintTests/NativeTests.swift) |
 | 快捷键录制生命周期、原生菜单键位、标准窗口快捷键 | [快捷键](../Sources/Glint/Hotkeys.swift)、[菜单](../Sources/Glint/GlintApp.swift)、[窗口](../Sources/Glint/WindowController.swift) | [交互测试](../Tests/GlintTests/InteractionTests.swift) |
 | 设置缩放、底部边界、词典子项联动、代理开关联动 | [设置](../Sources/Glint/SettingsView.swift) | [窗口诊断](../Sources/Glint/AppDiagnostics.swift)、下方系统验收 |

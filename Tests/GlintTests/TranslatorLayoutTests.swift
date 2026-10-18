@@ -217,6 +217,30 @@ struct TranslatorLayoutTests {
         }
     }
 
+    @Test func oversizedTranslatorContentKeepsHeaderAtWindowTop() throws {
+        _ = NSApplication.shared
+        let controller = GlintWindowController(title: "Test", size: CGSize(width: 420, height: 150), translator: true, root:
+            VStack(spacing: 0) {
+                WindowDragArea().frame(height: 24)
+                Color.clear.frame(height: 276)
+            }.fixedSize(horizontal: false, vertical: true)
+        )
+        defer { controller.window.close() }
+        controller.pinned = { true }
+        controller.show()
+        let root = try #require(controller.window.contentView)
+        root.layoutSubtreeIfNeeded()
+        var views = [root]
+        var index = 0
+        while index < views.count {
+            views.append(contentsOf: views[index].subviews)
+            index += 1
+        }
+        let drag = try #require(views.compactMap { $0 as? WindowDragArea.DragView }.first)
+        #expect(controller.window.frame.height == 150)
+        #expect(abs(drag.convert(drag.bounds, to: nil).maxY - controller.window.frame.height) < 0.5)
+    }
+
     @Test(arguments: [false, true]) func streamingKeepsControlsAndReadingPositionStable(nearScreenBottom: Bool) async throws {
         _ = NSApplication.shared
         let screen = try #require(NSScreen.main)
@@ -256,17 +280,28 @@ struct TranslatorLayoutTests {
         }
         let input = try #require(views.compactMap { $0 as? InputScrollView }.first)
         let result = try #require(views.compactMap { $0 as? TranslationScrollView }.first)
+        let rendered = try #require(result.documentView as? RichTextView)
         let drag = try #require(views.compactMap { $0 as? WindowDragArea.DragView }.first)
         let inputTop = input.convert(input.bounds, to: nil).maxY - controller.window.frame.height
         let resultTop = result.convert(result.bounds, to: nil).maxY - controller.window.frame.height
+        let footerHeight = TranslatorLayout.bottomInset + TranslatorLayout.footerHeight + TranslatorLayout.resultFooterSpacing
+        let maximumResultHeight = maximumHeight + resultTop - footerHeight
         for _ in 0..<16 {
             model.output += "这是一段持续追加、超过窗口剩余高度的译文。\n"
-            try await Task.sleep(for: .milliseconds(40))
+            for _ in 0..<100 {
+                root.layoutSubtreeIfNeeded()
+                if rendered.string == model.output.trimmed,
+                   abs(result.frame.height - min(result.preferredHeight, maximumResultHeight)) < 0.5,
+                   result.convert(result.bounds, to: nil).minY >= footerHeight { break }
+                try await Task.sleep(for: .milliseconds(20))
+            }
+            try #require(rendered.string == model.output.trimmed)
+            #expect(abs(result.frame.height - min(result.preferredHeight, maximumResultHeight)) < 0.5)
             #expect(abs(controller.window.frame.maxY - top) < 0.5)
             #expect(controller.window.frame.height <= maximumHeight)
-            #expect(controller.window.contentView!.bounds.contains(drag.convert(drag.bounds, to: nil)))
-            #expect(controller.window.contentView!.bounds.contains(input.convert(input.bounds, to: nil)))
-            #expect(result.convert(result.bounds, to: nil).minY >= TranslatorLayout.bottomInset + TranslatorLayout.footerHeight + TranslatorLayout.resultFooterSpacing)
+            #expect(root.bounds.contains(drag.convert(drag.bounds, to: nil)))
+            #expect(root.bounds.contains(input.convert(input.bounds, to: nil)))
+            #expect(result.convert(result.bounds, to: nil).minY >= footerHeight)
             #expect(abs(input.convert(input.bounds, to: nil).maxY - controller.window.frame.height - inputTop) < 0.5)
             #expect(abs(result.convert(result.bounds, to: nil).maxY - controller.window.frame.height - resultTop) < 0.5)
             #expect(abs(result.contentView.bounds.minY) < 0.5)
@@ -277,7 +312,12 @@ struct TranslatorLayoutTests {
         result.reflectScrolledClipView(result.contentView)
         let readingOffset = result.contentView.bounds.minY
         model.output += "继续追加译文。\n"
-        try await Task.sleep(for: .milliseconds(80))
+        for _ in 0..<100 {
+            root.layoutSubtreeIfNeeded()
+            if rendered.string == model.output.trimmed { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        try #require(rendered.string == model.output.trimmed)
         #expect(abs(result.contentView.bounds.minY - readingOffset) < 0.5)
         let finalFrame = controller.window.frame
         model.streaming = false
