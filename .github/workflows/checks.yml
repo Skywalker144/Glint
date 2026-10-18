@@ -8,4 +8,16 @@ jobs:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
+      - name: Import signing identity
+        run: bash scripts/signing.sh import
+        env:
+          GLINT_SIGNING_P12_BASE64: ${{ secrets.GLINT_SIGNING_P12_BASE64 }}
+          GLINT_SIGNING_PASSWORD: ${{ secrets.GLINT_SIGNING_PASSWORD }}
       - run: bash scripts/swift.sh test --arch arm64 --disable-xctest
+      - name: Clean up signing identity
+        if: ${{ always() }}
+        run: |
+          if [[ -f .signing/Glint.keychain-db ]]; then
+            security delete-keychain "$PWD/.signing/Glint.keychain-db"
+          fi
+          rm -rf .signing
