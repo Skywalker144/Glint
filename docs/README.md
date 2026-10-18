@@ -24,6 +24,8 @@
 
 ## 验证
 
+完整发布前测试入口：[Release checks 工作流](../.github/workflows/checks.yml)。
+
 按改动范围选择测试，使用 `--filter` 限定套件：
 
 ```bash

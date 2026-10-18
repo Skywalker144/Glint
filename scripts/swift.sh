@@ -6,7 +6,7 @@ export SWIFTPM_MODULECACHE_OVERRIDE="$PWD/.cache/clang"
 command="${1:-build}"
 shift || true
 options=(--disable-sandbox --cache-path "$PWD/.cache/swift-cache")
-if swift "$command" --help 2>/dev/null | rg -q -- '--disable-experimental-prebuilts'; then
+if swift "$command" --help 2>/dev/null | grep -q -- '--disable-experimental-prebuilts'; then
     options+=(--disable-experimental-prebuilts)
 fi
 if [[ "$command" == build ]]; then options+=(--build-system swiftbuild); fi
