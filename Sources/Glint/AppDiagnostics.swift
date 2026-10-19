@@ -31,7 +31,7 @@ enum AppDiagnostics {
                 }
             }
             let resizeWindow = delegate.translator!.window
-            model.input = String(repeating: "横向拖动保持原文区域高度。", count: 4)
+            model.input = String(repeating: "横向拖动保持原文区域高度。", count: 12)
             model.output = String(repeating: "译文根据窗口宽度重新排版，顶部控件保持原位。", count: 12)
             try await Task.sleep(for: .milliseconds(150))
             guard let resizeRoot = resizeWindow.contentView,
@@ -43,6 +43,9 @@ enum AppDiagnostics {
             let inputTop = resizeWindow.frame.height - input.convert(input.bounds, to: nil).maxY
             let inputHeight = input.frame.height
             let resultTop = resizeWindow.frame.height - result.convert(result.bounds, to: nil).maxY
+            guard abs(inputHeight - InputScrollView.maximumAutomaticHeight) < 0.5,
+                  !resizeWindow.styleMask.contains(.resizable),
+                  input.verticalScroller is InputScroller else { throw GlintError.message("原文自动高度、滚动条或窗口缩放入口异常") }
             handle.mouseDown(with: down)
             for width in [760.0, 680.0, 600.0, 520.0, 440.0, 360.0, 440.0, 560.0, 680.0, 820.0] {
                 guard let drag = NSEvent.mouseEvent(with: .leftMouseDragged, location: NSPoint(x: width - 3, y: 60), modifierFlags: [], timestamp: 0, windowNumber: resizeWindow.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) else { throw GlintError.message("无法建立拖动事件") }
@@ -53,10 +56,22 @@ enum AppDiagnostics {
                       abs(input.frame.height - inputHeight) < 0.5,
                       abs(resizeWindow.frame.height - result.convert(result.bounds, to: nil).maxY - resultTop) < 0.5 else { throw GlintError.message("横向拖动布局异常 width=\(width), top=\(resizeWindow.frame.maxY)/\(resizeTop), inputTop=\(resizeWindow.frame.height - input.convert(input.bounds, to: nil).maxY)/\(inputTop), inputHeight=\(input.frame.height)/\(inputHeight), resultTop=\(resizeWindow.frame.height - result.convert(result.bounds, to: nil).maxY)/\(resultTop)") }
                 if [360.0, 600.0, 820.0].contains(width) {
+                    input.flashScrollers()
+                    try await Task.sleep(for: .milliseconds(80))
                     try snapshot(resizeWindow, at: output.appendingPathComponent("translator-resize-\(Int(width)).png"))
                 }
             }
             handle.mouseUp(with: down)
+            let resizeFrame = resizeWindow.frame
+            let screen = resizeWindow.screen ?? ScreenCoordinates.screen(at: NSEvent.mouseLocation)
+            var offscreenFrame = resizeFrame
+            offscreenFrame.origin.y = (screen.visibleFrame.minY - resizeFrame.height / 2).rounded()
+            resizeWindow.setFrame(offscreenFrame, display: true)
+            delegate.translator.show()
+            try await Task.sleep(for: .milliseconds(150))
+            guard resizeWindow.frame == offscreenFrame,
+                  resizeWindow.constrainFrameRect(offscreenFrame, to: screen) == offscreenFrame else { throw GlintError.message("翻译窗底边无法越出屏幕 frame=\(resizeWindow.frame), expected=\(offscreenFrame)") }
+            resizeWindow.setFrame(resizeFrame, display: true)
             NSApp.appearance = NSAppearance(named: .darkAqua)
             let translator = delegate.translator!
             translator.window.setContentSize(CGSize(width: 420, height: translator.window.frame.height))
@@ -138,7 +153,7 @@ enum AppDiagnostics {
             guard delegate.translator.window.isVisible, delegate.translator.window.isMainWindow, delegate.translator.window.isKeyWindow else { throw GlintError.message("重译入口未将翻译窗置前") }
             let plain = NativeMarkdown.plainText("**普通译文**\n\n- [链接](https://example.com)\n\n`code`")
             guard plain.contains("普通译文"), plain.contains("链接"), !plain.contains("**"), !plain.contains("](https") else { throw GlintError.message("纯文本复制检查失败") }
-            try Data("原生窗口、三个宽度、深浅主题、横向拖动、词典、流式顶部保持与阅读位置、编辑失效与清空、富文本与公式、设置垂直缩放、标准关闭、重译显示、生词本方向键与词头去重、纯文本复制检查通过\n".utf8).write(to: output.appendingPathComponent("result.txt"))
+            try Data("原生窗口、三个宽度、深浅主题、原文自动高度与细滚动条、禁用原生边缘缩放、底边越界、横向拖动、词典、流式顶部保持与阅读位置、编辑失效与清空、富文本与公式、设置垂直缩放、标准关闭、重译显示、生词本方向键与词头去重、纯文本复制检查通过\n".utf8).write(to: output.appendingPathComponent("result.txt"))
             NSApp.terminate(nil)
         } catch {
             try? Data(error.localizedDescription.utf8).write(to: output.appendingPathComponent("failure.txt"))

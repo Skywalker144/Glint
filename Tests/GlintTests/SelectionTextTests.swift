@@ -137,11 +137,12 @@ struct SelectionTextTests {
         #expect(pasteboard.string(forType: .string) == "Existing clipboard")
         #expect(pasteboard.string(forType: .html) == "<b>Existing clipboard</b>")
         #expect(pasteboard.data(forType: binaryType) == binary)
-        let input = InputScrollView(frame: NSRect(x: 0, y: 0, width: 360, height: 40))
+        let input = InputScrollView(frame: NSRect(x: 0, y: 0, width: 360, height: InputScrollView.maximumAutomaticHeight))
         let view = try #require(input.documentView as? InputTextView)
         view.string = text
         #expect(view.string == source)
-        #expect(input.layoutText() > 40)
+        input.layoutText()
+        #expect(view.frame.height > input.contentSize.height)
     }
 
     @Test(arguments: ["\n", "\r\n", "\r"])

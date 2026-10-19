@@ -9,7 +9,6 @@ struct TranslatorHeaderHeight: PreferenceKey {
 
 struct TranslatorView: View {
     @Bindable var model: AppModel
-    @ViewState<CGFloat> private var inputHeight: CGFloat = 40
     @ViewState<CGFloat> private var headerHeight: CGFloat = 0
     var body: some View {
         WindowCard {
@@ -28,13 +27,7 @@ struct TranslatorView: View {
                         IconButton(symbol: "xmark", label: "关闭 (Esc)", action: model.hideTranslator)
                     }.padding(.horizontal, TranslatorLayout.inset).padding(.vertical, 6)
                     VStack(spacing: TranslatorLayout.inset) {
-                        NativeInput(text: Binding(get: { model.input }, set: model.editInput), selectAllOnFocus: model.selectAllOnFocus, focusRevision: model.inputFocusRevision, resultFocusRevision: model.resultFocusRevision, submit: { model.translate() }, dismiss: model.hideTranslator, height: $inputHeight)
-                            .frame(height: inputHeight).padding(.trailing, model.input.isEmpty ? 0 : 28)
-                            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 9))
-                            .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Theme.border, lineWidth: 1))
-                            .overlay(alignment: .topTrailing) {
-                                if !model.input.isEmpty { IconButton(symbol: "xmark.circle.fill", label: "清空输入", action: model.clearInput).padding(8) }
-                            }
+                        TranslationInput(model: model)
                         HStack(spacing: 6) {
                             SpeechButton(speech: model.speech, channel: "input", label: "朗读原文", action: model.speakInput).disabled(model.input.trimmed.isEmpty)
                             languageMenu(source: true)
@@ -65,7 +58,7 @@ struct TranslatorView: View {
                     }.padding(.horizontal, TranslatorLayout.inset)
                 }.background(GeometryReader { proxy in Color.clear.preference(key: TranslatorHeaderHeight.self, value: proxy.size.height) })
                 if model.streaming || !model.output.isEmpty {
-                    TranslationResult(model: model, maximumHeight: model.translatorMaximumHeight - headerHeight - TranslatorLayout.inset - TranslatorLayout.bottomInset)
+                    TranslationResult(model: model, maximumHeight: TranslatorLayout.maximumHeight - headerHeight - TranslatorLayout.inset - TranslatorLayout.bottomInset)
                         .id(model.resultRevision)
                         .padding(.horizontal, TranslatorLayout.inset).padding(.top, TranslatorLayout.inset)
                 }

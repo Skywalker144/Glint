@@ -49,7 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 NSApp.terminate(nil); return
             }
             model = AppModel(store: store)
-            translator = GlintWindowController(title: "Glint", size: CGSize(width: model.settings.windowWidth, height: 120), translator: true, resizable: true, root: TranslatorView(model: model))
+            translator = GlintWindowController(title: "Glint", size: CGSize(width: model.settings.windowWidth, height: 120), translator: true, root: TranslatorView(model: model))
             translator.pinned = { [weak self] in self?.model.settings.pinned ?? false }
             translator.onFrameChanged = { [weak self] frame in self?.saveFrame(frame) }
             if model.settings.pinned, let x = model.settings.windowX, let y = model.settings.windowY {
@@ -109,7 +109,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
         model.closeSettings = { [weak self] in self?.settingsWindow?.hide() }
         model.closeVocabulary = { [weak self] in self?.vocabularyWindow?.hide() }
-        translator.onAvailableHeightChanged = { [weak self] in self?.model.translatorMaximumHeight = $0 }
         model.resizeTranslator = { [weak self] in self?.translator?.fitHeight($0) }
         model.onApplySettings = { [weak self] old, next in
             guard let self else { return }

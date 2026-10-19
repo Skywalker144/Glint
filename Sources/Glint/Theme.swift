@@ -24,6 +24,7 @@ enum Theme {
 }
 
 enum TranslatorLayout {
+    static let maximumHeight: CGFloat = 600
     static let inset: CGFloat = 10
     static let resultInset: CGFloat = 15
     static let resultFooterSpacing: CGFloat = 6
@@ -78,7 +79,18 @@ struct WindowCard<Content: View>: View {
 
 struct WindowDragArea: NSViewRepresentable {
     final class DragView: NSView {
-        override func mouseDown(with event: NSEvent) { window?.performDrag(with: event) }
+        private var drag: (x: CGFloat, top: CGFloat, pointer: NSPoint)?
+        override func mouseDown(with event: NSEvent) {
+            guard let window else { return }
+            guard (window as? GlintPanel)?.allowsOffscreen == true else { window.performDrag(with: event); return }
+            drag = (window.frame.minX, window.frame.maxY, window.convertPoint(toScreen: event.locationInWindow))
+        }
+        override func mouseDragged(with event: NSEvent) {
+            guard let window, let drag else { return }
+            let pointer = window.convertPoint(toScreen: event.locationInWindow)
+            window.setFrameOrigin(NSPoint(x: drag.x + pointer.x - drag.pointer.x, y: drag.top + pointer.y - drag.pointer.y - window.frame.height))
+        }
+        override func mouseUp(with event: NSEvent) { drag = nil }
     }
     func makeNSView(context: Context) -> DragView { DragView() }
     func updateNSView(_ nsView: DragView, context: Context) {}

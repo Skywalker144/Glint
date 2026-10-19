@@ -26,7 +26,6 @@ final class AppModel {
     var selectAllOnFocus = false
     var inputFocusRevision = 0
     var resultFocusRevision = 0
-    var translatorMaximumHeight: CGFloat = 600
     var speech = SpeechService()
     var onApplySettings: ((AppSettings, AppSettings) throws -> Void)?
     var showSettings: () -> Void = {}

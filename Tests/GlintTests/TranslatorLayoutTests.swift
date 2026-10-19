@@ -6,24 +6,122 @@ import GlintCore
 
 @MainActor
 struct TranslatorLayoutTests {
-    @Test func inputCentersSingleLineAndKeepsLongInputScrollable() throws {
+    @Test func inputCentersShortTextAndKeepsLongTextScrollable() throws {
         _ = NSApplication.shared
-        let scroll = InputScrollView(frame: NSRect(x: 0, y: 0, width: 360, height: 40))
+        let font = NSFont.systemFont(ofSize: 14)
+        let height = ceil(NSLayoutManager().defaultLineHeight(for: font) * 2.5) + 16
+        let scroll = InputScrollView(frame: NSRect(x: 0, y: 0, width: 360, height: height))
         let text = try #require(scroll.documentView as? InputTextView)
         text.string = "你好 Hello"
         scroll.layoutSubtreeIfNeeded()
-        let height = scroll.layoutText()
+        scroll.layoutText()
         let manager = try #require(text.layoutManager)
         let container = try #require(text.textContainer)
         let used = manager.usedRect(for: container)
-        #expect(height == 40)
         #expect(abs(text.textContainerOrigin.y + used.midY - scroll.contentSize.height / 2) <= 1)
-        text.string = "原文\n"
-        #expect(scroll.layoutText() > 40)
         text.string = String(repeating: "原文输入需要保留多行和滚动。\n", count: 20)
-        #expect(scroll.layoutText() == 140)
+        scroll.layoutText()
+        #expect(scroll.frame.height == height)
         #expect(text.frame.height > scroll.contentSize.height)
         #expect(text.textContainerInset.height == 8)
+        scroll.contentView.scroll(to: NSPoint(x: 0, y: text.frame.height - scroll.contentSize.height))
+        scroll.reflectScrolledClipView(scroll.contentView)
+        #expect(scroll.contentView.bounds.minY > 0)
+        #expect(abs(scroll.contentView.bounds.maxY - text.frame.height) < 1)
+        text.string = "短原文"
+        scroll.layoutText()
+        #expect(text.frame.height == scroll.contentSize.height)
+        #expect(abs(scroll.contentView.bounds.minY) < 1)
+    }
+
+    @Test func inputScrollbarOverlaysAtTheRightEdgeOutsideTheClearButtonSpace() throws {
+        _ = NSApplication.shared
+        let scroll = InputScrollView(frame: NSRect(x: 0, y: 0, width: 360, height: 60))
+        let text = try #require(scroll.documentView as? InputTextView)
+        text.string = String(repeating: "检查原文滚动条与清空按钮。\n", count: 20)
+        scroll.layoutSubtreeIfNeeded()
+        scroll.layoutText()
+        let scroller = try #require(scroll.verticalScroller)
+        let container = try #require(text.textContainer)
+        #expect(scroll.scrollerStyle == .overlay)
+        #expect(scroll.autohidesScrollers)
+        #expect(scroller.controlSize == .small)
+        #expect(abs(scroll.contentSize.width - scroll.bounds.width) < 1)
+        #expect(container.containerSize.width <= scroll.contentSize.width - 48)
+    }
+
+    @Test func inputStartsAtOneLineAndGrowsOnlyToAutomaticLimit() async throws {
+        _ = NSApplication.shared
+        let directory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".cache/input-height-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let model = AppModel(store: try LocalStore(directory: directory))
+        let controller = GlintWindowController(title: "Test", size: CGSize(width: 420, height: 150), translator: true, root: TranslatorView(model: model))
+        defer { controller.window.close() }
+        controller.pinned = { true }
+        model.resizeTranslator = { [weak controller] in controller?.fitHeight($0) }
+        controller.show()
+        let root = try #require(controller.window.contentView)
+        let maximum = ceil(NSLayoutManager().defaultLineHeight(for: .systemFont(ofSize: 14)) * 2.5) + 16
+        for (source, expected) in [("", 40.0), ("短原文", 40.0), (String(repeating: "多行原文\n", count: 20), maximum), ("清空后重新输入", 40.0)] {
+            model.input = source
+            try await Task.sleep(for: .milliseconds(100))
+            root.layoutSubtreeIfNeeded()
+            let scroll = try #require(descendants(of: root, type: InputScrollView.self).first)
+            #expect(abs(scroll.frame.height - expected) < 0.5)
+        }
+    }
+
+    @Test(arguments: [false, true]) func inputBordersResizeEditorAndKeepOppositeEdgeAnchored(topEdge: Bool) async throws {
+        _ = NSApplication.shared
+        let directory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".cache/input-resize-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let model = AppModel(store: try LocalStore(directory: directory))
+        model.input = "原文"
+        model.output = "译文保持完整可见。"
+        var requestedHeight: CGFloat = 0
+        let controller = GlintWindowController(title: "Test", size: CGSize(width: 420, height: 200), translator: true, root: TranslatorView(model: model))
+        defer { controller.window.close() }
+        controller.pinned = { true }
+        model.resizeTranslator = { [weak controller] in requestedHeight = $0; controller?.fitHeight($0) }
+        controller.show()
+        try await Task.sleep(for: .milliseconds(120))
+        let root = try #require(controller.window.contentView)
+        root.layoutSubtreeIfNeeded()
+        let input = try #require(descendants(of: root, type: InputScrollView.self).first)
+        let result = try #require(descendants(of: root, type: TranslationScrollView.self).first)
+        let handle = try #require(descendants(of: root, type: InputHeightHandle.Handle.self).first { $0.edge == (topEdge ? .top : .bottom) })
+        for _ in 0..<100 {
+            root.layoutSubtreeIfNeeded()
+            if input.frame.height == 40, handle.height == 40, result.preferredHeight < 100,
+               requestedHeight > 0, abs(controller.window.frame.height - ceil(requestedHeight)) < 0.5 { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        try #require(input.frame.height == 40)
+        let frame = controller.window.frame
+        let resultTop = controller.window.convertToScreen(result.convert(result.bounds, to: nil)).maxY
+        let point = handle.convert(NSPoint(x: handle.bounds.midX, y: handle.bounds.midY), to: nil)
+        let down = try #require(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [], timestamp: 0, windowNumber: controller.window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        let drag = try #require(NSEvent.mouseEvent(with: .leftMouseDragged, location: NSPoint(x: point.x, y: point.y + (topEdge ? 80 : -80)), modifierFlags: [], timestamp: 0, windowNumber: controller.window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        handle.mouseDown(with: down)
+        handle.mouseDragged(with: drag)
+        handle.mouseUp(with: drag)
+        try await Task.sleep(for: .milliseconds(120))
+        root.layoutSubtreeIfNeeded()
+        #expect(abs(input.frame.height - 120) < 0.5)
+        #expect(abs(controller.window.frame.height - frame.height - 80) < 0.5)
+        #expect(abs(controller.window.frame.maxY - frame.maxY - (topEdge ? 80 : 0)) < 0.5)
+        #expect(abs(controller.window.convertToScreen(result.convert(result.bounds, to: nil)).maxY - resultTop + (topEdge ? 0 : 80)) < 0.5)
+        #expect(result.convert(result.bounds, to: nil).minY >= TranslatorLayout.bottomInset + TranslatorLayout.footerHeight + TranslatorLayout.resultFooterSpacing)
+        model.input = String(repeating: "手动高度不被内容覆盖。\n", count: 20)
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(abs(input.frame.height - 120) < 0.5)
+        let reset = try #require(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [], timestamp: 0, windowNumber: controller.window.windowNumber, context: nil, eventNumber: 0, clickCount: 2, pressure: 1))
+        handle.mouseDown(with: reset)
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(abs(input.frame.height - InputScrollView.maximumAutomaticHeight) < 0.5)
+        model.clearInput()
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(input.frame.height == 40)
     }
 
     @Test func resultStaysAtTopWhileStreamingAndJumpsOnlyOnDemand() {
@@ -144,76 +242,81 @@ struct TranslatorLayoutTests {
         controller.window.close()
     }
 
-    @Test func inputHeightChangesForEditsInsteadOfWidthChanges() async throws {
+    @Test func translatorDisablesNativeEdgeResizingAndAllowsOffscreenFrames() throws {
         _ = NSApplication.shared
-        let scroll = InputScrollView(frame: NSRect(x: 0, y: 0, width: 820, height: 40))
-        let text = try #require(scroll.documentView as? InputTextView)
-        text.string = String(repeating: "原文只在编辑时调整高度", count: 5)
-        var height: CGFloat = 40
-        let input = NativeInput(text: .constant(text.string), selectAllOnFocus: false, focusRevision: 0, resultFocusRevision: 0, submit: {}, dismiss: {}, height: Binding(get: { height }, set: { height = $0 }))
-        let coordinator = NativeInput.Coordinator(input)
-        coordinator.measure(text)
-        try await Task.sleep(for: .milliseconds(20))
-        let originalHeight = height
-        scroll.setFrameSize(NSSize(width: 360, height: originalHeight))
-        coordinator.measure(text)
-        try await Task.sleep(for: .milliseconds(20))
-        #expect(height == originalHeight)
-        text.string += "\n新增一行"
-        coordinator.measure(text)
-        try await Task.sleep(for: .milliseconds(20))
-        #expect(height > originalHeight)
+        let screen = try #require(NSScreen.main)
+        let controller = GlintWindowController(title: "Test", size: CGSize(width: 420, height: 300), translator: true, resizable: true, root: Color.clear)
+        defer { controller.window.close() }
+        #expect(!controller.window.styleMask.contains(.resizable))
+        for origin in [
+            NSPoint(x: screen.visibleFrame.minX + 100, y: screen.visibleFrame.minY - 160),
+            NSPoint(x: screen.visibleFrame.minX - 200, y: screen.visibleFrame.minY + 100),
+            NSPoint(x: screen.visibleFrame.maxX - 200, y: screen.visibleFrame.minY + 100),
+            NSPoint(x: screen.visibleFrame.minX + 100, y: screen.visibleFrame.maxY - 100)
+        ] {
+            let frame = NSRect(origin: origin, size: controller.window.frame.size)
+            #expect(controller.window.constrainFrameRect(frame, to: screen) == frame)
+        }
+        let settings = GlintWindowController(title: "Settings", size: CGSize(width: 800, height: 650), resizable: true, root: Color.clear)
+        defer { settings.window.close() }
+        #expect(settings.window.styleMask.contains(.resizable))
     }
 
-    @Test func heightGrowthNearScreenBottomPreservesTopEdge() async throws {
+    @Test func windowDragCanCrossScreenBottomWhileContentHeightChanges() async throws {
+        _ = NSApplication.shared
+        let screen = try #require(NSScreen.main)
+        let controller = GlintWindowController(title: "Test", size: CGSize(width: 420, height: 150), translator: true, root: WindowDragArea().frame(height: 24))
+        defer { controller.window.close() }
+        controller.window.setFrameOrigin(NSPoint(x: screen.visibleFrame.minX + 100, y: screen.visibleFrame.minY + 50))
+        let root = try #require(controller.window.contentView)
+        root.layoutSubtreeIfNeeded()
+        let handle = try #require(descendants(of: root, type: WindowDragArea.DragView.self).first)
+        let frame = controller.window.frame
+        let point = NSPoint(x: 100, y: 120)
+        let pointer = controller.window.convertPoint(toScreen: point)
+        let down = try #require(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [], timestamp: 0, windowNumber: controller.window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        handle.mouseDown(with: down)
+        controller.fitHeight(300)
+        try await Task.sleep(for: .milliseconds(40))
+        let target = controller.window.convertPoint(fromScreen: NSPoint(x: pointer.x + 40, y: pointer.y - 160))
+        let drag = try #require(NSEvent.mouseEvent(with: .leftMouseDragged, location: target, modifierFlags: [], timestamp: 0, windowNumber: controller.window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        handle.mouseDragged(with: drag)
+        handle.mouseUp(with: drag)
+        #expect(controller.window.frame.minY < screen.visibleFrame.minY)
+        #expect(controller.window.frame.height == 300)
+        #expect(abs(controller.window.frame.maxY - frame.maxY + 160) < 0.5)
+        #expect(abs(controller.window.frame.minX - frame.minX - 40) < 0.5)
+    }
+
+    @Test func heightGrowthCanExtendBelowScreenAndPreservesTopEdge() async throws {
         _ = NSApplication.shared
         let screen = try #require(NSScreen.main)
         let controller = GlintWindowController(title: "Test", size: CGSize(width: 420, height: 150), translator: true, root: Color.clear)
+        defer { controller.window.close() }
         let top = screen.visibleFrame.minY + 240
         controller.window.setFrameOrigin(NSPoint(x: screen.visibleFrame.minX + 100, y: top - 150))
-        var availableHeight: CGFloat = 0
-        controller.onAvailableHeightChanged = { availableHeight = $0 }
-        for height in [180.0, 220.0, 260.0, 500.0, 600.0, 180.0] {
+        for height in [180.0, 220.0, 260.0, 500.0, 720.0, 180.0] {
             controller.fitHeight(height)
             try await Task.sleep(for: .milliseconds(40))
             #expect(abs(controller.window.frame.maxY - top) < 0.5)
-            #expect(abs(controller.window.frame.height - min(height, 240)) < 0.5)
-            #expect(abs(availableHeight - 240) < 0.5)
+            #expect(abs(controller.window.frame.height - min(height, 600)) < 0.5)
         }
-        controller.window.close()
     }
 
-    @Test func showingPinnedWindowUsesSpaceBelowItsTopEdge() throws {
+    @Test func movingAndShowingPinnedWindowPreservesOffscreenPositionAndHeight() async throws {
         _ = NSApplication.shared
         let screen = try #require(NSScreen.main)
-        let controller = GlintWindowController(title: "Test", size: CGSize(width: 420, height: 150), translator: true, root: Color.clear)
+        let controller = GlintWindowController(title: "Test", size: CGSize(width: 420, height: 500), translator: true, root: Color.clear)
         defer { controller.window.close() }
         controller.pinned = { true }
-        let top = screen.visibleFrame.minY + 240
-        controller.window.setFrameOrigin(NSPoint(x: screen.visibleFrame.minX + 100, y: top - 150))
-        var availableHeight: CGFloat = 0
-        controller.onAvailableHeightChanged = { availableHeight = $0 }
-        controller.show()
-        controller.show()
-        #expect(abs(controller.window.frame.maxY - top) < 0.5)
-        #expect(abs(availableHeight - 240) < 0.5)
-    }
-
-    @Test func movingWindowRecalculatesSpaceForHeightGrowth() async throws {
-        _ = NSApplication.shared
-        let screen = try #require(NSScreen.main)
-        let controller = GlintWindowController(title: "Test", size: CGSize(width: 420, height: 150), translator: true, root: Color.clear)
-        defer { controller.window.close() }
-        var availableHeight: CGFloat = 0
-        controller.onAvailableHeightChanged = { availableHeight = $0 }
         for space in [240.0, 520.0, 300.0] {
             let top = screen.visibleFrame.minY + space
             controller.window.setFrameOrigin(NSPoint(x: screen.visibleFrame.minX + 100, y: top - controller.window.frame.height))
             controller.fitHeight(500)
+            controller.show()
             try await Task.sleep(for: .milliseconds(40))
             #expect(abs(controller.window.frame.maxY - top) < 0.5)
-            #expect(abs(controller.window.frame.height - min(space, 500)) < 0.5)
-            #expect(abs(availableHeight - space) < 0.5)
+            #expect(controller.window.frame.height == 500)
         }
     }
 
@@ -247,12 +350,11 @@ struct TranslatorLayoutTests {
         let directory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".cache/layout-" + UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let model = AppModel(store: try LocalStore(directory: directory))
-        model.input = "Hello world."
+        model.input = String(repeating: "用于验证原文自动高度的长文本。\n", count: 20)
         model.streaming = true
         let controller = GlintWindowController(title: "Test", size: CGSize(width: 420, height: 150), translator: true, root: TranslatorView(model: model))
         defer { controller.window.close() }
         controller.pinned = { true }
-        controller.onAvailableHeightChanged = { model.translatorMaximumHeight = $0 }
         var requestedHeight: CGFloat?
         model.resizeTranslator = { [weak controller] height in
             requestedHeight = height
@@ -263,11 +365,13 @@ struct TranslatorLayoutTests {
         }
         controller.show()
         let top = controller.window.frame.maxY
-        let maximumHeight = min(600, top - screen.visibleFrame.minY)
+        let maximumHeight: CGFloat = 600
         let root = try #require(controller.window.contentView)
         for _ in 0..<100 {
             root.layoutSubtreeIfNeeded()
-            if let requestedHeight, abs(controller.window.frame.height - min(requestedHeight, maximumHeight)) < 0.5 { break }
+            let input = descendants(of: root, type: InputScrollView.self).first
+            if let requestedHeight, abs(controller.window.frame.height - min(requestedHeight, maximumHeight)) < 0.5,
+               input?.frame.height == InputScrollView.maximumAutomaticHeight { break }
             try await Task.sleep(for: .milliseconds(20))
         }
         let initialHeight = try #require(requestedHeight)
@@ -282,6 +386,8 @@ struct TranslatorLayoutTests {
         let result = try #require(views.compactMap { $0 as? TranslationScrollView }.first)
         let rendered = try #require(result.documentView as? RichTextView)
         let drag = try #require(views.compactMap { $0 as? WindowDragArea.DragView }.first)
+        let expectedInputHeight = ceil(NSLayoutManager().defaultLineHeight(for: .systemFont(ofSize: 14)) * 2.5) + 16
+        #expect(abs(input.frame.height - expectedInputHeight) < 0.5)
         let inputTop = input.convert(input.bounds, to: nil).maxY - controller.window.frame.height
         let resultTop = result.convert(result.bounds, to: nil).maxY - controller.window.frame.height
         let footerHeight = TranslatorLayout.bottomInset + TranslatorLayout.footerHeight + TranslatorLayout.resultFooterSpacing
@@ -337,5 +443,9 @@ struct TranslatorLayoutTests {
         #expect(controller.window.frame.height == 180)
         #expect(controller.window.frame.maxY == top)
         controller.window.close()
+    }
+
+    private func descendants<View: NSView>(of root: NSView, type: View.Type) -> [View] {
+        (root as? View).map { [$0] } ?? root.subviews.flatMap { descendants(of: $0, type: type) }
     }
 }
