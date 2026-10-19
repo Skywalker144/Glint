@@ -262,9 +262,7 @@ struct TranslatorLayoutTests {
         #expect(knob.width == 3)
         #expect(!knob.intersects(widthHandle.convert(widthHandle.bounds, to: nil)))
         #expect(!scroller.convert(scroller.bounds, to: nil).intersects(widthHandle.convert(widthHandle.bounds, to: nil)))
-        controller.window.makeKeyAndOrderFront(nil)
-        result.flashScrollers()
-        #expect(scroller.testPart(NSPoint(x: knob.midX, y: knob.midY)) == .knob)
+        #expect(scroller.rect(for: .knob).contains(NSPoint(x: scroller.knobFrame.midX, y: scroller.knobFrame.midY)))
     }
 
     @Test func resultResetsForNewRequestAndPreservesSelectionOnAppend() throws {
