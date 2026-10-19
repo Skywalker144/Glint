@@ -33,6 +33,20 @@ enum TranslatorLayout {
     static let footerHeight: CGFloat = 28
 }
 
+class OverlayScrollView: NSScrollView {
+    override var scrollerStyle: NSScroller.Style {
+        get { super.scrollerStyle }
+        set { super.scrollerStyle = .overlay }
+    }
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        drawsBackground = false; verticalScroller = ThinScroller(); hasVerticalScroller = true; autohidesScrollers = true
+        verticalScroller?.controlSize = .small
+        scrollerStyle = .overlay
+    }
+    required init?(coder: NSCoder) { fatalError() }
+}
+
 final class ThinScroller: NSScroller {
     var knobFrame: NSRect {
         let knob = rect(for: .knob).insetBy(dx: 0, dy: 2)

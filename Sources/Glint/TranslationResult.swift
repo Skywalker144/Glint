@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-final class TranslationScrollView: NSScrollView {
+final class TranslationScrollView: OverlayScrollView {
     static let minimumHeight = ceil(NSLayoutManager().defaultLineHeight(for: .systemFont(ofSize: 15)))
     private let edgeMask = CAGradientLayer()
     private var revision: UUID?
@@ -16,9 +16,6 @@ final class TranslationScrollView: NSScrollView {
 
     override init(frame: NSRect) {
         super.init(frame: frame)
-        drawsBackground = false; verticalScroller = ThinScroller(); hasVerticalScroller = true; autohidesScrollers = true
-        verticalScroller?.controlSize = .small
-        scrollerStyle = .overlay
         scrollerInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: TranslatorLayout.widthHandleWidth)
         contentView.wantsLayer = true
         contentView.layer?.mask = edgeMask

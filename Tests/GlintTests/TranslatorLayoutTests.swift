@@ -72,6 +72,7 @@ struct TranslatorLayoutTests {
         let scroll = InputScrollView(frame: NSRect(x: 0, y: 0, width: 360, height: 60))
         let text = try #require(scroll.documentView as? InputTextView)
         text.string = String(repeating: "检查原文滚动条与清空按钮。\n", count: 20)
+        scroll.scrollerStyle = .legacy
         scroll.layoutSubtreeIfNeeded()
         scroll.layoutText()
         let scroller = try #require(scroll.verticalScroller)
@@ -170,7 +171,11 @@ struct TranslatorLayoutTests {
         try await Task.sleep(for: .milliseconds(100))
         #expect(abs(input.frame.height - InputScrollView.maximumAutomaticHeight) < 0.5)
         model.clearInput()
-        try await Task.sleep(for: .milliseconds(100))
+        for _ in 0..<100 {
+            root.layoutSubtreeIfNeeded()
+            if input.frame.height == 40 { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
         #expect(input.frame.height == 40)
     }
 
@@ -251,6 +256,8 @@ struct TranslatorLayoutTests {
         let inputScroller = try #require(descendants(of: root, type: InputScrollView.self).first?.verticalScroller)
         let widthHandle = try #require(descendants(of: root, type: WindowWidthHandle.Handle.self).first)
         let text = try #require(result.documentView as? RichTextView)
+        result.scrollerStyle = .legacy
+        result.tile()
         #expect(type(of: scroller) == type(of: inputScroller))
         #expect(scroller.controlSize == .small)
         #expect(result.scrollerStyle == .overlay)

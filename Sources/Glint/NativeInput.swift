@@ -17,16 +17,13 @@ final class InputTextView: NSTextView {
     }
 }
 
-final class InputScrollView: NSScrollView {
+final class InputScrollView: OverlayScrollView {
     static let font = NSFont.systemFont(ofSize: 14)
     static let minimumHeight: CGFloat = 40
     static let maximumAutomaticHeight = ceil(NSLayoutManager().defaultLineHeight(for: font) * 2.5) + 16
     var onHeightChange: (CGFloat) -> Void = { _ in }
     override init(frame: NSRect) {
         super.init(frame: frame)
-        drawsBackground = false; verticalScroller = ThinScroller(); hasVerticalScroller = true; autohidesScrollers = true
-        verticalScroller?.controlSize = .small
-        scrollerStyle = .overlay
         scrollerInsets = NSEdgeInsets(top: 4, left: 0, bottom: 4, right: 0)
         let view = InputTextView()
         view.isRichText = false; view.drawsBackground = false; view.font = Self.font
