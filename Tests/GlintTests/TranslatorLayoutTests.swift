@@ -6,6 +6,39 @@ import GlintCore
 
 @MainActor
 struct TranslatorLayoutTests {
+    @Test(arguments: [360.0, 420.0, 820.0]) func toolbarHasEqualVisibleSpaceAboveButtonsAndBelowButtons(width: CGFloat) async throws {
+        _ = NSApplication.shared
+        let directory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".cache/toolbar-spacing-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let model = AppModel(store: try LocalStore(directory: directory))
+        model.input = "原文"
+        let controller = GlintWindowController(title: "Test", size: CGSize(width: width, height: 150), translator: true, root: TranslatorView(model: model))
+        defer { controller.window.close() }
+        controller.pinned = { true }
+        var requestedHeight: CGFloat = 0
+        model.resizeTranslator = { [weak controller] in requestedHeight = $0; controller?.fitHeight($0) }
+        controller.show()
+        let root = try #require(controller.window.contentView)
+        for _ in 0..<100 {
+            root.layoutSubtreeIfNeeded()
+            if requestedHeight > 0, abs(controller.window.frame.height - ceil(requestedHeight)) < 0.5 { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        let input = try #require(descendants(of: root, type: InputScrollView.self).first)
+        let toolbar = try #require(descendants(of: root, type: WindowDragArea.DragView.self).first)
+        let toolbarFrame = toolbar.convert(toolbar.bounds, to: nil)
+        let inputFrame = input.convert(input.bounds, to: nil)
+        let above = controller.window.frame.height - toolbarFrame.maxY
+        let below = toolbarFrame.minY - inputFrame.maxY
+        #expect(abs(above - below) < 0.5)
+        #expect(above == 6)
+        #expect(controller.window.frame.height - inputFrame.maxY == 36)
+        let topHandle = try #require(descendants(of: root, type: InputHeightHandle.Handle.self).first { $0.edge == .top })
+        let handleFrame = topHandle.convert(topHandle.bounds, to: nil)
+        #expect(!handleFrame.intersects(toolbarFrame))
+        #expect(!handleFrame.intersects(inputFrame))
+    }
+
     @Test func inputCentersShortTextAndKeepsLongTextScrollable() throws {
         _ = NSApplication.shared
         let font = NSFont.systemFont(ofSize: 14)
@@ -229,6 +262,8 @@ struct TranslatorLayoutTests {
         #expect(knob.width == 3)
         #expect(!knob.intersects(widthHandle.convert(widthHandle.bounds, to: nil)))
         #expect(!scroller.convert(scroller.bounds, to: nil).intersects(widthHandle.convert(widthHandle.bounds, to: nil)))
+        controller.window.makeKeyAndOrderFront(nil)
+        result.flashScrollers()
         #expect(scroller.testPart(NSPoint(x: knob.midX, y: knob.midY)) == .knob)
     }
 

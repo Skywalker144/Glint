@@ -26,7 +26,7 @@ struct TranslatorView: View {
                         IconButton(symbol: "gearshape", label: "设置", action: model.showSettings)
                         IconButton(symbol: "pin", label: "钉住窗口", selected: model.settings.pinned) { model.changeSettings { $0.pinned.toggle() } }
                         IconButton(symbol: "xmark", label: "关闭 (Esc)", action: model.hideTranslator)
-                    }.padding(.horizontal, TranslatorLayout.inset).padding(.vertical, 6)
+                    }.padding(.horizontal, TranslatorLayout.inset).padding(.top, InputHeightHandle.thickness)
                     VStack(spacing: TranslatorLayout.inset) {
                         TranslationInput(model: model)
                         HStack(spacing: 6) {
