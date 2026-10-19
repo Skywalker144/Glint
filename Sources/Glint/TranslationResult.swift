@@ -3,6 +3,7 @@ import SwiftUI
 
 final class TranslationScrollView: NSScrollView {
     static let minimumHeight = ceil(NSLayoutManager().defaultLineHeight(for: .systemFont(ofSize: 15)))
+    private let edgeMask = CAGradientLayer()
     private var revision: UUID?
     private var source = ""
     private var updatingLayout = false
@@ -15,8 +16,14 @@ final class TranslationScrollView: NSScrollView {
 
     override init(frame: NSRect) {
         super.init(frame: frame)
-        drawsBackground = false; hasVerticalScroller = true; autohidesScrollers = true
+        drawsBackground = false; verticalScroller = ThinScroller(); hasVerticalScroller = true; autohidesScrollers = true
+        verticalScroller?.controlSize = .small
         scrollerStyle = .overlay
+        scrollerInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: TranslatorLayout.widthHandleWidth)
+        contentView.wantsLayer = true
+        contentView.layer?.mask = edgeMask
+        edgeMask.startPoint = CGPoint(x: 0.5, y: 0)
+        edgeMask.endPoint = CGPoint(x: 0.5, y: 1)
         let view = RichTextView()
         view.isEditable = false; view.isSelectable = true; view.drawsBackground = false
         view.textContainerInset = .zero; view.textContainer?.lineFragmentPadding = 0
@@ -35,6 +42,7 @@ final class TranslationScrollView: NSScrollView {
         let wasUpdating = updatingLayout
         updatingLayout = true
         super.tile()
+        contentView.frame = contentView.frame.insetBy(dx: TranslatorLayout.resultInset, dy: 0)
         updatingLayout = wasUpdating
         layoutTranslation()
     }
@@ -83,11 +91,26 @@ final class TranslationScrollView: NSScrollView {
         }
         contentView.scroll(to: NSPoint(x: 0, y: followsEnd ? max(0, view.frame.height - contentSize.height) : min(readingY, max(0, view.frame.height - contentSize.height))))
         reflectScrolledClipView(contentView)
+        updateFades()
         onMetrics(preferredHeight, showsLatest)
+    }
+    private func updateFades() {
+        let height = contentView.bounds.height
+        guard height > 0 else { return }
+        let fade = min(12, height / 2)
+        let top = NSColor.black.withAlphaComponent(1 - min(1, max(0, contentView.bounds.minY) / fade)).cgColor
+        let bottom = NSColor.black.withAlphaComponent(1 - min(1, distanceFromEnd / fade)).cgColor
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        edgeMask.frame = contentView.bounds
+        edgeMask.colors = contentView.isFlipped ? [top, NSColor.black.cgColor, NSColor.black.cgColor, bottom] : [bottom, NSColor.black.cgColor, NSColor.black.cgColor, top]
+        edgeMask.locations = [0, NSNumber(value: fade / height), NSNumber(value: 1 - fade / height), 1]
+        CATransaction.commit()
     }
     @objc private func didScroll() {
         guard !updatingLayout else { return }
         followsEnd = distanceFromEnd <= 2
+        updateFades()
         onMetrics(preferredHeight, showsLatest)
     }
     func jumpToLatest() {
@@ -151,10 +174,9 @@ struct TranslationResult: View {
                 .overlay(alignment: .topLeading) {
                     if model.streaming && model.output.isEmpty {
                         Text("正在翻译…").font(.system(size: 12)).foregroundStyle(Theme.muted)
-                            .frame(height: TranslationScrollView.minimumHeight, alignment: .leading).allowsHitTesting(false)
+                            .frame(height: TranslationScrollView.minimumHeight, alignment: .leading).padding(.leading, TranslatorLayout.resultInset).allowsHitTesting(false)
                     }
                 }
-                .padding(.horizontal, TranslatorLayout.resultInset - TranslatorLayout.inset)
                 .opacity(model.resultIsStale ? 0.4 : 1)
             HStack(spacing: 6) {
                 SpeechButton(speech: model.speech, channel: "result", label: "朗读译文", action: model.speakOutput)
@@ -170,7 +192,7 @@ struct TranslationResult: View {
                     .disabled(model.streaming || model.currentEntry == nil || model.resultIsStale)
                 CopyButton(title: "复制", text: NativeMarkdown.plainText(model.output))
                     .disabled(model.streaming || model.output.isEmpty || model.resultIsStale)
-            }.frame(height: TranslatorLayout.footerHeight).accessibilityIdentifier("translation-actions")
+            }.frame(height: TranslatorLayout.footerHeight).padding(.horizontal, TranslatorLayout.inset).accessibilityIdentifier("translation-actions")
         }
     }
 }

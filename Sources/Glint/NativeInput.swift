@@ -17,17 +17,6 @@ final class InputTextView: NSTextView {
     }
 }
 
-final class InputScroller: NSScroller {
-    override class var isCompatibleWithOverlayScrollers: Bool { true }
-    override func drawKnobSlot(in slotRect: NSRect, highlight flag: Bool) {}
-    override func drawKnob() {
-        let knob = rect(for: .knob).insetBy(dx: 0, dy: 2)
-        guard knob.height > 0 else { return }
-        NSColor.secondaryLabelColor.withAlphaComponent(0.35).setFill()
-        NSBezierPath(roundedRect: NSRect(x: bounds.maxX - 5, y: knob.minY, width: 3, height: knob.height), xRadius: 1.5, yRadius: 1.5).fill()
-    }
-}
-
 final class InputScrollView: NSScrollView {
     static let font = NSFont.systemFont(ofSize: 14)
     static let minimumHeight: CGFloat = 40
@@ -35,7 +24,7 @@ final class InputScrollView: NSScrollView {
     var onHeightChange: (CGFloat) -> Void = { _ in }
     override init(frame: NSRect) {
         super.init(frame: frame)
-        drawsBackground = false; verticalScroller = InputScroller(); hasVerticalScroller = true; autohidesScrollers = true
+        drawsBackground = false; verticalScroller = ThinScroller(); hasVerticalScroller = true; autohidesScrollers = true
         verticalScroller?.controlSize = .small
         scrollerStyle = .overlay
         scrollerInsets = NSEdgeInsets(top: 4, left: 0, bottom: 4, right: 0)
@@ -83,13 +72,15 @@ struct TranslationInput: View {
             .overlay(alignment: .topTrailing) {
                 if !model.input.isEmpty { IconButton(symbol: "xmark.circle.fill", label: "清空输入", action: model.clearInput).padding(8) }
             }
-            .overlay(alignment: .top) { InputHeightHandle(edge: .top, height: height, resize: { manualHeight = $0 }).frame(height: 6).padding(.horizontal, 10) }
-            .overlay(alignment: .bottom) { InputHeightHandle(edge: .bottom, height: height, resize: { manualHeight = $0 }).frame(height: 6).padding(.horizontal, 10) }
+            .padding(.vertical, InputHeightHandle.thickness)
+            .overlay(alignment: .top) { InputHeightHandle(edge: .top, height: height, resize: { manualHeight = $0 }).frame(height: InputHeightHandle.thickness).padding(.horizontal, 10) }
+            .overlay(alignment: .bottom) { InputHeightHandle(edge: .bottom, height: height, resize: { manualHeight = $0 }).frame(height: InputHeightHandle.thickness).padding(.horizontal, 10) }
             .onChange(of: model.input.isEmpty) { _, empty in if empty { manualHeight = nil } }
     }
 }
 
 struct InputHeightHandle: NSViewRepresentable {
+    static let thickness: CGFloat = 6
     enum Edge { case top, bottom }
     let edge: Edge
     let height: CGFloat
@@ -101,12 +92,13 @@ struct InputHeightHandle: NSViewRepresentable {
         private var hovering = false
         private var drag: (height: CGFloat, pointerY: CGFloat, top: CGFloat)?
         override func resetCursorRects() { addCursorRect(bounds, cursor: .resizeUpDown) }
+        override func cursorUpdate(with event: NSEvent) { NSCursor.resizeUpDown.set() }
         override func updateTrackingAreas() {
             trackingAreas.forEach(removeTrackingArea)
-            addTrackingArea(NSTrackingArea(rect: .zero, options: [.activeAlways, .mouseEnteredAndExited, .inVisibleRect], owner: self))
+            addTrackingArea(NSTrackingArea(rect: .zero, options: [.activeAlways, .mouseEnteredAndExited, .cursorUpdate, .inVisibleRect], owner: self))
             super.updateTrackingAreas()
         }
-        override func mouseEntered(with event: NSEvent) { hovering = true; needsDisplay = true }
+        override func mouseEntered(with event: NSEvent) { hovering = true; NSCursor.resizeUpDown.set(); needsDisplay = true }
         override func mouseExited(with event: NSEvent) { hovering = false; needsDisplay = true }
         override func draw(_ dirtyRect: NSRect) {
             if hovering {

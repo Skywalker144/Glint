@@ -63,8 +63,7 @@ struct SettingsView: View {
             HStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 26) {
                     HStack(spacing: 10) {
-                        Text("译").font(.system(size: 20, weight: .medium)).foregroundStyle(Theme.background)
-                            .frame(width: 36, height: 36).background(Theme.text, in: RoundedRectangle(cornerRadius: 10))
+                        AppIcon(size: 36)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Glint").font(.system(size: 14, weight: .semibold))
                             Text("设置").font(.system(size: 11)).foregroundStyle(SettingsPalette.secondary)
@@ -282,8 +281,7 @@ struct SettingsView: View {
     var about: some View {
         Group {
             HStack(spacing: 14) {
-                Text("译").font(.system(size: 30, weight: .semibold)).frame(width: 62, height: 62)
-                    .foregroundStyle(Theme.background).background(Theme.text, in: RoundedRectangle(cornerRadius: 16))
+                AppIcon(size: 62)
                 VStack(alignment: .leading, spacing: 6) { Text("闪译 · Glint").font(.system(size: 17, weight: .semibold)); Text("划词 / 截图 / 输入翻译").font(.system(size: 12)).foregroundStyle(SettingsPalette.secondary) }
             }
             SettingsCard {

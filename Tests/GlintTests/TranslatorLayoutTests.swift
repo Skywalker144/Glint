@@ -97,6 +97,23 @@ struct TranslatorLayoutTests {
             try await Task.sleep(for: .milliseconds(20))
         }
         try #require(input.frame.height == 40)
+        let inputFrame = input.convert(input.bounds, to: nil)
+        let handleFrame = handle.convert(handle.bounds, to: nil)
+        #expect(!inputFrame.intersects(handleFrame))
+        #expect(abs(topEdge ? handleFrame.minY - inputFrame.maxY : inputFrame.minY - handleFrame.maxY) < 1)
+        let handleCenter = NSPoint(x: handleFrame.midX, y: handleFrame.midY)
+        let handleParent = try #require(handle.superview)
+        let inputParent = try #require(input.superview)
+        #expect(handle.hitTest(handleParent.convert(handleCenter, from: nil)) === handle)
+        #expect(input.hitTest(inputParent.convert(handleCenter, from: nil)) == nil)
+        NSCursor.iBeam.set()
+        let cursorEvent = try #require(NSEvent.mouseEvent(with: .mouseMoved, location: handle.convert(NSPoint(x: handle.bounds.midX, y: handle.bounds.midY), to: nil), modifierFlags: [], timestamp: 0, windowNumber: controller.window.windowNumber, context: nil, eventNumber: 0, clickCount: 0, pressure: 0))
+        handle.mouseEntered(with: cursorEvent)
+        #expect(NSCursor.current == NSCursor.resizeUpDown)
+        NSCursor.iBeam.set()
+        handle.cursorUpdate(with: cursorEvent)
+        #expect(NSCursor.current == NSCursor.resizeUpDown)
+        NSCursor.arrow.set()
         let frame = controller.window.frame
         let resultTop = controller.window.convertToScreen(result.convert(result.bounds, to: nil)).maxY
         let point = handle.convert(NSPoint(x: handle.bounds.midX, y: handle.bounds.midY), to: nil)
@@ -151,6 +168,68 @@ struct TranslatorLayoutTests {
         #expect(scroll.distanceFromEnd <= 1)
         scroll.update(text: first + String(repeating: "追加的译文。\n", count: 45), revision: revision, appearance: .aqua)
         #expect(scroll.distanceFromEnd <= 1)
+    }
+
+    @Test func resultFadesOnlyTheEdgesWithHiddenContentAndKeepsScrollbarUnmasked() throws {
+        _ = NSApplication.shared
+        let scroll = TranslationScrollView(frame: NSRect(x: 0, y: 0, width: 360, height: 120))
+        scroll.update(text: String(repeating: "滚动时让译文边缘逐渐隐去。\n", count: 30), revision: UUID(), appearance: .aqua)
+        let mask = try #require(scroll.contentView.layer?.mask as? CAGradientLayer)
+        try #require(mask.colors?.count == 4)
+        let topIndex = scroll.contentView.isFlipped ? 0 : 3
+        let bottomIndex = 3 - topIndex
+        #expect(mask.frame == scroll.contentView.bounds)
+        #expect((mask.colors as? [CGColor])?[topIndex].alpha == 1)
+        #expect((mask.colors as? [CGColor])?[bottomIndex].alpha == 0)
+        #expect(scroll.layer?.mask == nil)
+        #expect(scroll.verticalScroller?.layer?.mask == nil)
+        scroll.contentView.scroll(to: NSPoint(x: 0, y: 60))
+        scroll.reflectScrolledClipView(scroll.contentView)
+        #expect(mask.frame == scroll.contentView.bounds)
+        #expect((mask.colors as? [CGColor])?[topIndex].alpha == 0)
+        #expect((mask.colors as? [CGColor])?[bottomIndex].alpha == 0)
+        scroll.jumpToLatest()
+        #expect((mask.colors as? [CGColor])?[topIndex].alpha == 0)
+        #expect((mask.colors as? [CGColor])?[bottomIndex].alpha == 1)
+        scroll.setFrameSize(NSSize(width: 420, height: 80))
+        scroll.tile()
+        #expect(mask.frame == scroll.contentView.bounds)
+        scroll.update(text: "完整的短译文", revision: UUID(), appearance: .darkAqua)
+        #expect((mask.colors as? [CGColor])?[topIndex].alpha == 1)
+        #expect((mask.colors as? [CGColor])?[bottomIndex].alpha == 1)
+    }
+
+    @Test func resultScrollbarSitsNearWindowEdgeAndPreservesTextInsets() async throws {
+        _ = NSApplication.shared
+        let directory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".cache/result-scrollbar-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let model = AppModel(store: try LocalStore(directory: directory))
+        model.output = String(repeating: "译文保持原有文字边距。\n", count: 30)
+        let controller = GlintWindowController(title: "Test", size: CGSize(width: 420, height: 500), translator: true, root: TranslatorView(model: model))
+        defer { controller.window.close() }
+        controller.pinned = { true }
+        model.resizeTranslator = { [weak controller] in controller?.fitHeight($0) }
+        controller.show()
+        try await Task.sleep(for: .milliseconds(160))
+        let root = try #require(controller.window.contentView)
+        root.layoutSubtreeIfNeeded()
+        let result = try #require(descendants(of: root, type: TranslationScrollView.self).first)
+        let scroller = try #require(result.verticalScroller as? ThinScroller)
+        let inputScroller = try #require(descendants(of: root, type: InputScrollView.self).first?.verticalScroller)
+        let widthHandle = try #require(descendants(of: root, type: WindowWidthHandle.Handle.self).first)
+        let text = try #require(result.documentView as? RichTextView)
+        #expect(type(of: scroller) == type(of: inputScroller))
+        #expect(scroller.controlSize == .small)
+        #expect(result.scrollerStyle == .overlay)
+        #expect(result.autohidesScrollers)
+        #expect(abs(result.convert(result.bounds, to: nil).maxX - controller.window.frame.width) < 0.5)
+        #expect(abs(result.convert(result.contentView.frame, to: nil).minX - TranslatorLayout.resultInset) < 0.5)
+        #expect(text.textContainer?.containerSize.width == controller.window.frame.width - TranslatorLayout.resultInset * 2)
+        let knob = scroller.convert(scroller.knobFrame, to: nil)
+        #expect(knob.width == 3)
+        #expect(!knob.intersects(widthHandle.convert(widthHandle.bounds, to: nil)))
+        #expect(!scroller.convert(scroller.bounds, to: nil).intersects(widthHandle.convert(widthHandle.bounds, to: nil)))
+        #expect(scroller.testPart(NSPoint(x: knob.midX, y: knob.midY)) == .knob)
     }
 
     @Test func resultResetsForNewRequestAndPreservesSelectionOnAppend() throws {

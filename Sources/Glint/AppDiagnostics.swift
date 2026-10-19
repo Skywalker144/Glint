@@ -45,7 +45,7 @@ enum AppDiagnostics {
             let resultTop = resizeWindow.frame.height - result.convert(result.bounds, to: nil).maxY
             guard abs(inputHeight - InputScrollView.maximumAutomaticHeight) < 0.5,
                   !resizeWindow.styleMask.contains(.resizable),
-                  input.verticalScroller is InputScroller else { throw GlintError.message("原文自动高度、滚动条或窗口缩放入口异常") }
+                  input.verticalScroller is ThinScroller else { throw GlintError.message("原文自动高度、滚动条或窗口缩放入口异常") }
             handle.mouseDown(with: down)
             for width in [760.0, 680.0, 600.0, 520.0, 440.0, 360.0, 440.0, 560.0, 680.0, 820.0] {
                 guard let drag = NSEvent.mouseEvent(with: .leftMouseDragged, location: NSPoint(x: width - 3, y: 60), modifierFlags: [], timestamp: 0, windowNumber: resizeWindow.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) else { throw GlintError.message("无法建立拖动事件") }

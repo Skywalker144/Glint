@@ -15,7 +15,8 @@ struct TranslatorView: View {
             VStack(spacing: 0) {
                 VStack(spacing: 0) {
                     HStack(spacing: 6) {
-                        Text("译").font(.system(size: 15, weight: .bold)).frame(width: 24, height: 24)
+                        Image(nsImage: MenuBarIcon.image).resizable().renderingMode(.template).foregroundStyle(Theme.text)
+                            .frame(width: 16, height: 16).frame(width: 24, height: 24, alignment: .leading).accessibilityHidden(true)
                         WindowDragArea().frame(height: 24).frame(maxWidth: .infinity)
                         IconButton(symbol: "chevron.left", label: "上一条历史 (⌘[)") { model.browseHistory(older: true) }
                             .disabled(!model.canBrowseOlder).keyboardShortcut("[", modifiers: .command)
@@ -60,11 +61,11 @@ struct TranslatorView: View {
                 if model.streaming || !model.output.isEmpty {
                     TranslationResult(model: model, maximumHeight: TranslatorLayout.maximumHeight - headerHeight - TranslatorLayout.inset - TranslatorLayout.bottomInset)
                         .id(model.resultRevision)
-                        .padding(.horizontal, TranslatorLayout.inset).padding(.top, TranslatorLayout.inset)
+                        .padding(.top, TranslatorLayout.inset)
                 }
             }.padding(.bottom, TranslatorLayout.bottomInset)
             .onPreferenceChange(TranslatorHeaderHeight.self) { headerHeight = $0 }
-        }.overlay(alignment: .trailing) { WindowWidthHandle().frame(width: 6).padding(.vertical, 16) }.fixedSize(horizontal: false, vertical: true)
+        }.overlay(alignment: .trailing) { WindowWidthHandle().frame(width: TranslatorLayout.widthHandleWidth).padding(.vertical, 16) }.fixedSize(horizontal: false, vertical: true)
             .background(GeometryReader { proxy in Color.clear.onChange(of: proxy.size.height, initial: true) { _, height in model.resizeTranslator(height) } })
     }
     @ViewBuilder func languageMenu(source isSource: Bool) -> some View {

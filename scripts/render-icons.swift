@@ -30,6 +30,7 @@ func writePNG(_ image: NSImage, size: Int, to url: URL) throws {
 }
 
 try writePNG(image, size: 1024, to: root.appendingPathComponent("build/icon.png"))
+try writePDF(image, size: 256, to: root.appendingPathComponent("Sources/Glint/Resources/AppIcon.pdf"))
 let iconset = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
 for size in [16, 32, 128, 256, 512] {
     try writePNG(image, size: size, to: iconset.appendingPathComponent("icon_\(size)x\(size).png"))
@@ -39,20 +40,25 @@ for size in [16, 32, 128, 256, 512] {
 glyph.removeAttribute(forName: "transform")
 glyph.attribute(forName: "color")?.stringValue = "#000000"
 let symbol = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"32 32 192 192\">\(glyph.xmlString)</svg>"
-guard let symbolImage = NSImage(data: Data(symbol.utf8)),
-      let data = CFDataCreateMutable(nil, 0),
-      let consumer = CGDataConsumer(data: data) else {
+guard let symbolImage = NSImage(data: Data(symbol.utf8)) else {
     fatalError("Unable to create menu bar icon")
 }
-var bounds = CGRect(x: 0, y: 0, width: 18, height: 18)
-guard let context = CGContext(consumer: consumer, mediaBox: &bounds, nil) else {
-    fatalError("Unable to create menu bar PDF context")
+try writePDF(symbolImage, size: 18, to: root.appendingPathComponent("Sources/Glint/Resources/MenuBarIcon.pdf"))
+
+func writePDF(_ image: NSImage, size: CGFloat, to url: URL) throws {
+    guard let data = CFDataCreateMutable(nil, 0), let consumer = CGDataConsumer(data: data) else {
+        fatalError("Unable to create icon PDF data")
+    }
+    var bounds = CGRect(x: 0, y: 0, width: size, height: size)
+    guard let context = CGContext(consumer: consumer, mediaBox: &bounds, nil) else {
+        fatalError("Unable to create icon PDF context")
+    }
+    context.beginPDFPage(nil)
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
+    image.draw(in: bounds, from: .zero, operation: .sourceOver, fraction: 1)
+    NSGraphicsContext.restoreGraphicsState()
+    context.endPDFPage()
+    context.closePDF()
+    try (data as Data).write(to: url)
 }
-context.beginPDFPage(nil)
-NSGraphicsContext.saveGraphicsState()
-NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
-symbolImage.draw(in: bounds, from: .zero, operation: .sourceOver, fraction: 1)
-NSGraphicsContext.restoreGraphicsState()
-context.endPDFPage()
-context.closePDF()
-try (data as Data).write(to: root.appendingPathComponent("Sources/Glint/Resources/MenuBarIcon.pdf"))

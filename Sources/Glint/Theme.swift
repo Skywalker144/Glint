@@ -26,10 +26,26 @@ enum Theme {
 enum TranslatorLayout {
     static let maximumHeight: CGFloat = 600
     static let inset: CGFloat = 10
+    static let widthHandleWidth: CGFloat = 6
     static let resultInset: CGFloat = 15
     static let resultFooterSpacing: CGFloat = 6
     static let bottomInset: CGFloat = 6
     static let footerHeight: CGFloat = 28
+}
+
+final class ThinScroller: NSScroller {
+    var knobFrame: NSRect {
+        let knob = rect(for: .knob).insetBy(dx: 0, dy: 2)
+        return NSRect(x: bounds.maxX - 5, y: knob.minY, width: 3, height: knob.height)
+    }
+    override class var isCompatibleWithOverlayScrollers: Bool { true }
+    override func drawKnobSlot(in slotRect: NSRect, highlight flag: Bool) {}
+    override func drawKnob() {
+        let knob = knobFrame
+        guard knob.height > 0 else { return }
+        NSColor.secondaryLabelColor.withAlphaComponent(0.35).setFill()
+        NSBezierPath(roundedRect: knob, xRadius: 1.5, yRadius: 1.5).fill()
+    }
 }
 
 struct GlintButtonStyle: ButtonStyle {
