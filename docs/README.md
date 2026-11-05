@@ -39,6 +39,6 @@ bash scripts/build.sh debug
 dist/Glint.app/Contents/MacOS/Glint --data-directory "$PWD/.cache/ui-data" --verify-ui "$PWD/.cache/ui"
 ```
 
-[诊断入口](../Sources/Glint/AppDiagnostics.swift)仅编入 Debug。它使用独立数据生成三个窗口宽度、翻译页与全部设置页的深浅主题、富文本和生词本截图。`--data-directory` 禁用全局快捷键、划词监听、登录启动设置变更和自动检查更新，适合隔离交互验证。
+[诊断入口](../Sources/Glint/AppDiagnostics.swift)仅编入 Debug。它使用独立数据生成三个窗口宽度、翻译页与全部设置页的深浅主题、富文本和生词本截图，并通过真实输入、换行与全选删除检查系统光标和文本行对齐。`--data-directory` 禁用全局快捷键、划词监听、登录启动设置变更和自动检查更新，适合隔离交互验证。
 
 真实系统验收还需覆盖：外部应用选区与浮动「译」点击、屏幕录制授权后的截图拖拽、全屏与多显示器、登录启动、在线服务商密钥和代理，以及两个签名发布版本之间的更新。系统权限和真实服务商响应不能由本机模拟服务代替。

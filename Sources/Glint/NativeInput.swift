@@ -4,6 +4,10 @@ import SwiftUI
 final class InputTextView: NSTextView {
     var submit: () -> Void = {}
     var dismiss: () -> Void = {}
+    override func layout() {
+        super.layout()
+        updateInsertionPointStateAndRestartTimer(false)
+    }
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         if string.isEmpty {
@@ -51,6 +55,7 @@ final class InputScrollView: OverlayScrollView {
         if abs(view.textContainerInset.height - inset) > 0.25 { view.textContainerInset.height = inset }
         let size = NSSize(width: contentSize.width, height: max(contentSize.height, textHeight + 16))
         if view.frame.size != size { view.setFrameSize(size) }
+        view.needsLayout = true
         view.needsDisplay = true
         onHeightChange(min(Self.maximumAutomaticHeight, max(Self.minimumHeight, textHeight + 16)))
     }

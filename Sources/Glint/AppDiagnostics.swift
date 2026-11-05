@@ -10,6 +10,30 @@ enum AppDiagnostics {
             try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
             let model = delegate.model!
             model.changeSettings { $0.engine = "openai"; $0.pinned = true }
+            let inputWindow = delegate.translator!.window
+            delegate.translator.show()
+            try await Task.sleep(for: .milliseconds(150))
+            guard let inputRoot = inputWindow.contentView,
+                  let inputScroll = descendants(of: inputRoot, type: InputScrollView.self).first,
+                  let inputText = inputScroll.documentView as? InputTextView else { throw GlintError.message("缺少原文输入框") }
+            inputWindow.makeFirstResponder(inputText)
+            for (index, inserted) in ["Hello", "\n", "\n", "", "\n", "", "你好", "\n", "\n", "", "😀", "\n", "", String(repeating: "多行原文\n", count: 20), ""].enumerated() {
+                if inserted.isEmpty { inputText.selectAll(nil); inputText.deleteBackward(nil) }
+                else { inputText.insertText(inserted, replacementRange: inputText.selectedRange()) }
+                try await Task.sleep(for: .milliseconds(150))
+                inputRoot.layoutSubtreeIfNeeded(); inputRoot.displayIfNeeded()
+                guard let indicator = descendants(of: inputText, type: NSTextInsertionIndicator.self).first,
+                      let manager = inputText.layoutManager,
+                      let container = inputText.textContainer else { throw GlintError.message("缺少原生输入光标") }
+                manager.ensureLayout(for: container)
+                let line = inputText.string.isEmpty || inputText.string.hasSuffix("\n") ? manager.extraLineFragmentRect : manager.lineFragmentRect(forGlyphAt: manager.numberOfGlyphs - 1, effectiveRange: nil)
+                let actual = indicator.convert(indicator.bounds, to: inputText)
+                let expectedY = inputText.textContainerOrigin.y + line.midY
+                if inputText.string.isEmpty {
+                    try snapshot(inputWindow, at: output.appendingPathComponent("input-caret-empty-\(index).png"))
+                }
+                guard abs(actual.midY - expectedY) <= 1 else { throw GlintError.message("原文光标偏离文本行 step=\(index), actual=\(actual), expectedY=\(expectedY)") }
+            }
             model.input = "abstract"
             model.output = "**abstract** /ˈæbstrækt/\nadj. 抽象的；难以理解的\nn. 摘要；梗概\n\n---\n\n例句 An abstract idea. — 一个抽象的想法。"
             model.displayMode = .dict
@@ -153,7 +177,7 @@ enum AppDiagnostics {
             guard delegate.translator.window.isVisible, delegate.translator.window.isMainWindow, delegate.translator.window.isKeyWindow else { throw GlintError.message("重译入口未将翻译窗置前") }
             let plain = NativeMarkdown.plainText("**普通译文**\n\n- [链接](https://example.com)\n\n`code`")
             guard plain.contains("普通译文"), plain.contains("链接"), !plain.contains("**"), !plain.contains("](https") else { throw GlintError.message("纯文本复制检查失败") }
-            try Data("原生窗口、三个宽度、深浅主题、原文自动高度与细滚动条、禁用原生边缘缩放、底边越界、横向拖动、词典、流式顶部保持与阅读位置、编辑失效与清空、富文本与公式、设置垂直缩放、标准关闭、重译显示、生词本方向键与词头去重、纯文本复制检查通过\n".utf8).write(to: output.appendingPathComponent("result.txt"))
+            try Data("原生窗口、三个宽度、深浅主题、原文光标与空行清空、自动高度与细滚动条、禁用原生边缘缩放、底边越界、横向拖动、词典、流式顶部保持与阅读位置、编辑失效与清空、富文本与公式、设置垂直缩放、标准关闭、重译显示、生词本方向键与词头去重、纯文本复制检查通过\n".utf8).write(to: output.appendingPathComponent("result.txt"))
             NSApp.terminate(nil)
         } catch {
             try? Data(error.localizedDescription.utf8).write(to: output.appendingPathComponent("failure.txt"))
